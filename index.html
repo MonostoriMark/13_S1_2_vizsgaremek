@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StaySharp - Projekt Specifikáció</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            border-left: 5px solid #3498db;
+            padding-left: 15px;
+            margin-top: 30px;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        .download-btn {
+            display: block;
+            width: 250px;
+            margin: 30px auto;
+            padding: 15px;
+            background-color: #3498db;
+            color: white;
+            text-align: center;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .download-btn:hover {
+            background-color: #2980b9;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .download-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>StaySharp - Szálloda Foglalási Platform<br>Projektfeladat specifikáció</h1>
+        
+        <h2>1. Tartalomjegyzék</h2>
+        <ol>
+            <li>Tartalomjegyzék</li>
+            <li>Bevezetés</li>
+            <li>Elvárások a feladattal kapcsolatban</li>
+            <li>Szoftver specifikáció</li>
+            <li>Dokumentáció</li>
+            <li>A projekt értékelése</li>
+            <li>Projekt adatlap</li>
+        </ol>
+
+        <h2>2. Bevezetés</h2>
+        <h3>2.1 A feladat címe</h3>
+        <p><strong>StaySharp - Szálloda Foglalási Platform</strong></p>
+        
+        <h3>2.2 A feladat rövid ismertetése</h3>
+        <p>A projekt célja egy modern, biztonságos online szálloda-foglaló platform létrehozása, amely összeköti a vendégeket és a szállodákat. A rendszer lehetővé teszi a vendégek számára, hogy könnyedén keressenek és foglaljanak szobát dátum, város és létszám alapján. A szállodák számára átfogó admin felületet biztosít a foglalások, szobák, árak és szolgáltatások kezelésére, valamint számlagenerálásra. A platform integrál különböző online fizetési megoldásokat és egy innovatív, RFID alapú check-in/check-out rendszert.</p>
+
+        <div class="page-break"></div>
+        
+        <h2>3. Elvárások a feladattal kapcsolatban</h2>
+        <h3>3.1 Operációs rendszer, környezet</h3>
+        <ul>
+            <li>Fejlesztői környezet: Windows 10/11, Linux, macOS</li>
+            <li>Éles környezet: Linux szerver (Ubuntu 20.04 LTS vagy újabb)</li>
+            <li>Böngésző támogatás: Chrome, Firefox, Safari, Edge legfrissebb verziói</li>
+        </ul>
+        
+        <h3>3.2 Felhasználandó technológiák</h3>
+        <ul>
+            <li>Backend: Django (Python) REST API</li>
+            <li>Frontend: Vue.js 3 (Composition API, Pinia state management)</li>
+            <li>Adatbázis: PostgreSQL</li>
+            <li>Hitelesítés: JWT (JSON Web Tokens)</li>
+            <li>Fizetési integráció: Stripe / Barion / SimplePay</li>
+            <li>RFID Hardver: Raspberry Pi Pico W + RFID RC522 modul</li>
+            <li>Verziókövetés: Git, GitHub</li>
+            <li>Üzemeltetés: Docker, Docker Compose</li>
+        </ul>
+        
+        <h3>3.3 Megoldás formátuma</h3>
+        <ul>
+            <li>Teljes Git repository a forráskóddal</li>
+            <li>Docker compose konfiguráció</li>
+            <li>Részletes technikai dokumentáció (.md és .pdf)</li>
+            <li>Forráskód dokumentáció</li>
+            <li>Erőforrás-terv és munkaidő-nyilvántartás</li>
+            <li>Felhasználói dokumentáció és képernyőképek</li>
+        </ul>
+        
+        <h3>3.4 Szoftverfejlesztés</h3>
+        <p>A feladat egy háromrétegű webalkalmazás megtervezése és megvalósítása, amely magában foglalja a felhasználói (vendég) felületet, a szálloda admin felületet és a rendszer admin felületet. A fejlesztés során be kell tartani a modern web fejlesztési elveket (reszponzív design, RESTful API-k, biztonságos kódolás).</p>
+        
+        <h3>3.5 Modulok</h3>
+        <ul>
+            <li>Backend Modul (Django)</li>
+            <li>Frontend Modul (Vue.js)</li>
+            <li>RFID Hardver Modul (Prototípus)</li>
+            <li>Projektmenedzsment és Dokumentáció</li>
+        </ul>
+
+        <div class="page-break"></div>
+        
+        <h2>4. Szoftver specifikáció</h2>
+        <h3>4.1 Megjelenés</h3>
+        <ul>
+            <li>Reszponzív design minden eszközön (mobil, tablet, desktop)</li>
+            <li>Modern, felhasználóbarát felület a vendégek számára</li>
+            <li>Áttekinthető dashboard a szálloda adminok számára</li>
+            <li>Egyszerű és hatékony felület a rendszer adminok számára</li>
+        </ul>
+        
+        <h3>4.2 Funkciók</h3>
+        <ol>
+            <li><strong>Nyilvános Oldalak & Vendég Funkciók:</strong>
+                <ul>
+                    <li>Regisztráció és bejelentkezés (JWT)</li>
+                    <li>Szálloda és szoba kereső</li>
+                    <li>Szoba részletes megtekintése</li>
+                    <li>Foglalási folyamat</li>
+                    <li>Online fizetés integráció</li>
+                    <li>Felhasználói profil</li>
+                </ul>
+            </li>
+            <li><strong>Szálloda Admin Felület:</strong>
+                <ul>
+                    <li>Dashboard</li>
+                    <li>Szobakezelés</li>
+                    <li>Foglaláskezelés</li>
+                    <li>Számlázás</li>
+                    <li>Beállítások</li>
+                </ul>
+            </li>
+            <li><strong>Rendszer Admin Felület:</strong>
+                <ul>
+                    <li>Felhasználók és szállodák listázása</li>
+                    <li>Új szálloda regisztrációk validálása</li>
+                    <li>Számlázási adatok megtekintése</li>
+                </ul>
+            </li>
+            <li><strong>RFID Check-in/check-out Rendszer (Prototípus):</strong>
+                <ul>
+                    <li>Raspberry Pi Pico W + RFID olvasó</li>
+                    <li>WebSocket kommunikáció a backenddel</li>
+                    <li>Check-in és check-out funkciók</li>
+                </ul>
+            </li>
+            <li><strong>Biztonsági Funkciók:</strong>
+                <ul>
+                    <li>JWT token alapú hitelesítés</li>
+                    <li>Bizalmas adatok titkosított tárolása</li>
+                    <li>API végpontok védelme</li>
+                    <li>SQL injection és XSS védelem</li>
+                    <li>Regisztráció validáció</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="page-break"></div>
+        
+        <h2>5. Dokumentáció</h2>
+        <h3>5.1 Erőforrás-terv, munkaidő nyilvántartás</h3>
+        <p>Részletes erőforrás-terv a részfeladatokkal, felelősökkel és becsült munkaórákkal. Tényleges munkaidő nyilvántartás a projektre.</p>
+        
+        <h3>5.2 Technikai dokumentáció</h3>
+        <p>Rendszer architektúra, alkalmazott technológiák, adatbázis séma, API végpontok és integrációs pontok leírása. .md és .pdf formátumban.</p>
+        
+        <h3>5.3 Forráskód dokumentáció</h3>
+        <p>Django backend docstring formátumban, Vue.js frontend JSDoc/Comment alapú dokumentációval.</p>
+        
+        <h3>5.4 Felhasználói dokumentáció</h3>
+        <p>Részletes útmutató a rendszer használatához vendégek és szálloda adminisztrátorok számára, képernyőképekkel illusztrálva. .md és .pdf formátumban.</p>
+        
+        <h2>6. A projekt értékelése</h2>
+        <h3>6.1 A feladat értékelésének felhasználó oldali szempontjai</h3>
+        <ul>
+            <li>Teljes és hibamentes funkcionalitás</li>
+            <li>Intuitív, ergonomikus felhasználói felület</li>
+            <li>Gyors és zökkenőmentes foglalási folyamat</li>
+            <li>Stabil és megbízható működés</li>
+            <li>Érthető felhasználói dokumentáció</li>
+        </ul>
+        
+        <h3>6.2 A feladat értékelésének technikai szempontjai</h3>
+        <ul>
+            <li>Tiszta, jól strukturált forráskód</li>
+            <li>Kódolási konvenciók betartása</li>
+            <li>Magas színvonalú technikai dokumentáció</li>
+            <li>Dokumentált tesztelés</li>
+            <li>Pontos munkaidő-nyilvántartás</li>
+        </ul>
+        
+        <h3>6.3 Projekt megvalósításának piaci jellegű értékelése</h3>
+        <p>A tervek és valós eredmények összehasonlítása, tipikus kihívások és hibák elemzése:</p>
+        <ul>
+            <li>Határidők betartása</li>
+            <li>Funkcionalitás és kód minősége</li>
+            <li>Tesztelés részletessége</li>
+            <li>Dokumentáció pontossága</li>
+            <li>Erőforrás-becslés pontossága</li>
+            <li>Megoldás skálázhatósága és karbantarthatósága</li>
+        </ul>
+
+        <div class="page-break"></div>
+        
+        <h2>7. Projekt adatlap</h2>
+        <ul>
+            <li><strong>Projekt neve:</strong> StaySharp - Szálloda Foglalási Platform</li>
+            <li><strong>Feladat leírása:</strong> Innovatív szálloda-foglaló platform online fizetéssel és RFID alapú check-in/check-out rendszerrel</li>
+            <li><strong>Felhasznált technológiák:</strong> Django, Vue.js 3, PostgreSQL, JWT, Docker, Stripe/Barion API, Raspberry Pi Pico W</li>
+            <li><strong>Specifikációt összeállította:</strong> [A Csapat Neve/Tagjai itt]</li>
+        </ul>
+        
+        <a href="#" class="download-btn" onclick="downloadSpecification()">Specifikáció letöltése PDF-ként</a>
+    </div>
+
+    <script>
+        function downloadSpecification() {
+            // Létrehozunk egy új ablakot a nyomtatási nézettel
+            const printWindow = window.open('', '_blank');
+            
+            // HTML tartalom másolása a nyomtatási ablakba
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="hu">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>StaySharp - Projekt Specifikáció</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 1000px;
+                            margin: 0 auto;
+                            padding: 20px;
+                        }
+                        h1, h2, h3 {
+                            color: #2c3e50;
+                        }
+                        h1 {
+                            text-align: center;
+                            border-bottom: 3px solid #3498db;
+                            padding-bottom: 15px;
+                            margin-bottom: 30px;
+                        }
+                        h2 {
+                            border-left: 5px solid #3498db;
+                            padding-left: 15px;
+                            margin-top: 30px;
+                        }
+                        .page-break {
+                            page-break-before: always;
+                        }
+                        @media print {
+                            body {
+                                padding: 0;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${document.querySelector('.container').innerHTML}
+                </body>
+                </html>
+            `);
+            
+            // Eltávolítjuk a letöltés gombot a nyomtatási verzióból
+            const downloadBtn = printWindow.document.querySelector('.download-btn');
+            if (downloadBtn) {
+                downloadBtn.remove();
+            }
+            
+            // PDF generálás és letöltés
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+    </script>
+</body>
+</html>
