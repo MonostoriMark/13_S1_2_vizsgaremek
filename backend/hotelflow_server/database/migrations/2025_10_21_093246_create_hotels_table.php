@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('location');
             $table->text('description')->nullable();
             $table->string('type')->default('hotel');
-            $table->integer('star_rating')->default(3);
+            $table->integer('starRating')->default(3);
             $table->timestamps();
         });
     }
