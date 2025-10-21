@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('hotels', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('name');
+            $table->string('location');
+            $table->text('description')->nullable();
+            $table->string('type')->default('hotel');
+            $table->integer('star_rating')->default(3);
             $table->timestamps();
         });
     }
