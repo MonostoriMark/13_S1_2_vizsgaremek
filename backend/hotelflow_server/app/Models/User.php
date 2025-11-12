@@ -13,15 +13,15 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'passwordHash',
+        'password',
         'role',
-        'createdAt'
     ];
 
     protected $hidden = [
         'passwordHash',
         'remember_token',
     ];
+    
 
-    public $timestamps = false;
+    public $timestamps = true;
 }

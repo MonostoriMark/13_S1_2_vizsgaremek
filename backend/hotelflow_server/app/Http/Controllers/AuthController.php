@@ -20,10 +20,12 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'passwordHash' => Hash::make($validated['password']),
+            'password' => Hash::make($validated['password']),
             'role' => $validated['role'] ?? 'guest',
-            'createdAt' => now(),
-        ]);
+            'created_at' => now()
+            
+]);
+
 
         $token = $user->createToken('api_token')->plainTextToken;
 
@@ -32,27 +34,29 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'createdAt' => $user->createdAt,
+            'created_at' => $user->created_at,
             'token' => $token
         ], 201);
     }
 
-    public function login(Request $request)
+        public function login(Request $request)
     {
-        $credentials = $request->validate([
+        // Validáció
+        $validated = $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        // Felhasználó keresése
+        $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->passwordHash)) {
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'message' => 'Invalid credentials'
             ], 401);
         }
 
-        // Minden login-nál új token generálása
+        // Új token generálása
         $token = $user->createToken('api_token')->plainTextToken;
 
         return response()->json([
@@ -60,7 +64,13 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
+            'created_at' => $user->created_at, // már magyar idő
             'token' => $token
-        ]);
+        ], 200);
     }
+        public function loginTest(Request $request)
+        {
+            dd($request->all());
+        }
+        
 }
