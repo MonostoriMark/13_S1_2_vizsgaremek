@@ -72,5 +72,51 @@ class AuthController extends Controller
             $request->user()->currentAccessToken()->delete();
             return response()->json(['message' => 'Logged out'], 200);
         }
-        
+        public function testAuth(){
+            return response()->json(['message' => 'Authenticated'], 200);
+        }
+        public function getUserById($id){
+            $user = User::find($id);
+            if(!$user){
+                return response()->json(['message' => 'User not found'], 404);
+            }
+            return response()->json([
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'created_at' => $user->created_at
+            ], 200);
+        }
+        // Hotel regisztráció
+                    public function registerHotel(Request $request)
+                {
+                    $validated = $request->validate([
+                        'name' => ['required', 'string', 'max:255'],
+                        'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+                        'password' => ['required', 'string', 'min:8'],
+                    ]);
+                    $user = User::create([
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'password' => Hash::make($validated['password']),
+                        'role' => 'hotel',
+                        'created_at' => now()
+                    ]);
+                    $hotel = Hotel::create([
+                        'user_id' => $user->id,
+                        'name' => $validated['name'],
+                        'created_at' => now()
+                    ]);
+
+                    $token = $user->createToken('api_token')->plainTextToken;
+                    return response()->json([
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'created_at' => $user->created_at,
+                        'token' => $token
+                    ], 201);
+                }
 }
