@@ -5,23 +5,25 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\Hotel;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    //USER REGISZTRÁCIÓ
+    public function registerUser(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['in:guest,hotel']
+            
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'guest',
+            'role' => 'user',
             'created_at' => now()
             
 ]);
@@ -95,6 +97,10 @@ class AuthController extends Controller
                         'name' => ['required', 'string', 'max:255'],
                         'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
                         'password' => ['required', 'string', 'min:8'],
+                        'location' => ['required', 'string', 'max:255'],
+                        'type' => ['required', 'in:hotel,apartment,villa,other'],
+                        'starRating' => ['nullable', 'integer', 'min:1', 'max:5']
+
                     ]);
                     $user = User::create([
                         'name' => $validated['name'],
@@ -105,7 +111,9 @@ class AuthController extends Controller
                     ]);
                     $hotel = Hotel::create([
                         'user_id' => $user->id,
-                        'name' => $validated['name'],
+                        'location' => $validated['location'],
+                        'type' => $validated['type'],
+                        'starRating' => $validated['starRating'],
                         'created_at' => now()
                     ]);
 
