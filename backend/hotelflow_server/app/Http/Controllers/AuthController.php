@@ -126,5 +126,62 @@ class AuthController extends Controller
                         'created_at' => $user->created_at,
                         'token' => $token
                     ], 201);
+                    
+                }
+                public function me(Request $request){
+                        $user = $request->user();
+                        return response()->json([
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'role' => $user->role,
+                            'created_at' => $user->created_at
+                        ], 200);
+                    }
+                public function updateUser(Request $request, $id)
+                    {
+                        $validated = $request->validate([
+                            'name' => ['sometimes', 'string', 'max:255'],
+                            'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $id],
+                            'password' => ['sometimes', 'string', 'min:8']
+                        ]);
+
+                        $user = User::find($id);
+
+                        if (!$user) {
+                            return response()->json(['message' => 'User not found'], 404);
+                        }
+
+                        // Csak azt frissítsd, amit kaptál
+                        if (isset($validated['name'])) {
+                            $user->name = $validated['name'];
+                        }
+
+                        if (isset($validated['email'])) {
+                            $user->email = $validated['email'];
+                        }
+
+                        if (isset($validated['password'])) {
+                            $user->password = Hash::make($validated['password']);
+                        }
+
+                        $user->save();
+
+                        return response()->json([
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'role' => $user->role,
+                            'created_at' => $user->created_at
+                        ], 200);
+                    }
+                
+                public function deleteUser($id){
+                    $user = User::find($id);
+                    if(!$user){
+                        return response()->json(['message' => 'User not found'], 404);
+                    }
+                    $user->delete();
+                    return response()->json(['message' => 'User deleted'], 200);
                 }
 }
