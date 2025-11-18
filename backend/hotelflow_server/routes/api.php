@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HotelController;
 use App\Http\Controllers\RoomController;
+use Providers\AppServiceProvider;
+
 
 //USER VÉGPONTOK
 
@@ -27,4 +29,4 @@ Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->m
 //ROOM VÉGPONTOK
 Route::get('/rooms/hotel/{hotel_id}', [RoomController::class, 'getRoomsByHotelId']);
 Route::get('/rooms/{id}', [RoomController::class, 'getRoomById']);
-Route::post('/rooms/create/{hotel_id}', [RoomController::class, 'createRoom']);
+Route::post('/rooms/create/{hotel_id}', [RoomController::class, 'createRoom'])->middleware('auth:sanctum', 'role:user');
