@@ -45,4 +45,45 @@ class RoomController extends Controller
 
         return response()->json($room, 201);
     }
+    public function deleteRoom($id){
+        $room = Room::find($id);
+        if(!$room){
+            return response()->json(['message' => 'Room not found'], 404);
+        }
+        $room->delete();
+        return response()->json(['message' => 'Room deleted successfully'], 200);
+    }
+    public function updateRoom(Request $request, $id){
+        $room = Room::find($id);
+        if(!$room){
+            return response()->json(['message' => 'Room not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:50'],
+            'description' => ['sometimes', 'string', 'max:100'],
+            'pricePerNight' => ['sometimes', 'numeric', 'min:0'],
+            'capacity' => ['sometimes', 'integer', 'min:1'],
+            'basePrice' => ['sometimes', 'numeric', 'min:0']
+        ]);
+
+        if(isset($validated['name'])){
+            $room->name = $validated['name'];
+        }
+        if(isset($validated['description'])){
+            $room->description = $validated['description'];
+        }
+        if(isset($validated['pricePerNight'])){
+            $room->pricePerNight = $validated['pricePerNight'];
+        }
+        if(isset($validated['capacity'])){
+            $room->capacity = $validated['capacity'];
+        }
+        if(isset($validated['basePrice'])){
+            $room->basePrice = $validated['basePrice'];
+        }
+        $room->save();
+
+        return response()->json($room, 200);
+    }
 }

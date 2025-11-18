@@ -148,7 +148,6 @@ return new class extends Migration
             $table->unsignedBigInteger('rooms_id');
             $table->unsignedBigInteger('serviceTags_id');
             $table->primary(['rooms_id', 'serviceTags_id']);
-
             $table->foreign('rooms_id')->references('id')->on('rooms')->onDelete('cascade');
             $table->foreign('serviceTags_id')->references('id')->on('serviceTags')->onDelete('cascade');
         });
