@@ -6,7 +6,7 @@ use App\Models\Booking;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Endroid\QrCode\Builder\Builder;
 
 class BookingConfirmationMail extends Mailable
 {
@@ -19,10 +19,13 @@ class BookingConfirmationMail extends Mailable
     {
         $this->booking = $booking;
 
-        // QR generálás base64-ben
-        $this->qrBase64 = base64_encode(
-            QrCode::format('png')->size(300)->generate($booking->checkInToken)
-        );
+        // QR generálás PNG-ben és base64-elve
+        $qrResult = Builder::create()
+            ->data($booking->checkInToken)
+            ->size(300)
+            ->build();
+
+        $this->qrBase64 = base64_encode($qrResult->getString());
     }
 
     public function build()
