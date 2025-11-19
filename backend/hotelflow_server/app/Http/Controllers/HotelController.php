@@ -27,6 +27,12 @@ class HotelController extends Controller
             'starRating' => ['sometimes', 'integer', 'min:1', 'max:5'],
             'rating' => ['sometimes', 'integer', 'min:1', 'max:5'],
         ]);
+         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+        if ($hotel->user_id !== auth()->id()) {
+            return response()->json(['error' => 'Nincs jogosultságod'], 403);
+        }
 
         if(!$hotel){
             return response()->json(['message' => 'Hotel not found'], 404);
@@ -65,6 +71,12 @@ class HotelController extends Controller
     }
     public function deleteHotel($id){
         $hotel = Hotel::find($id);
+         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+        if ($hotel->user_id !== auth()->id()) {
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+        }
         if(!$hotel){
             return response()->json(['message' => 'Hotel not found'], 404);
         }

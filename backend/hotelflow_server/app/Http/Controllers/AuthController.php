@@ -147,7 +147,12 @@ class AuthController extends Controller
                         ]);
 
                         $user = User::find($id);
-
+                         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+                        if ($user->id !== auth()->id()) {
+                            return response()->json(['error' => 'Nincs jogosultságod'], 403);
+                        }
                         if (!$user) {
                             return response()->json(['message' => 'User not found'], 404);
                         }
@@ -178,6 +183,12 @@ class AuthController extends Controller
                 
                 public function deleteUser($id){
                     $user = User::find($id);
+                     // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+                    if ($user->id !== auth()->id()) {
+                        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+                    }
                     if(!$user){
                         return response()->json(['message' => 'User not found'], 404);
                     }

@@ -1,0 +1,33 @@
+meta {
+  name: New HTTP Request
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8000/api/bookings/add-guest/137
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: 3|AiQwOSRg1jXXiVCSYbQzVEjmtONEZZzLMwtUhYmVfb9b9d05
+}
+
+body:json {
+  {
+    "guests": [
+      {
+        "name": "Kiss Péter",
+        "idNumber": "AB123456",
+        "dateOfBirth": "1990-05-12"
+      },
+      {
+        "name": "Nagy Anna",
+        "idNumber": "CD654321",
+        "dateOfBirth": "1988-11-03"
+      }
+    ]
+  }
+  
+}

@@ -32,7 +32,13 @@ class RoomController extends Controller
             'capacity' => ['required', 'integer', 'min:1'],
             'basePrice' => ['required', 'numeric', 'min:0']
         ]);
-
+         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+    if ($hotel->user_id !== auth()->id()) {
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+    }
+    else{
         $room = Room::create([
             'hotels_id' => $validated['hotels_id'],
             'name' => $validated['name'],
@@ -45,8 +51,15 @@ class RoomController extends Controller
 
         return response()->json($room, 201);
     }
+}
     public function deleteRoom($id){
         $room = Room::find($id);
+         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+    if ($room->hotels_id !== auth()->id()) {
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+    }
         if(!$room){
             return response()->json(['message' => 'Room not found'], 404);
         }
@@ -58,6 +71,12 @@ class RoomController extends Controller
         if(!$room){
             return response()->json(['message' => 'Room not found'], 404);
         }
+         // -------------------------
+    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // -------------------------
+    if ($room->hotels_id !== auth()->id()) {
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+    }
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:50'],

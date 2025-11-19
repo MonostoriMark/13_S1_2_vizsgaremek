@@ -38,6 +38,8 @@ Route::put('/rooms/update/{id}', [RoomController::class, 'updateRoom'])->middlew
 
 //FOGLALÁS VÉGPONTOK
 
-Route::post('/bookings', [BookingController::class, 'store']);
-Route::post('/bookings/{bookingId}/guests', [GuestController::class, 'store']);
+Route::post('/bookings', [BookingController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGuests'])->middleware('auth:sanctum');
 
+//GUEST VÉGPONTOK
+Route::put('/guests/update/{id}', [GuestController::class, 'updateGuest'])->middleware('auth:sanctum');
