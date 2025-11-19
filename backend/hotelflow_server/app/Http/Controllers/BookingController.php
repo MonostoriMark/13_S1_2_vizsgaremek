@@ -7,6 +7,8 @@ use App\Models\Room;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\BookingConfirmationMail;
 
 class BookingController extends Controller
 {
@@ -30,6 +32,8 @@ class BookingController extends Controller
                 'users_id' => $request->userId,
                 'startDate' => $request->startDate,
                 'endDate' => $request->endDate,
+                'checkInToken' => str()->random(),
+                'status' => 'pending',
                 'totalPrice' => 0, // Később kalkulálható
             ]);
 
@@ -42,6 +46,15 @@ class BookingController extends Controller
             }
 
             DB::commit();
+            
+            try {
+                Mail::to($booking->user->email)
+                    ->send(new BookingConfirmationMail($booking));
+                    echo $booking->user->email;
+                    
+            } catch (\Exception $mailEx) {
+                \Log::error('Mail küldési hiba: ' . $mailEx->getMessage());
+            }
             return response()->json(['bookingId' => $booking->id], 201);
         } catch (\Exception $e) {
             DB::rollBack();

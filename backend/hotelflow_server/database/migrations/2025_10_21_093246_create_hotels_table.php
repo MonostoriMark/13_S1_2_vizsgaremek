@@ -55,10 +55,9 @@ return new class extends Migration
             $table->date('endDate');
             $table->integer('totalPrice');
             $table->string('checkInToken')->nullable();
-            $table->string('checkOutToken')->nullable();
             $table->enum('checkInstatus', ['checkedOut', 'checkedIn'])->nullable();
-            $table->timestamp('checkInDate')->nullable();
-            $table->timestamp('checOutDate')->nullable();
+            $table->timestamp('checkInTime')->nullable();
+            $table->timestamp('checOutTime')->nullable();
             $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
             $table->timestamp('createdAt')->useCurrent();
         });
