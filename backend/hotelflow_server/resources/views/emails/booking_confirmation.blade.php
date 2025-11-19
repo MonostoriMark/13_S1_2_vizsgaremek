@@ -7,6 +7,6 @@
 
 <p>Az alábbi QR-kódot mutasd fel a check-in során:</p>
 
-<img src="data:image/png;base64,{{ $qrBase64 }}" alt="QR Code" style="width:300px;height:300px;" />
+<img src="{{ $message->embed($qrPath) }}" alt="QR Code" style="width:300px;height:300px;" />
 
 <p>Üdv,<br>Hotel rendszer</p>

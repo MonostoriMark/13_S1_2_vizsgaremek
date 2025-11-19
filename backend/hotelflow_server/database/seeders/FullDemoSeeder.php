@@ -44,10 +44,10 @@ class FullDemoSeeder extends Seeder
                 ]);
             }
             User::create([
-                'name' => 'AdminUser',
-                'email' => 'alma@alma.hu',
+                'name' => 'Monostori Márk',
+                'email' => 'monostorimark05@gmail.com',
                 'password' => bcrypt('password'),
-                'role' => 'hotel',
+                'role' => 'user',
             ]);
 
             // -------------------------

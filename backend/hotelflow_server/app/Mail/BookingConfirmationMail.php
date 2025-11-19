@@ -13,19 +13,26 @@ class BookingConfirmationMail extends Mailable
     use Queueable, SerializesModels;
 
     public $booking;
-    public $qrBase64;
+    public $qrPath; // ideiglenes fájl elérési útja
 
     public function __construct(Booking $booking)
     {
         $this->booking = $booking;
 
-        // QR generálás PNG-ben és base64-elve
+        // QR generálás
         $qrResult = Builder::create()
             ->data($booking->checkInToken)
             ->size(300)
             ->build();
 
-        $this->qrBase64 = base64_encode($qrResult->getString());
+        // Ideiglenes mentés a storage/app/public/qr-kodok mappába
+        $qrDir = storage_path('app/public/qr-codes');
+        if (!file_exists($qrDir)) {
+            mkdir($qrDir, 0777, true);
+        }
+
+        $this->qrPath = $qrDir . '/qr_' . $booking->id . '.png';
+        file_put_contents($this->qrPath, $qrResult->getString());
     }
 
     public function build()
