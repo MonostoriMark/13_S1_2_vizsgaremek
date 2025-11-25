@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingConfirmationMail;
 use App\Models\Guest;
 
-class BookingController extends Controller
+class GuestController extends Controller
 {
     public function updateGuest(Request $request, $id)
 {
@@ -49,6 +49,31 @@ class BookingController extends Controller
         'guest' => $guest
     ], 200);
 }
+public function deleteGuest($id)
+{
+    // Vendég lekérése
+    $guest = Guest::find($id);
+    if (!$guest) {
+        return response()->json(['message' => 'Guest not found'], 404);
+    }
 
+    // Foglalás lekérése a vendég alapján
+    $booking = Booking::find($guest->bookings_id);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // 🔥 Jogosultság ellenőrzés
+    if ($booking->users_id !== auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    // Vendég törlése
+    $guest->delete();
+
+    return response()->json([
+        'message' => 'Guest deleted successfully'
+    ], 200);
+}
 
 }

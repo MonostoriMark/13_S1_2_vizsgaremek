@@ -26,7 +26,22 @@ class BookingController extends Controller
         'services' => 'array',
         'services.*' => 'exists:services,id'
     ]);
-
+    if($request->userId !== auth()->id()){
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+    }
+    if (count($request->rooms) === 0) {
+        return response()->json(['error' => 'Legalább egy szobát ki kell választani'], 400);
+    }
+    if ($request->has('services') && count($request->services) === 0) {
+        return response()->json(['error' => 'Ha szolgáltatásokat adsz meg, legalább egyet ki kell választani'], 400);
+    }
+    if (strtotime($request->endDate) < strtotime($request->startDate)) {
+        return response()->json(['error' => 'A távozási dátumnak későbbinek kell lennie, mint az érkezési dátum'], 400);
+    }
+    if(strtotime($request->startDate) < strtotime(date('Y-m-d'))){
+        return response()->json(['error' => 'Az érkezési dátum nem lehet múltbeli'], 400);
+    }
+    
     DB::beginTransaction();
     try {
         // -------------------------
@@ -130,6 +145,49 @@ class BookingController extends Controller
 
     return response()->json(['message' => 'Vendégek sikeresen hozzáadva'], 201);
 }
+public function deleteBooking($id)
+{
+    $booking = Booking::find($id);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
 
+    // 🔥 Jogosultság ellenőrzés
+    if ($booking->users_id !== auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
 
+    $booking->delete();
+
+    return response()->json(['message' => 'Booking deleted successfully'], 200);
+
+}
+public function getBookingsByUserId($userId)
+{
+    // 🔥 Jogosultság ellenőrzés
+    if ($userId != auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    $bookings = Booking::where('users_id', $userId)
+        ->with(['rooms', 'guests', 'services'])
+        ->get();
+
+    return response()->json(['bookings' => $bookings], 200);
+}
+public function getGuestsByBookingId($bookingId)
+{
+    $booking = Booking::find($bookingId);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // 🔥 Jogosultság ellenőrzés
+    if ($booking->users_id !== auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    $guests = Guest::where('bookings_id', $bookingId)->get();
+    return response()->json(['guests' => $guests], 200);
+}
 }
