@@ -8,3 +8,5 @@ projekt létrehozás: composer create-project laravel/laravel projektneve
 + migrálni is kell
 2. .env korrigálás(kitörlés .example + database structure)
 3. php artisan key:generate
+php artisan migrate:fresh
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
