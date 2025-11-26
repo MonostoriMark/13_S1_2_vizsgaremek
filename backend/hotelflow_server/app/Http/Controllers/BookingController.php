@@ -14,7 +14,7 @@ use App\Models\Guest;
 class BookingController extends Controller
 {
     // Foglalás létrehozása
-    public function store(Request $request)
+    /*public function store(Request $request)
 {
     $request->validate([
         'userId' => 'required|exists:users,id',
@@ -110,7 +110,136 @@ class BookingController extends Controller
             'message' => $e->getMessage()
         ], 500);
     }
+}*/
+public function store(Request $request)
+{
+    $request->validate([
+        'userId' => 'required|exists:users,id',
+        'hotelId' => 'required|exists:hotels,id',
+        'startDate' => 'required|date',
+        'endDate' => 'required|date|after_or_equal:startDate',
+        'rooms' => 'required|array|min:1',
+        'rooms.*.id' => 'required|exists:rooms,id',
+        'rooms.*.guests' => 'required|integer|min:1',
+        'services' => 'array',
+        'services.*' => 'exists:services,id'
+    ]);
+
+    if ($request->userId !== auth()->id()) {
+        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+    }
+
+    if (count($request->rooms) === 0) {
+        return response()->json(['error' => 'Legalább egy szobát ki kell választani'], 400);
+    }
+
+    if ($request->has('services') && count($request->services) === 0) {
+        return response()->json(['error' => 'Ha szolgáltatásokat adsz meg, legalább egyet ki kell választani'], 400);
+    }
+
+    if (strtotime($request->endDate) < strtotime($request->startDate)) {
+        return response()->json(['error' => 'A távozási dátumnak későbbinek kell lennie, mint az érkezési dátum'], 400);
+    }
+
+    if (strtotime($request->startDate) < strtotime(date('Y-m-d'))) {
+        return response()->json(['error' => 'Az érkezési dátum nem lehet múltbeli'], 400);
+    }
+
+    DB::beginTransaction();
+    try {
+        // -------------------------
+        // Foglalás létrehozása ideiglenes ár nélkül
+        // -------------------------
+        $booking = Booking::create([
+            'users_id' => $request->userId,
+            'hotels_id' => $request->hotelId,
+            'startDate' => $request->startDate,
+            'endDate' => $request->endDate,
+            'checkInToken' => str()->random(),
+            'status' => 'pending',
+            'totalPrice' => 0,
+        ]);
+
+        $totalPrice = 0;
+        $roomIds = [];
+
+        // -------------------------
+        // Szobák hozzáadása + ár számítása + ellenőrzések
+        // -------------------------
+        foreach ($request->rooms as $roomData) {
+            $room = Room::find($roomData['id']);
+
+            // 1. Ellenőrzés: szoba a hotelhez tartozik?
+            if ($room->hotels_id != $request->hotelId) {
+                DB::rollBack();
+                return response()->json(['error' => "A(z) {$room->name} szoba nem tartozik a kiválasztott hotelhez"], 400);
+            }
+
+            // 2. Ellenőrzés: szoba szabad-e a megadott időszakban?
+            $overlappingBooking = $room->bookings()
+                ->where('status', 'confirmed')
+                ->where(function($query) use ($request) {
+                    $query->whereBetween('startDate', [$request->startDate, $request->endDate])
+                          ->orWhereBetween('endDate', [$request->startDate, $request->endDate])
+                          ->orWhere(function($q) use ($request) {
+                              $q->where('startDate', '<=', $request->startDate)
+                                ->where('endDate', '>=', $request->endDate);
+                          });
+                })
+                ->exists();
+
+            if ($overlappingBooking) {
+                DB::rollBack();
+                return response()->json(['error' => "A(z) {$room->name} szoba nem elérhető a megadott időszakban"], 400);
+            }
+
+            $roomIds[] = $room->id;
+
+            $guestsCount = $roomData['guests'];
+            $roomPrice = $room->basePrice + ($room->pricePerNight * $guestsCount);
+            $totalPrice += $roomPrice;
+        }
+
+        $booking->rooms()->sync($roomIds);
+
+        // -------------------------
+        // Szolgáltatások hozzáadása + ár számítása
+        // -------------------------
+        if ($request->has('services')) {
+            $booking->services()->sync($request->services);
+            $servicesPrice = \App\Models\Service::whereIn('id', $request->services)->sum('price');
+            $totalPrice += $servicesPrice;
+        }
+
+        // -------------------------
+        // Végső ár mentése
+        // -------------------------
+        $booking->totalPrice = $totalPrice;
+        $booking->save();
+
+        DB::commit();
+
+        // -------------------------
+        // Mail küldés
+        // -------------------------
+        try {
+            Mail::to($booking->user->email)
+                ->send(new BookingConfirmationMail($booking));
+        } catch (\Exception $mailEx) {
+            \Log::error('Mail küldési hiba: ' . $mailEx->getMessage());
+        }
+
+        return response()->json(['bookingId' => $booking->id, 'totalPrice' => $totalPrice], 201);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'error' => 'Hiba a foglalás létrehozásakor',
+            'message' => $e->getMessage()
+        ], 500);
+    }
 }
+
     public function addGuests(Request $request, $bookingId)
 {
     $request->validate([

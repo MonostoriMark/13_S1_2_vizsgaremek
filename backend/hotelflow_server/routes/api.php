@@ -50,6 +50,7 @@ Route::put('/guests/update/{id}', [GuestController::class, 'updateGuest'])->midd
 Route::delete('/guests/delete/{id}', [GuestController::class, 'deleteGuest'])->middleware('auth:sanctum');
 //DEVICE VÉGPONTOK
 Route::get('/devices/bookings/{hotelId}', [DeviceController::class, 'getBookings']);
+Route::put('/devices/update-booking/{bookingId}', [DeviceController::class, 'updateData']);
 
 
 

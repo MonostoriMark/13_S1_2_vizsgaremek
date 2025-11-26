@@ -36,11 +36,33 @@ public function getBookings($hotelId)
         'bookings' => $bookings,
         'rooms' => $rooms,
         'relations' => $relations
-    ], 200);
+    ], 200)
+    ;
 }
+public function updateData(Request $request, $bookingId)
+{
+    $booking = Booking::find($bookingId);
+
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // Csak a megengedett mezőket frissítjük
+    $allowedFields = ['checkInstatus', 'checkInTime', 'checkOutTime'];
+    foreach ($allowedFields as $field) {
+        if ($request->has($field)) {
+            $booking->$field = $request->input($field);
+        }
+    }
+
+    $booking->save();
+
+    return response()->json(['message' => 'Booking updated successfully', 'booking' => $booking], 200);
 
 
 
         
+
+}
 }
 
