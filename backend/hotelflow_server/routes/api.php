@@ -8,6 +8,7 @@ use App\Http\Controllers\RoomController;
 use Providers\AppServiceProvider;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\GuestController;
+use App\Http\Controllers\DeviceController;
 
 
 //USER VÉGPONTOK
@@ -47,4 +48,8 @@ Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGu
 Route::get('/guests/booking/{bookingId}', [BookingController::class, 'getGuestsByBookingId'])->middleware('auth:sanctum');
 Route::put('/guests/update/{id}', [GuestController::class, 'updateGuest'])->middleware('auth:sanctum');
 Route::delete('/guests/delete/{id}', [GuestController::class, 'deleteGuest'])->middleware('auth:sanctum');
+//DEVICE VÉGPONTOK
+Route::get('/devices/bookings/{hotelId}', [DeviceController::class, 'getBookings']);
+
+
 

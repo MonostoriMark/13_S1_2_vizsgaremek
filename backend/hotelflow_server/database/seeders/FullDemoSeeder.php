@@ -109,6 +109,7 @@ class FullDemoSeeder extends Seeder
                     if ($rooms->isEmpty()) continue;
 
                     $booking = Booking::create([
+                        'hotels_id' => $hotel->id,
                         'users_id' => $user->id,
                         'startDate' => $faker->dateTimeBetween('-1 month', '+1 month')->format('Y-m-d'),
                         'endDate' => $faker->dateTimeBetween('+1 day', '+2 weeks')->format('Y-m-d'),

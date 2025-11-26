@@ -11,7 +11,7 @@ class Booking extends Model
  public $timestamps = false; // mert nincs created_at és updated_at mező
     protected $table = 'bookings';
     protected $fillable = [
-        'users_id', 'startDate', 'endDate', 'totalPrice', 'status', 
+        'users_id','hotels_id', 'startDate', 'endDate', 'totalPrice', 'status', 
         'checkInToken', 'checkOutToken'
     ];
 

@@ -18,6 +18,7 @@ class BookingController extends Controller
 {
     $request->validate([
         'userId' => 'required|exists:users,id',
+        'hotelId' => 'required|exists:hotels,id',
         'startDate' => 'required|date',
         'endDate' => 'required|date|after_or_equal:startDate',
         'rooms' => 'required|array|min:1',
@@ -49,6 +50,7 @@ class BookingController extends Controller
         // -------------------------
         $booking = Booking::create([
             'users_id' => $request->userId,
+            'hotels_id' => $request->hotelId,
             'startDate' => $request->startDate,
             'endDate' => $request->endDate,
             'checkInToken' => str()->random(),
