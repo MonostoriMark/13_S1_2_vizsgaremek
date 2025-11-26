@@ -7,7 +7,7 @@ def read_qr_from_image(path):
 
     for qr in qr_codes:
         data = qr.data.decode('utf-8')
-        print("QR-kód tartalma:", data)
+        return data
 
 # Példa
 read_qr_from_image("QR.png")
