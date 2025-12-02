@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Room;
 use App\Models\BookingRoomRelation;
 use App\Models\RFIDKey;
+use App\Models\RFIDConnection;
 
 class DeviceController extends Controller
 {
@@ -32,11 +33,21 @@ public function getBookings($hotelId)
         ->whereIn('booking_id', $bookings->pluck('id'))
         ->get();
 
+    $rfidConnections = RFIDConnection::join('rfidKeys', 'rfidKeyConnection.rfidKeys_id', '=', 'rfidKeys.rfidKey')
+    ->join('rooms', 'rfidKeyConnection.rooms_id', '=', 'rooms.id')
+    ->where('rooms.hotels_id', $hotelId)
+    ->get([
+        'rfidKeys.rfidKey as key', // maga az RFID kód
+        'rooms.id as roomId',       // szoba azonosítója
+        'rooms.name as roomName'    // opcionális, ha kell a szoba neve
+    ]);
+
     return response()->json([
         'bookings' => $bookings,
         'rooms' => $rooms,
         'relations' => $relations,
-        'rfidKeys' => RFIDKey::where('hotels_id', $hotelId)->get()
+        'rfidKeys' => RFIDKey::where('hotels_id', $hotelId)->get(),
+        'rfidConnections' => $rfidConnections
         
     ], 200);
 }

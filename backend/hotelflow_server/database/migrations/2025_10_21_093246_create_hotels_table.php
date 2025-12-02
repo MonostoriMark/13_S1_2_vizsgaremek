@@ -42,6 +42,7 @@ return new class extends Migration
 
         // RFID CONNECTION
         Schema::create('rfidKeyConnection', function (Blueprint $table) {
+            $table->id();
             $table->string('rfidKeys_id');
             $table->unsignedBigInteger('rooms_id');
 
