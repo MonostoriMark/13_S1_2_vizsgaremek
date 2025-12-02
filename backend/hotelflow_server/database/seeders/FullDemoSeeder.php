@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\Booking;
 use App\Models\Guest;
 use App\Models\Review;
+use App\Models\RFIDKey;
 use Faker\Factory as Faker;
 use Illuminate\Support\Facades\DB;
 
@@ -49,7 +50,7 @@ class FullDemoSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'user',
             ]);
-
+           
             // -------------------------
             // 2️⃣ Hotels, Rooms, Services
             // -------------------------
@@ -95,11 +96,41 @@ class FullDemoSeeder extends Seeder
                     }
                 }
             }
+             RFIDKey::create([
+                'hotels_id' => 37,
+                'isUsed' => false,
+                'rfidKey' => 'F4E4C928'
+
+            ]);
+            RFIDKey::create([
+                'hotels_id' => 37,
+                'isUsed' => false,
+                'rfidKey' => 'B7E5C37A'
+
+            ]);
+            // -------------------------
+            // RFID kulcsok generálása minden hotelhez
+            // -------------------------
+            foreach ($allHotels as $hotel) {
+
+                // Hotelhez 5–10 RFID kulcs
+                $numKeys = rand(5, 10);
+
+                for ($k = 0; $k < $numKeys; $k++) {
+                    RFIDKey::create([
+                        'hotels_id' => $hotel->id,
+                        'isUsed' => false,
+                        'rfidKey' => strtoupper($faker->bothify('########'))
+                    ]);
+                }
+}
+
 
             // -------------------------
             // 3️⃣ Bookings, Guests, Reviews
             // -------------------------
             $allUsers = array_merge($users, $hotelUsers); // bárki foglalhat
+
 
             foreach ($allUsers as $user) {
                 $numBookings = rand(1,3);

@@ -6,14 +6,14 @@ use Illuminate\Http\Request;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Models\BookingRoomRelation;
+use App\Models\RFIDKey;
 
 class DeviceController extends Controller
 {
 public function getBookings($hotelId)
 {
     // Foglalások a kapcsolódó szobákkal
-    $bookings = Booking::with('rooms:id,name') 
-        ->where('hotels_id', $hotelId)
+    $bookings = Booking::where('hotels_id', $hotelId)
         ->where('status', 'confirmed')
         ->select('id','users_id','startDate','endDate','checkInToken','checkInstatus','checkInTime','checkOutTime','status')
         ->get();
@@ -35,9 +35,10 @@ public function getBookings($hotelId)
     return response()->json([
         'bookings' => $bookings,
         'rooms' => $rooms,
-        'relations' => $relations
-    ], 200)
-    ;
+        'relations' => $relations,
+        'rfidKeys' => RFIDKey::where('hotels_id', $hotelId)->get()
+        
+    ], 200);
 }
 public function updateData(Request $request, $bookingId)
 {
@@ -64,5 +65,6 @@ public function updateData(Request $request, $bookingId)
         
 
 }
+
 }
 

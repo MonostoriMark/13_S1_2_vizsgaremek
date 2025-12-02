@@ -35,6 +35,8 @@ return new class extends Migration
         // RFID KEYS
         Schema::create('rfidKeys', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('hotels_id')->constrained('hotels')->onDelete('cascade');
+            $table->boolean('isUsed')->default(false);
             $table->string('rfidKey')->unique();
         });
 

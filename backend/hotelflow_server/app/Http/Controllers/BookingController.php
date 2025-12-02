@@ -10,107 +10,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingConfirmationMail;
 use App\Models\Guest;
+use App\Models\RFIDKey;
+use App\Models\RFIDConnection;
 
 class BookingController extends Controller
 {
-    // Foglalás létrehozása
-    /*public function store(Request $request)
-{
-    $request->validate([
-        'userId' => 'required|exists:users,id',
-        'hotelId' => 'required|exists:hotels,id',
-        'startDate' => 'required|date',
-        'endDate' => 'required|date|after_or_equal:startDate',
-        'rooms' => 'required|array|min:1',
-        'rooms.*.id' => 'required|exists:rooms,id',
-        'rooms.*.guests' => 'required|integer|min:1',
-        'services' => 'array',
-        'services.*' => 'exists:services,id'
-    ]);
-    if($request->userId !== auth()->id()){
-        return response()->json(['error' => 'Nincs jogosultságod'], 403);
-    }
-    if (count($request->rooms) === 0) {
-        return response()->json(['error' => 'Legalább egy szobát ki kell választani'], 400);
-    }
-    if ($request->has('services') && count($request->services) === 0) {
-        return response()->json(['error' => 'Ha szolgáltatásokat adsz meg, legalább egyet ki kell választani'], 400);
-    }
-    if (strtotime($request->endDate) < strtotime($request->startDate)) {
-        return response()->json(['error' => 'A távozási dátumnak későbbinek kell lennie, mint az érkezési dátum'], 400);
-    }
-    if(strtotime($request->startDate) < strtotime(date('Y-m-d'))){
-        return response()->json(['error' => 'Az érkezési dátum nem lehet múltbeli'], 400);
-    }
-    
-    DB::beginTransaction();
-    try {
-        // -------------------------
-        // Foglalás létrehozása ideiglenes ár nélkül
-        // -------------------------
-        $booking = Booking::create([
-            'users_id' => $request->userId,
-            'hotels_id' => $request->hotelId,
-            'startDate' => $request->startDate,
-            'endDate' => $request->endDate,
-            'checkInToken' => str()->random(),
-            'status' => 'pending',
-            'totalPrice' => 0,
-        ]);
-
-        $totalPrice = 0;
-
-        // -------------------------
-        // Szobák hozzáadása + ár számítása
-        // -------------------------
-        $roomIds = [];
-        foreach ($request->rooms as $roomData) {
-            $room = Room::find($roomData['id']);
-            $roomIds[] = $room->id;
-
-            $guestsCount = $roomData['guests'];
-            $roomPrice = $room->basePrice + ($room->pricePerNight * $guestsCount);
-            $totalPrice += $roomPrice;
-        }
-        $booking->rooms()->sync($roomIds);
-
-        // -------------------------
-        // Szolgáltatások hozzáadása + ár számítása
-        // -------------------------
-        if ($request->has('services')) {
-            $booking->services()->sync($request->services);
-            $servicesPrice = \App\Models\Service::whereIn('id', $request->services)->sum('price');
-            $totalPrice += $servicesPrice;
-        }
-
-        // -------------------------
-        // Végső ár mentése
-        // -------------------------
-        $booking->totalPrice = $totalPrice;
-        $booking->save();
-
-        DB::commit();
-
-        // -------------------------
-        // Mail küldés
-        // -------------------------
-        try {
-            Mail::to($booking->user->email)
-                ->send(new BookingConfirmationMail($booking));
-        } catch (\Exception $mailEx) {
-            \Log::error('Mail küldési hiba: ' . $mailEx->getMessage());
-        }
-
-        return response()->json(['bookingId' => $booking->id, 'totalPrice' => $totalPrice], 201);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'error' => 'Hiba a foglalás létrehozásakor',
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}*/
 public function store(Request $request)
 {
     $request->validate([
@@ -201,6 +105,32 @@ public function store(Request $request)
         }
 
         $booking->rooms()->sync($roomIds);
+
+        // -------------------------
+        // RFID kulcsok hozzárendelése
+
+        // --------- IDE JÖN AZ ÚJ RFID KÓD ---------
+        foreach ($roomIds as $roomId) {
+            $rfidKey = RFIDKey::where('hotels_id', $request->hotelId)
+                            ->where('isUsed', false)
+                            ->first();
+
+            if (!$rfidKey) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Nincs elérhető RFID kulcs a hotelhez"
+                ], 400);
+            }
+
+            RFIDConnection::create([
+                'rfidKeys_id' => $rfidKey->rfidKey,
+                'rooms_id' => $roomId
+            ]);
+
+            $rfidKey->isUsed = true;
+            $rfidKey->save();
+        }
+
 
         // -------------------------
         // Szolgáltatások hozzáadása + ár számítása

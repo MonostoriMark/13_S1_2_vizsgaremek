@@ -5,7 +5,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HotelController;
 use App\Http\Controllers\Controller;
+
 use App\Models\Room;
+use App\Models\Hotel;
+use App\Models\RFIDConnection;
+use App\Models\RFIDKey;
 
 
 
@@ -105,4 +109,7 @@ class RoomController extends Controller
 
         return response()->json($room, 200);
     }
+
+
+   
 }

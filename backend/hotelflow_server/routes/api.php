@@ -9,6 +9,7 @@ use Providers\AppServiceProvider;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\DeviceController;
+use App\Http\Controllers\ImageController;
 
 
 //USER VÉGPONTOK
@@ -35,6 +36,7 @@ Route::get('/rooms/{id}', [RoomController::class, 'getRoomById']);
 Route::post('/rooms/create/{hotel_id}', [RoomController::class, 'createRoom'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/rooms/delete/{id}', [RoomController::class, 'deleteRoom'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/rooms/update/{id}', [RoomController::class, 'updateRoom'])->middleware('auth:sanctum', 'role:hotel');
+
 //IDE MÉG JÖN EGY ELÉRHETŐSÉG ELLENŐRZÉS VÉGPONT
 
 //FOGLALÁS VÉGPONTOK
@@ -48,9 +50,18 @@ Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGu
 Route::get('/guests/booking/{bookingId}', [BookingController::class, 'getGuestsByBookingId'])->middleware('auth:sanctum');
 Route::put('/guests/update/{id}', [GuestController::class, 'updateGuest'])->middleware('auth:sanctum');
 Route::delete('/guests/delete/{id}', [GuestController::class, 'deleteGuest'])->middleware('auth:sanctum');
+
 //DEVICE VÉGPONTOK
 Route::get('/devices/bookings/{hotelId}', [DeviceController::class, 'getBookings']);
 Route::put('/devices/update-booking/{bookingId}', [DeviceController::class, 'updateData']);
 
+//IMAGE VÉGPONTOK
 
+Route::post('/images', [ImageController::class, 'store'])->middleware('auth:sanctum', 'role:hotel');
+Route::post('/images/link', [ImageController::class, 'link'])->middleware('auth:sanctum', 'role:hotel');
+Route::delete('/images/unlink', [ImageController::class, 'unlink'])->middleware('auth:sanctum', 'role:hotel');
+Route::delete('/images/{id}', [ImageController::class, 'destroy'])->middleware('auth:sanctum', 'role:hotel');
+
+Route::get('/rooms/{roomId}/images', [ImageController::class, 'roomImages']);
+Route::get('/images/{id}', [ImageController::class, 'show']);
 
