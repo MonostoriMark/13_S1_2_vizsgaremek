@@ -11,6 +11,12 @@ use App\Http\Controllers\GuestController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ImageController;
 
+use Illuminate\Support\Facades\Http;
+
+Route::get('/ping', function () {
+    $alma = HTTP::get('https://bumper-developing-tiffany-dealer.trycloudflare.com');
+    return response()->json(['message' => 'pong', $alma], 200);
+});
 
 //USER VÉGPONTOK
 

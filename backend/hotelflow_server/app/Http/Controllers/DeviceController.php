@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Models\BookingRoomRelation;
 use App\Models\RFIDKey;
 use App\Models\RFIDConnection;
+use Illuminate\Support\Facades\Http;
 
 class DeviceController extends Controller
 {
@@ -76,6 +77,4 @@ public function updateData(Request $request, $bookingId)
         
 
 }
-
 }
-
