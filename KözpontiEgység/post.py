@@ -2,7 +2,7 @@ import requests
 import json
 
 def put_request_example(payload, booking_id):
-    url = f"http://172.16.13.18:8000/api/devices/update-bookingg/{booking_id}"
+    url = f"http://172.16.6.12:8000/api/devices/update-bookingg/{booking_id}"
 
     headers = {
         "Authorization": "Bearer TOKEN",
