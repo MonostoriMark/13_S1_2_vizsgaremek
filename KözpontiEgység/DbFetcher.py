@@ -15,6 +15,7 @@ data = response.json()
 bookings = data.get("bookings", [])
 rooms = data.get("rooms", [])
 relations = data.get("relations", [])
+rfid_keys = data.get("rfidKeys", [])
 
 
 # ---- 2. Csatlakozás a SQLite-hoz ----
@@ -62,6 +63,17 @@ for rel in relations:
             (rel["booking_id"], rel["rooms_id"])
         )
 
+# --- RFID KEYS: Insert vagy Update ---
+for rfid in rfid_keys:
+    cursor.execute("""
+        INSERT INTO rfidkeys (id, hotels_id, isUsed, rfidKey)
+        VALUES (:id, :hotels_id, :isUsed, :rfidKey)
+        ON CONFLICT(id) DO UPDATE SET
+            hotels_id=excluded.hotels_id,
+            isUsed=excluded.isUsed,
+            rfidKey=excluded.rfidKey
+    """, rfid)
+
 
 # --- Törlés a helyi DB-ből, ha már nem szerepel a backupban ---
 # Példa bookings
@@ -91,8 +103,15 @@ backend_relations_set = set((rel["booking_id"], rel["rooms_id"]) for rel in rela
 cursor.execute("SELECT booking_id, rooms_id FROM relations")
 for booking_id, room_id in cursor.fetchall():
     if (booking_id, room_id) not in backend_relations_set:
-        cursor.execute("DELETE FROM relations WHERE booking_id=? AND room_id=?", (booking_id, room_id))
+        cursor.execute("DELETE FROM relations WHERE booking_id=? AND rooms_id=?", (booking_id, room_id))
 
+# RFID KEYS törlése, ha más nincs a backendben
+backend_rfid_ids = [rfid["id"] for rfid in data.get("rfidKeys", [])]
+if backend_rfid_ids:
+    cursor.execute(
+        f"DELETE FROM rfidKeys WHERE id NOT IN ({','.join(['?']*len(backend_rfid_ids))})",
+        backend_rfid_ids
+    )
 
 # ---- 5. Mentés és lezárás ----
 conn.commit()
