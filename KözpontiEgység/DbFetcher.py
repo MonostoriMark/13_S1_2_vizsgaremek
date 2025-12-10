@@ -4,7 +4,18 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-API_URL = "http://172.16.13.18:8000/api/devices/bookings/37"
+API_URL = "http://172.16.6.12:8000/api/devices/bookings/37"
+
+def fetch_data_from_backend():
+
+    # -- 1. Lekérés a backendtől ----
+    response = requests.get(API_URL, verify=False)
+    data = response.json()
+
+    # --- Kulcsok szerinti szétbontás ---
+    bookings = data.get("bookings", [])
+    rooms = data.get("rooms", [])
+    relations = data.get("relations", [])
 
 
 # ---- 1. Lekérés a backendtől ----
@@ -24,44 +35,44 @@ cursor = conn.cursor()
 
 
 
-# ---- 3. Tábla létrehozása (ha nem létezik) ----
+    # ---- 3. Tábla létrehozása (ha nem létezik) ----
 
-# --- BOOKINGS: Insert vagy Update ---
-for booking in bookings:
-    cursor.execute("""
-        INSERT INTO bookings (id, users_id, startDate, endDate, checkInToken, checkInTime, checkOutTime, checkInstatus, status)
-        VALUES (:id, :users_id, :startDate, :endDate, :checkInToken, :checkInTime, :checkOutTime, :checkInstatus, :status)
-        ON CONFLICT(id) DO UPDATE SET
-            users_id=excluded.users_id,
-            startDate=excluded.startDate,
-            endDate=excluded.endDate,
-            checkInToken=excluded.checkInToken,
-            checkInstatus=excluded.checkInstatus,
-            checkInTime=excluded.checkInTime,
-            checkOutTime=excluded.checkOutTime,
-            status=excluded.status
-    """, booking)
+    # --- BOOKINGS: Insert vagy Update ---
+    for booking in bookings:
+        cursor.execute("""
+            INSERT INTO bookings (id, users_id, startDate, endDate, checkInToken, checkInTime, checkOutTime, checkInstatus, status)
+            VALUES (:id, :users_id, :startDate, :endDate, :checkInToken, :checkInTime, :checkOutTime, :checkInstatus, :status)
+            ON CONFLICT(id) DO UPDATE SET
+                users_id=excluded.users_id,
+                startDate=excluded.startDate,
+                endDate=excluded.endDate,
+                checkInToken=excluded.checkInToken,
+                checkInstatus=excluded.checkInstatus,
+                checkInTime=excluded.checkInTime,
+                checkOutTime=excluded.checkOutTime,
+                status=excluded.status
+        """, booking)
 
-# --- ROOMS: Insert vagy Update ---
-for room in rooms:
-    cursor.execute("""
-        INSERT INTO rooms (id, name)
-        VALUES (:id, :name)
-        ON CONFLICT(id) DO UPDATE SET
-            name=excluded.name
-    """, room)
+    # --- ROOMS: Insert vagy Update ---
+    for room in rooms:
+        cursor.execute("""
+            INSERT INTO rooms (id, name)
+            VALUES (:id, :name)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name
+        """, room)
 
-# --- RELATIONS: Insert vagy Update ---
-for rel in relations:
-    cursor.execute(
-        "SELECT 1 FROM relations WHERE booking_id=? AND rooms_id=?",
-        (rel["booking_id"], rel["rooms_id"])
-    )
-    if not cursor.fetchone():
+    # --- RELATIONS: Insert vagy Update ---
+    for rel in relations:
         cursor.execute(
-            "INSERT INTO relations (booking_id, rooms_id) VALUES (?, ?)",
+            "SELECT 1 FROM relations WHERE booking_id=? AND rooms_id=?",
             (rel["booking_id"], rel["rooms_id"])
         )
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO relations (booking_id, rooms_id) VALUES (?, ?)",
+                (rel["booking_id"], rel["rooms_id"])
+            )
 
 # --- RFID KEYS: Insert vagy Update ---
 for rfid in rfid_keys:
@@ -75,28 +86,28 @@ for rfid in rfid_keys:
     """, rfid)
 
 
-# --- Törlés a helyi DB-ből, ha már nem szerepel a backupban ---
-# Példa bookings
-backend_booking_ids = [b["id"] for b in bookings]
-cursor.execute(f"DELETE FROM bookings WHERE id NOT IN ({','.join(['?']*len(backend_booking_ids))})", backend_booking_ids)
+    # --- Törlés a helyi DB-ből, ha már nem szerepel a backupban ---
+    # Példa bookings
+    backend_booking_ids = [b["id"] for b in bookings]
+    cursor.execute(f"DELETE FROM bookings WHERE id NOT IN ({','.join(['?']*len(backend_booking_ids))})", backend_booking_ids)
 
-# --- Törlés a helyi DB-ből, ha már nem szerepel a backendben ---
+    # --- Törlés a helyi DB-ből, ha már nem szerepel a backendben ---
 
-# Bookings törlése, ha már nincs a backendben
-backend_booking_ids = [b["id"] for b in bookings]
-if backend_booking_ids:  # elkerüli a hibát üres listánál
-    cursor.execute(
-        f"DELETE FROM bookings WHERE id NOT IN ({','.join(['?']*len(backend_booking_ids))})",
-        backend_booking_ids
-    )
+    # Bookings törlése, ha már nincs a backendben
+    backend_booking_ids = [b["id"] for b in bookings]
+    if backend_booking_ids:  # elkerüli a hibát üres listánál
+        cursor.execute(
+            f"DELETE FROM bookings WHERE id NOT IN ({','.join(['?']*len(backend_booking_ids))})",
+            backend_booking_ids
+        )
 
-# Rooms törlése, ha már nincs a backendben
-backend_room_ids = [r["id"] for r in rooms]
-if backend_room_ids:
-    cursor.execute(
-        f"DELETE FROM rooms WHERE id NOT IN ({','.join(['?']*len(backend_room_ids))})",
-        backend_room_ids
-    )
+    # Rooms törlése, ha már nincs a backendben
+    backend_room_ids = [r["id"] for r in rooms]
+    if backend_room_ids:
+        cursor.execute(
+            f"DELETE FROM rooms WHERE id NOT IN ({','.join(['?']*len(backend_room_ids))})",
+            backend_room_ids
+        )
 
 # Relations törlése, ha már nincs a backendben
 backend_relations_set = set((rel["booking_id"], rel["rooms_id"]) for rel in relations)
@@ -113,8 +124,8 @@ if backend_rfid_ids:
         backend_rfid_ids
     )
 
-# ---- 5. Mentés és lezárás ----
-conn.commit()
-conn.close()
+    # ---- 5. Mentés és lezárás ----
+    conn.commit()
+    conn.close()
 
-print("Sikeresen elmentve a helyi SQLite adatbázisba.")
+    return "Sikeresen elmentve a helyi SQLite adatbázisba."
