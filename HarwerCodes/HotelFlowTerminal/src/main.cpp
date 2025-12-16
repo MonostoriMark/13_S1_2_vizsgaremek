@@ -1,7 +1,10 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <MFRC522.h>
-#include <ArduinoJson.h>
+#include <SoftwareSerial.h> 
+// #include <ArduinoJson.h> <-- EZT KIKAPCSOLTUK, NEM KELL!
+
+SoftwareSerial espSerial(2, 3); 
 
 #define RST_PIN 9
 #define SS_PIN 10
@@ -10,37 +13,46 @@
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
-// Config
+// --- KONFIGURÁCIÓ ---
 const char WIFI_SSID[] = "HotelFlow-wireless";
 const char WIFI_PASS[] = "OptikArt2025";
 const char MQTT_BROKER[] = "192.168.1.35";
 const uint16_t MQTT_PORT = 1883;
 
-// State machine
 enum State { S_BOOT, S_WAIT_ESP, S_SEND_CONFIG, S_WAIT_READY, S_OPERATIONAL, S_ERROR };
 State state = S_BOOT;
 
 unsigned long nowMillis;
 unsigned long stateTimer = 0;
 int configStep = 0;
+bool configSent = false;
 String lastCard = "";
 unsigned long lastPublish = 0;
-bool configSent = false;
 
+// --- ADATKÜLDÉS VEZÉRLÉS ---
+bool waitingForPub = false;       
+unsigned long pubRetryTimer = 0;  
 
-// --- SERIAL BUFFERS ---
-#define CMD_BUF_SZ 128
+#define CMD_BUF_SZ 256
 char cmdBuf[CMD_BUF_SZ];
 int cmdIdx = 0;
 
-#define MQTT_BUF_SZ 256
-char mqttBuf[MQTT_BUF_SZ];
-int mqttIdx = 0;
+// FIX MEMÓRIA SOR
+#define PUB_QUEUE_SZ 3        
+#define MSG_LEN 100           
+char pubQueue[PUB_QUEUE_SZ][MSG_LEN]; 
+uint8_t pubHead=0, pubTail=0;
 
-// --- SERIAL HELPERS ---
-void sendRaw(const char *s) { Serial.print(s); Serial.print("|"); }
-void sendKV(const char *k, const char *v) { Serial.print(k); Serial.print("="); Serial.print(v); Serial.print("|"); }
-void sendNumberKV(const char *k, unsigned long n) { Serial.print(k); Serial.print("="); Serial.print(n); Serial.print("|"); }
+// --- SEGÉDEK ---
+void sendToEsp(const char *s) { 
+  if(strlen(s) == 0) return;
+  espSerial.print(s); espSerial.print("|"); 
+  Serial.print("TX >> "); Serial.println(s); 
+}
+void sendKV(const char *k, const char *v) { 
+  espSerial.print(k); espSerial.print("="); espSerial.print(v); espSerial.print("|"); 
+  Serial.print("TX >> CONFIG: "); Serial.println(k); 
+}
 
 void sendConfigStep(int step) {
   switch(step) {
@@ -48,171 +60,190 @@ void sendConfigStep(int step) {
     case 1: sendKV("PASS", WIFI_PASS); break;
     case 2: sendKV("BROKER", MQTT_BROKER); break;
     case 3: { char portStr[8]; sprintf(portStr, "%u", (unsigned)MQTT_PORT); sendKV("PORT", portStr); } break;
-    case 4: sendRaw("CONNECT"); break;
+    case 4: sendToEsp("CONNECT"); break;
   }
 }
 
-// --- HANDLE MQTT ---
-void handleMQTTMessage(const char* msg) {
-    const char* payload = msg + 8; // "MQTT_RX|" átugrás
-    Serial.print("MQTT payload: "); Serial.println(payload);
+// --- QUEUE ---
+bool pubQueueEmpty(){ return pubHead==pubTail; }
+bool pubQueueFull(){ return ((pubTail+1)%PUB_QUEUE_SZ)==pubHead; }
+void enqueuePub(const char* msg){ 
+    strncpy(pubQueue[pubTail], msg, MSG_LEN);
+    pubQueue[pubTail][MSG_LEN-1] = 0; 
+    pubTail=(pubTail+1)%PUB_QUEUE_SZ; 
+    Serial.println("DEBUG: Sorba rakva.");
+}
+char* peekPub(){ return pubQueue[pubHead]; }
+void dequeuePub(){ pubHead=(pubHead+1)%PUB_QUEUE_SZ; }
 
-    // csak JSON payload feldolgozása
-    if(payload[0] != '{') return;
+// --- KÖNNYŰSÚLYÚ FELDOLGOZÓ (No JSON Lib) ---
+void handleMQTTMessage(char* msg){
+  Serial.print("RX MQTT << "); Serial.println(msg);
+  
+  // 1. Megkeressük az "accessResult" kulcsszót a szövegben
+  char* resultPtr = strstr(msg, "\"accessResult\"");
+  
+  if(resultPtr == NULL) {
+      Serial.println("HIBA: Nem találtam 'accessResult'-ot az üzenetben.");
+      return;
+  }
 
-    StaticJsonDocument<128> doc;
-    DeserializationError err = deserializeJson(doc, payload);
-    if(err){
-        Serial.print("JSON parse error: "); Serial.println(err.c_str());
-        return;
-    }
-
-    const char* access = doc["accessResult"];
-    if(!access) return;
-
-    Serial.print("accessResult: "); Serial.println(access);
-
-    if(strcmp(access,"OK") == 0){
-        digitalWrite(LED_OK,HIGH);
-        digitalWrite(LED_DENY,LOW);
-    }
-    else if(strcmp(access,"DENY") == 0){
-        digitalWrite(LED_OK,LOW);
-        digitalWrite(LED_DENY,HIGH);
-    }
+  // 2. Megnézzük, mi van utána. Egyszerű szövegkeresés a maradékban.
+  // resultPtr mostantól a szöveg azon részére mutat, ami az accessResult után jön.
+  
+  if(strstr(resultPtr, "OK") != NULL) {
+      Serial.println(">>> DÖNTÉS: NYITÁS (OK)");
+      digitalWrite(LED_OK,HIGH); 
+      digitalWrite(LED_DENY,LOW);
+      stateTimer = nowMillis; 
+  }
+  else if(strstr(resultPtr, "DENY") != NULL) {
+      Serial.println(">>> DÖNTÉS: ELUTASÍTVA (DENY)");
+      digitalWrite(LED_OK,LOW); 
+      digitalWrite(LED_DENY,HIGH);
+      stateTimer = nowMillis; 
+  }
+  else {
+      Serial.println("HIBA: Ismeretlen válasz (se nem OK, se nem DENY).");
+  }
 }
 
-// --- HANDLE COMMAND ---
-void handleCommandMessage(const char* msg) {
-  if (strcmp(msg,"REQ_CONFIG")==0) { state=S_SEND_CONFIG; configStep=0; stateTimer=nowMillis; return; }
-  if (strcmp(msg,"WIFI_OK")==0) { sendRaw("ARD_WIFI_SEEN"); return; }
-  if (strcmp(msg,"WIFI_FAIL")==0) { state=S_ERROR; return; }
-  if (strcmp(msg,"MQTT_OK")==0) return;
-  if (strcmp(msg,"SYS_READY")==0) { state=S_OPERATIONAL; return; }
-  if (strcmp(msg,"PUB_OK")==0) { digitalWrite(LED_OK,HIGH); delay(80); digitalWrite(LED_OK,LOW); return; }
-  if (strcmp(msg,"")==0) { digitalWrite(LED_DENY,HIGH); delay(300); digitalWrite(LED_DENY,LOW); return; }
+// --- PARANCSOK KEZELÉSE ---
+void handleCommandMessage(const char* msg){
+  if(strncmp(msg, "BRK_FAIL", 8) != 0 && strncmp(msg, "PUB_", 4) != 0) { 
+      Serial.print("RX CMD << "); Serial.println(msg); 
+  }
+
+  if(strncmp(msg, "REQ_CONFIG", 10) == 0 || strncmp(msg, "WIFI_FAIL", 9) == 0){ 
+      state=S_SEND_CONFIG; configStep=0; stateTimer=nowMillis; configSent=false; 
+      Serial.println("--- ÚJRAKONFIGURÁLÁS ---");
+      return; 
+  }
+  if(strncmp(msg, "BRK_FAIL", 8) == 0){ 
+      state=S_ERROR; Serial.println("!!! MQTT HIBA !!!"); return; 
+  }
+  if(strncmp(msg, "SYS_READY", 9) == 0){ 
+     state=S_OPERATIONAL; waitingForPub = false; pubRetryTimer = 0;
+     Serial.println("\n*** RENDSZER KÉSZ! ***\n");
+     digitalWrite(LED_OK, HIGH); delay(100); digitalWrite(LED_OK, LOW);
+     return; 
+  }
+  if(strncmp(msg, "PUB_OK", 6) == 0){ 
+     if(!pubQueueEmpty()) dequeuePub(); 
+     waitingForPub = false; 
+     Serial.println("--- KÜLDÉS OK ---");
+     return; 
+  }
+  if(strncmp(msg, "PUB_FAIL", 8) == 0){ 
+      waitingForPub = false; Serial.println("ESP Queue Tele!");
+  }
 }
 
-// --- HANDLE SERIAL ---
-void pollSerial() {
-  while (Serial.available()) {
-    char c = Serial.read();
+// --- INTELLIGENS PARSER ---
+void pollSerial(){
+  static char buf[256];
+  static int idx = 0;
+  
+  while(espSerial.available()){
+    char c = espSerial.read();
+    Serial.write(c); 
 
-    // --- MQTT ÜZENETEK ---
-    // Ha M az első karakter → MQTT mód
-    if (mqttIdx == 0 && c == 'M') {
-      mqttBuf[mqttIdx++] = c;
-      continue;
-    }
+    if(idx < 255) buf[idx++] = c;
 
-    // Ha MQTT mód aktív: addig olvas, amíg \n-t nem kap
-    if (mqttIdx > 0) {
-      mqttBuf[mqttIdx++] = c;
-
-      if (c == '\n') {
-        mqttBuf[mqttIdx - 1] = '\0';   // a \n eltávolítása
-
-        handleMQTTMessage(mqttBuf);    // MQTT feldolgozása
-
-        mqttIdx = 0;                   // visszaáll normál módba
-      }
-      continue;
-    }
-
-    // --- PARANCSOK ---
-    if (cmdIdx < CMD_BUF_SZ - 1) {
-      if (c == '\n') {
-        mqttBuf[mqttIdx - 1] = '\0';  // \n eltávolítása
-        // extra whitespace vagy CR karakterek levágása
-          while(mqttBuf[mqttIdx-2]=='\r' || mqttBuf[mqttIdx-2]==' '){
-              mqttBuf[--mqttIdx-1] = '\0';
-          }
-        handleMQTTMessage(mqttBuf);
-        mqttIdx = 0;
-      }
-    }
-
-  } // while
+    if(c == '\n') {
+        buf[idx-1] = 0; 
+        if(strncmp(buf, "MQTT_RX|", 8) == 0) handleMQTTMessage(buf);
+        idx = 0; 
+    } 
+    else if (c == '|') {
+        bool isMqttHeader = (idx >= 8 && strncmp(buf, "MQTT_RX|", 8) == 0);
+        if(!isMqttHeader) {
+            buf[idx-1] = 0; 
+            handleCommandMessage(buf);
+            idx = 0; 
+        }
+    } 
+  }
 }
 
+void setup(){
+  pinMode(LED_OK,OUTPUT); pinMode(LED_DENY,OUTPUT);
+  digitalWrite(LED_OK,LOW); digitalWrite(LED_DENY,LOW);
 
+  Serial.begin(9600); 
+  espSerial.begin(9600); 
 
-
-
-// --- SETUP ---
-void setup() {
-  pinMode(LED_OK, OUTPUT); pinMode(LED_DENY, OUTPUT);
-  digitalWrite(LED_OK, LOW); digitalWrite(LED_DENY, LOW);
-
-  Serial.begin(9600);
+  Serial.println("--- ARDUINO INDUL (LIGHTWEIGHT) ---");
   SPI.begin();
   rfid.PCD_Init();
+  rfid.PCD_SetAntennaGain(rfid.RxGain_max);
 
+  Serial.print("RFID Verzió: "); rfid.PCD_DumpVersionToSerial();
   state=S_WAIT_ESP; stateTimer=millis();
-  sendRaw("ARDUINO_BOOT");
-  delay(2000);
 }
 
-// --- LOOP ---
-void loop() {
-  nowMillis = millis();
+void loop(){
+  nowMillis=millis();
+  pollSerial();
 
-  pollSerial(); // ESP üzenetek olvasása és feldolgozása
+  if(state!=S_OPERATIONAL || (digitalRead(LED_OK) || digitalRead(LED_DENY))){
+    if(nowMillis - stateTimer > 2000){ digitalWrite(LED_OK,LOW); digitalWrite(LED_DENY,LOW); }
+  }
 
-  // --- STATE MACHINE ---
-  switch (state) {
+  switch(state){
     case S_WAIT_ESP:
-      if (nowMillis - stateTimer > 800) { state=S_SEND_CONFIG; configStep=0; stateTimer=nowMillis; }
+      if(nowMillis-stateTimer>3000){ state=S_SEND_CONFIG; configStep=0; stateTimer=nowMillis; }
       break;
-
     case S_SEND_CONFIG:
-    if (!configSent && nowMillis - stateTimer > 40) {
-        sendConfigStep(configStep);
-        configStep++;
-        stateTimer = nowMillis;
-
-        if (configStep > 4) { 
-            state = S_WAIT_READY; 
-            stateTimer = nowMillis;
-            configSent = true;  // már nem küldjük újra
-        }
-    }
-    break;
-
+      if(!configSent && nowMillis-stateTimer>200){ 
+        sendConfigStep(configStep); configStep++; stateTimer=nowMillis;
+        if(configStep>4){ state=S_WAIT_READY; stateTimer=nowMillis; configSent=true; }
+      }
+      break;
     case S_WAIT_READY:
-      if (nowMillis - stateTimer > 30000) { state=S_ERROR; digitalWrite(LED_DENY,HIGH); }
+      if(nowMillis-stateTimer>60000){ state=S_ERROR; digitalWrite(LED_DENY,HIGH); }
       break;
 
     case S_OPERATIONAL:
-      static unsigned long lastRFID=0;
-      if (nowMillis - lastRFID > 300) {
-        lastRFID = nowMillis;
-        if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-          char cardID[32]; cardID[0]=0;
-          for (byte i=0;i<rfid.uid.size;i++) { char b[3]; sprintf(b,"%02X",rfid.uid.uidByte[i]); strcat(cardID,b); }
-          String sCard = String(cardID); sCard.toUpperCase();
-          if (sCard != lastCard && nowMillis - lastPublish > 2000) {
-            lastCard = sCard; lastPublish=nowMillis;
-            char json[128];
-            snprintf(json,sizeof(json),"{\"cardID\":\"%s\",\"doorID\":\"room1\",\"token\":\"ABC123DEF456\"}",cardID);
-            Serial.print("MQTT_TX|"); Serial.print(json); Serial.print("|");
-            digitalWrite(LED_OK,HIGH); delay(60); digitalWrite(LED_OK,LOW);
-          }
-          rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();
-        }
+      if(rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()){
+           char cardID[32]; cardID[0]=0;
+           for(byte i=0;i<rfid.uid.size;i++){ char b[3]; sprintf(b,"%02X",rfid.uid.uidByte[i]); strcat(cardID,b); }
+           String sCard=String(cardID); sCard.toUpperCase();
+           
+           if(sCard!=lastCard || nowMillis-lastPublish>2000){
+             lastCard=sCard; lastPublish=nowMillis;
+             Serial.print("!!! KÁRTYA !!! ID: "); Serial.println(sCard);
+             
+             // Kézzel rakjuk össze a JSON stringet (így nem kell a lib a küldéshez se)
+             char json[128];
+             snprintf(json,sizeof(json),"{\"cardID\":\"%s\",\"doorID\":\"room1\",\"token\":\"ABC123DEF456\"}",cardID);
+             
+             if(!pubQueueFull()){
+                enqueuePub(json); 
+                digitalWrite(LED_OK,HIGH); delay(100); digitalWrite(LED_OK,LOW); 
+             }
+           }
+           rfid.PICC_HaltA(); 
+           rfid.PCD_StopCrypto1();
       }
       break;
-
+      
     case S_ERROR:
-    if (nowMillis - stateTimer > 10000) {
-        digitalWrite(LED_DENY, LOW);
-        state = S_SEND_CONFIG;
-        configStep = 0;
-        stateTimer = nowMillis;
-        configSent = false; // lehetővé tesszük a konfiguráció újraküldését
-    }
-    break;
+      if(nowMillis-stateTimer>10000){
+         digitalWrite(LED_DENY,LOW); state=S_SEND_CONFIG; configStep=0; stateTimer=nowMillis; configSent=false;
+      }
+      break;
+  }
 
-    default: break;
+  if(!pubQueueEmpty()){ 
+    if(!waitingForPub || millis() - pubRetryTimer > 3000){
+        char* msg = peekPub();
+        if(strlen(msg) > 0) {
+           Serial.println("KÜLDÉS...");
+           sendToEsp(msg);
+           waitingForPub = true;     
+           pubRetryTimer = millis(); 
+        } else { dequeuePub(); }
+    }
   }
 }

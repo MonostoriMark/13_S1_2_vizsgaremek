@@ -1,245 +1,185 @@
-// ESP.ino (for ESP8266 / ESP-01)
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-#define RXBUF_SZ 256
-#define MSG_MAX 4
-#define MSG_SZ 256
+// --- ADATPUFFEREK ---
+#define RXBUF 256
+char buf[RXBUF];
+uint16_t bi = 0;
 
-// Config containers
-char wifi_ssid[64] = {0};
-char wifi_pass[64] = {0};
-char mqtt_server[64] = {0};
-uint16_t mqtt_port = 1883;
-bool haveSSID=false, havePass=false, haveBroker=false, havePort=false;
+// --- KONFIGURÁCIÓ (Arduinótól jön) ---
+char ssid[64] = "";
+char pass[64] = "";
+char broker[64] = "";
+uint16_t port = 1883;
 
-// Serial RX
-char rxbuf[RXBUF_SZ];
-size_t rxidx = 0;
+// --- MQTT BEÁLLÍTÁSOK ---
+const char* CLIENT_ID = "ESP01-Gateway"; 
+const char* PUBLISH_TOPIC = "hotel/room1/auth";
+const char* SUBSCRIBE_TOPIC = "hotel/room1/result";
+const char* LWT_TOPIC = "hotel/status/ESP01";
 
-// MQTT client
-WiFiClient netClient;
-PubSubClient client(netClient);
+bool gotSSID = false, gotPASS = false, gotBRK = false, gotPORT = false;
+bool sysReady = false;
 
-// Publish queue (ring)
-char msgQueue[MSG_MAX][MSG_SZ];
-uint8_t qHead=0, qTail=0, qCount=0;
+WiFiClient wc;
+PubSubClient mqtt(wc);
 
-// state
-enum State { ST_BOOT, ST_WAIT_CONFIG, ST_CONNECT_WIFI, ST_CONNECT_MQTT, ST_READY, ST_ERROR };
-State st = ST_BOOT;
-unsigned long stTimer = 0;
-unsigned long nowMs = 0;
+// --- PUBLIKÁLÁSI SOR ---
+#define PUB_QUEUE_SZ 3
+String pubQueue[PUB_QUEUE_SZ];
+uint8_t pubHead = 0, pubTail = 0;
 
-// Helpers
-void sendResp(const char* s) {
-  Serial.print(s);
-  Serial.print("|");
+// --- SOROS KÜLDÉS ---
+void send(const char* s){
+  Serial.print(s); 
+  Serial.print("|"); 
+  Serial.flush();    
 }
 
-bool queuePush(const char* s) {
-  if (qCount >= MSG_MAX) return false;
-  strncpy(msgQueue[qTail], s, MSG_SZ-1);
-  msgQueue[qTail][MSG_SZ-1] = '\0';
-  qTail = (qTail + 1) % MSG_MAX;
-  qCount++;
-  return true;
-}
-bool queuePop(char* outBuf, size_t outSz) {
-  if (qCount == 0) return false;
-  strncpy(outBuf, msgQueue[qHead], outSz-1);
-  outBuf[outSz-1] = '\0';
-  qHead = (qHead + 1) % MSG_MAX;
-  qCount--;
-  return true;
+// --- QUEUE KEZELÉS ---
+bool pubQueueEmpty(){ return pubHead == pubTail; }
+bool pubQueueFull(){ return ((pubTail + 1) % PUB_QUEUE_SZ) == pubHead; }
+
+void enqueuePub(const char* msg){
+  pubQueue[pubTail] = String(msg);
+  pubTail = (pubTail + 1) % PUB_QUEUE_SZ;
+  send("PUB_QUEUED");
 }
 
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  // forward to Arduino as MQTT_RX|<json>|
-  Serial.print("MQTT_RX|");
-  for (unsigned int i=0;i<length;i++) Serial.write(payload[i]);
-  Serial.print("|");
+// --- MQTT CALLBACK ---
+void mqttCB(char* topic, byte* payload, unsigned int len){
+  Serial.print("MQTT_RX|"); 
+  for (unsigned int i = 0; i < len; i++) Serial.print((char)payload[i]);
+  Serial.print("\n"); 
 }
 
-bool mqttEnsureConnected() {
-  if (client.connected()) return true;
-  String cid = "ESP01-";
-  cid += String(ESP.getChipId(), HEX);
-  if (client.connect(cid.c_str())) {
-    client.subscribe("hotel/room1/result");
-    sendResp("MQTT_OK");
-    return true;
-  } else {
-    // send state for debug
-    int stCode = client.state();
-    Serial.print("MQTT_STATE|");
-    Serial.print(stCode);
-    Serial.print("|");
-    return false;
+// --- QUEUE KÜLDÉS MQTT-re ---
+void processPubQueue(){
+  if(pubQueueEmpty() || !mqtt.connected()) return;
+  
+  String msg = pubQueue[pubHead];
+  if(mqtt.publish(PUBLISH_TOPIC, msg.c_str())){
+    send("PUB_OK");
+    pubHead = (pubHead + 1) % PUB_QUEUE_SZ;
   }
 }
 
-void processRxBuffer() {
-  if (rxidx==0) return;
-  rxbuf[rxidx] = '\0';
-  // trim
-  char *s = rxbuf;
-  while (*s && (*s==' '||*s=='\r'||*s=='\n')) s++;
-  // handle commands
-  if (strncmp(s, "SSID=",5)==0) {
-    strncpy(wifi_ssid, s+5, sizeof(wifi_ssid)-1);
-    haveSSID = true;
-    sendResp("SSID_OK");
-  } else if (strncmp(s, "PASS=",5)==0) {
-    strncpy(wifi_pass, s+5, sizeof(wifi_pass)-1);
-    havePass = true;
-    sendResp("PASS_OK");
-  } else if (strncmp(s, "BROKER=",7)==0) {
-    strncpy(mqtt_server, s+7, sizeof(mqtt_server)-1);
-    haveBroker = true;
-    sendResp("BROKER_OK");
-  } else if (strncmp(s, "PORT=",5)==0) {
-    mqtt_port = atoi(s+5);
-    havePort = true;
-    sendResp("PORT_OK");
-  } else if (strcmp(s, "CONNECT")==0) {
-    // start connect sequence
-    st = ST_CONNECT_WIFI;
-    stTimer = nowMs;
-    sendResp("CONNECTING");
-  } else {
-    // if ready and message starts with { treat as JSON to publish
-    if (st == ST_READY && s[0]=='{') {
-      // enqueue
-      if (strlen(s) < MSG_SZ && queuePush(s)) {
-        sendResp("ENQUEUED");
-      } else {
-        // queue full, notify Arduino
-        sendResp("QUEUE_FULL");
-      }
-    } else if (strcmp(s, "REQ_CONFIG")==0) {
-      // optional: Arduino may have asked
-      sendResp("REQ_ACK");
-    } else {
-      // debug
-      Serial.print("UNKNOWN|");
-      Serial.print(s);
-      Serial.print("|");
+// --- FŐ FELDOLGOZÓ FÜGGVÉNY (SZEMÉTTŰRŐ VERZIÓ) ---
+void processMsg(char* m){
+  // 1. ELŐFELDOLGOZÁS: Szóközök és soremelések átugrása az elején
+  int start = 0;
+  while(m[start] == ' ' || m[start] == '\r' || m[start] == '\n') {
+    start++;
+  }
+  char* cmd = m + start; // Ez a megtisztított parancs
+
+  // Ha üres a parancs, kilépünk
+  if(strlen(cmd) == 0) return;
+
+  // 2. Konfiguráció
+  if(strncmp(cmd,"SSID=",5)==0){ strncpy(ssid,cmd+5,63); gotSSID=true; send("SSID_OK"); return; }
+  if(strncmp(cmd,"PASS=",5)==0){ strncpy(pass,cmd+5,63); gotPASS=true; send("PASS_OK"); return; }
+  if(strncmp(cmd,"BROKER=",7)==0){ strncpy(broker,cmd+7,63); gotBRK=true; send("BROKER_OK"); return; }
+  if(strncmp(cmd,"PORT=",5)==0){ port = atoi(cmd+5); gotPORT=true; send("PORT_OK"); return; }
+
+  // 3. Csatlakozás (CONNECT)
+  if(strcmp(cmd,"CONNECT")==0){
+    if(!gotSSID || !gotPASS || !gotBRK || !gotPORT){ send("CONFIG_INCOMPLETE"); return; }
+
+    while(Serial.available()) Serial.read(); // Puffer ürítés
+    
+    send("STEP_1_RESET");
+    WiFi.disconnect(); WiFi.mode(WIFI_OFF); delay(1000); 
+
+    WiFi.mode(WIFI_STA); WiFi.setPhyMode(WIFI_PHY_MODE_11B); WiFi.setOutputPower(0); WiFi.setAutoConnect(false);
+    delay(500);
+
+    send("STEP_2_WIFI");
+    WiFi.begin(ssid, pass);
+
+    unsigned long t = millis();
+    bool connected = false;
+    while(millis() - t < 20000){
+        if(WiFi.status() == WL_CONNECTED){ connected = true; break; }
+        delay(500); yield();
     }
+
+    if(!connected){ WiFi.mode(WIFI_OFF); send("WIFI_FAIL"); return; }
+    send("WIFI_OK"); delay(1000); 
+
+    send("STEP_3_BRK");
+    mqtt.setServer(broker, port); mqtt.setCallback(mqttCB); mqtt.setSocketTimeout(10); mqtt.setKeepAlive(60); 
+
+    if(mqtt.connect(CLIENT_ID, LWT_TOPIC, 1, true, "OFFLINE")) {
+      delay(200); mqtt.subscribe(SUBSCRIBE_TOPIC);
+      send("BRK_OK"); delay(500);
+      sysReady=true; send("SYS_READY");
+    } else {
+      Serial.print("BRK_FAIL_RC="); Serial.print(mqtt.state()); Serial.print("|");
+    }
+    return;
   }
-  rxidx = 0; // reset
+
+  // 4. JSON Publikálás (Kártyaadat)
+  if(cmd[0] == '{' && sysReady){
+    if(pubQueueFull()) send("PUB_FAIL");
+    else enqueuePub(cmd);
+    return;
+  }
+
+  // 5. HIBAKERESÉS: Visszaküldjük a nem értett parancsot
+  Serial.print("UNKNOWN_CMD=");
+  Serial.print(cmd);
+  Serial.print("|");
 }
 
-// Non-blocking serial read: collect until '|' then process
-void pollSerial() {
-  while (Serial.available()) {
+// --- KAPCSOLAT FENNTARTÁSA ---
+void ensureConnection(){
+  if(!gotSSID) return; 
+
+  static unsigned long lastTry=0;
+  if(!mqtt.connected() && millis()-lastTry > 10000){
+      lastTry = millis();
+      if(WiFi.status() != WL_CONNECTED){
+         WiFi.disconnect(); WiFi.begin(ssid, pass);
+      } else {
+         if(mqtt.connect(CLIENT_ID, LWT_TOPIC, 1, true, "OFFLINE")){
+            mqtt.subscribe(SUBSCRIBE_TOPIC);
+            send("BRK_RECONN");
+         }
+      }
+  }
+}
+
+// --- SETUP ---
+void setup(){
+  Serial.begin(9600); 
+  delay(500);
+  WiFi.mode(WIFI_OFF);
+  
+  Serial.println();
+  send("BOOT_DONE");
+  send("REQ_CONFIG");
+}
+
+// --- LOOP ---
+void loop(){
+  if(sysReady) {
+      ensureConnection();
+      mqtt.loop();
+      processPubQueue();
+  }
+
+  while(Serial.available()){
     char c = Serial.read();
-    if (c == '|') {
-      processRxBuffer();
-    } else {
-      if (rxidx < RXBUF_SZ-1) rxbuf[rxidx++] = c;
+    if(c=='|'){ 
+      buf[bi]=0; 
+      processMsg(buf); 
+      bi=0; 
+    } else { 
+      if(bi < RXBUF-1) buf[bi++]=c; 
+      else bi=0; 
     }
-  }
-}
-
-void setup() {
-  Serial.begin(9600);
-  delay(200);
-  sendResp("BOOT_DONE");
-  delay(50);
-  sendResp("REQ_CONFIG");
-  st = ST_WAIT_CONFIG;
-  stTimer = millis();
-}
-
-void loop() {
-  nowMs = millis();
-  pollSerial();
-
-  switch (st) {
-    case ST_WAIT_CONFIG:
-      // wait until we have essential config
-      if (haveSSID && havePass && haveBroker) {
-        st = ST_CONNECT_WIFI;
-        stTimer = nowMs;
-      }
-      break;
-
-    case ST_CONNECT_WIFI:
-      // connect non-blocking style: attempt then check
-      if (WiFi.status() != WL_CONNECTED) {
-        WiFi.mode(WIFI_STA);
-        WiFi.begin(wifi_ssid, wifi_pass);
-        unsigned long start = nowMs;
-        while (millis() - start < 15000) { // block short while waiting for connection attempts
-          pollSerial(); // keep processing serial while waiting
-          if (WiFi.status() == WL_CONNECTED) break;
-          delay(50);
-        }
-      }
-      if (WiFi.status() == WL_CONNECTED) {
-        sendResp("WIFI_OK");
-        st = ST_CONNECT_MQTT;
-        stTimer = nowMs;
-      } else {
-        sendResp("WIFI_FAIL");
-        st = ST_ERROR;
-      }
-      break;
-
-    case ST_CONNECT_MQTT:
-      client.setServer(mqtt_server, mqtt_port);
-      client.setCallback(mqttCallback);
-      if (mqttEnsureConnected()) {
-        st = ST_READY;
-        sendResp("SYS_READY");
-      } else {
-        sendResp("MQTT_FAIL");
-        st = ST_ERROR;
-      }
-      break;
-
-    case ST_READY:
-      // maintain mqtt loop
-      client.loop();
-      // if disconnected try reconnect periodic
-      if (!client.connected()) {
-        unsigned long t = millis();
-        if (t - stTimer > 2000) {
-          stTimer = t;
-          mqttEnsureConnected();
-        }
-      }
-      // if messages queued -> publish (one per loop)
-      if (qCount > 0 && client.connected()) {
-        char outgoing[MSG_SZ];
-        if (queuePop(outgoing, sizeof(outgoing))) {
-          bool ok = client.publish("hotel/room1/auth", outgoing);
-          if (ok) sendResp("PUB_OK");
-          else {
-            sendResp("PUB_FAIL");
-            // push back? attempt retry
-            queuePush(outgoing);
-          }
-        }
-      }
-      break;
-
-    case ST_ERROR:
-      // send error and offer retry
-      sendResp("STATE_ERROR");
-      // try to recover after a pause
-      if (nowMs - stTimer > 5000) {
-        // reset flags to allow config again
-        haveSSID = havePass = haveBroker = havePort = false;
-        qHead = qTail = qCount = 0;
-        st = ST_WAIT_CONFIG;
-        sendResp("RETRY_CONFIG");
-      }
-      break;
-
-    default:
-      break;
   }
 }
