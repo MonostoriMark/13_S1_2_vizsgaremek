@@ -35,4 +35,13 @@ class Hotel extends Model
     {
         return $this->hasMany(Service::class, 'hotels_id');
     }
+    public function tags()
+    {
+        return $this->belongsToMany(
+            ServiceTag::class,
+            'hotelTagRelation',
+            'hotels_id',
+            'serviceTags_id'
+        );
+    }
 }

@@ -10,6 +10,9 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\HotelTagController;
+use App\Http\Controllers\RoomTagController;
 
 use Illuminate\Support\Facades\Http;
 
@@ -71,3 +74,17 @@ Route::delete('/images/{id}', [ImageController::class, 'destroy'])->middleware('
 Route::get('/rooms/{roomId}/images', [ImageController::class, 'roomImages']);
 Route::get('/images/{id}', [ImageController::class, 'show']);
 
+//SEARCH VÉGPONTOK
+Route::get('/search', [SearchController::class, 'searchWithPlans']);
+
+//TAG-ek hozzáfűzése
+
+Route::middleware('auth:sanctum')->group(function () {
+    // HOTEL TAGS
+    Route::post('/hotels/{hotel}/tags', [HotelTagController::class, 'store']);
+    Route::delete('/hotels/{hotel}/tags/{tag}', [HotelTagController::class, 'destroy']);
+
+    // ROOM TAGS
+    Route::post('/rooms/{room}/tags', [RoomTagController::class, 'store']);
+    Route::delete('/rooms/{room}/tags/{tag}', [RoomTagController::class, 'destroy']);
+});

@@ -43,4 +43,13 @@ class Room extends Model
     {
         return $this->belongsToMany(ServiceTag::class, 'roomTagRelation', 'rooms_id', 'serviceTags_id');
     }
+    public function tags()
+    {
+        return $this->belongsToMany(
+            ServiceTag::class,
+            'roomTagRelation',
+            'rooms_id',
+            'serviceTags_id'
+        );
+    }
 }

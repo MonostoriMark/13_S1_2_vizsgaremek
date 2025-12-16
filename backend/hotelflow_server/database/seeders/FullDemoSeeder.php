@@ -50,7 +50,54 @@ class FullDemoSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'user',
             ]);
-           
+             $user = User::create([
+            'name' => 'Hotel Admin',
+            'email' => 'hoteladmin@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'hotel',
+        ]);
+
+        // 2️⃣ Hotel létrehozása ehhez a userhez
+        $hotel = Hotel::create([
+            'user_id' => $user->id,
+            'location' => 'Budapest, Hungary',
+            'description' => 'Egy szép hotel a város szívében.',
+            'type' => 'hotel',
+            'starRating' => 4,
+        ]);
+
+        // 3️⃣ Pár szoba létrehozása a hotelhez
+        $rooms = [
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Standard Room',
+                'description' => 'Kényelmes, klasszikus szoba két fő részére.',
+                'pricePerNight' => 10000,
+                'capacity' => 2,
+                'basePrice' => 10000,
+            ],
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Deluxe Room',
+                'description' => 'Nagyobb szoba, extra kényelmi szolgáltatásokkal.',
+                'pricePerNight' => 15000,
+                'capacity' => 3,
+                'basePrice' => 15000,
+            ],
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Suite',
+                'description' => 'Luxus lakosztály a pihenésre.',
+                'pricePerNight' => 25000,
+                'capacity' => 4,
+                'basePrice' => 25000,
+            ],
+        ];
+
+        foreach ($rooms as $roomData) {
+            Room::create($roomData);
+        }
+
             // -------------------------
             // 2️⃣ Hotels, Rooms, Services
             // -------------------------
