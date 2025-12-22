@@ -1,3 +1,4 @@
-import DbFetcher 
+import DbFetcher
+import asyncio
 
-DbFetcher.fetch_data_from_backend()
+asyncio.run(DbFetcher.main())

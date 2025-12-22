@@ -3,7 +3,8 @@ import DbFetcher
 
 app = FastAPI()
 
-@app.get("/")
-def root():
-    asd = DbFetcher.fetch_data_from_backend()
-    return {"status": "ok", "message": asd}
+@app.get("/37")
+async def root():
+    print("Végpont elérve: /37")
+    await DbFetcher.main()
+    return {"status": "ok", "message": "asd"}
