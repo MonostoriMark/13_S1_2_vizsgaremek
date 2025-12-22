@@ -53,6 +53,7 @@ Route::put('/rooms/update/{id}', [RoomController::class, 'updateRoom'])->middlew
 Route::post('/bookings', [BookingController::class, 'store'])->middleware('auth:sanctum');
 Route::get('/bookings/user/{userId}', [BookingController::class, 'getBookingsByUserId'])->middleware('auth:sanctum');
 Route::delete('/bookings/delete/{id}', [BookingController::class, 'deleteBooking'])->middleware('auth:sanctum');
+Route::put('/bookings/update-status/{id}', [BookingController::class, 'updateStatus']);//->middleware('auth:sanctum');
 
 //GUEST VÉGPONTOK
 Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGuests'])->middleware('auth:sanctum');

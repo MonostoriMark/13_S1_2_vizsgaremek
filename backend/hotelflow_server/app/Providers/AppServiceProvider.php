@@ -25,6 +25,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
          Route::aliasMiddleware('role', RoleMiddleware::class);
-         //Booking::observe(BookingObserver::class);
+         Booking::observe(BookingObserver::class);
     }
 }

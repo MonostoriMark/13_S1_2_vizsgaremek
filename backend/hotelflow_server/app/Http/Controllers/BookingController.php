@@ -251,4 +251,27 @@ public function getGuestsByBookingId($bookingId)
     $guests = Guest::where('bookings_id', $bookingId)->get();
     return response()->json(['guests' => $guests], 200);
 }
+function updateStatus(Request $request, $id)
+{
+    $request->validate([
+        'status' => 'required|in:pending,confirmed,cancelled,completed'
+    ]);
+
+    $booking = Booking::find($id);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // 🔥 Jogosultság ellenőrzés 
+    /*
+    if ($booking->users_id !== auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+*/
+    $booking->status = $request->status;
+    $booking->touch();
+    $booking->save();
+
+    return response()->json(['message' => 'Booking status updated successfully'], 200);
+}
 }
