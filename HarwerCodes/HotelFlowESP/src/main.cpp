@@ -15,8 +15,8 @@ uint16_t port = 1883;
 
 // --- MQTT BEÁLLÍTÁSOK ---
 const char* CLIENT_ID = "ESP01-Gateway"; 
-const char* PUBLISH_TOPIC = "hotel/room1/auth";
-const char* SUBSCRIBE_TOPIC = "hotel/room1/result";
+const char* PUBLISH_TOPIC = "hotel/Room 868/auth";
+const char* SUBSCRIBE_TOPIC = "hotel/Room 868/result";
 const char* LWT_TOPIC = "hotel/status/ESP01";
 
 bool gotSSID = false, gotPASS = false, gotBRK = false, gotPORT = false;

@@ -1,160 +1,78 @@
-import requests
-import mysql.connector
-import urllib3
-import asyncio
-import aiohttp
+import json
+import pymysql
+import paho.mqtt.client as mqtt
 
-# Figyelmeztetések kikapcsolása
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+MQTT_BROKER = "127.0.0.1"
+MQTT_PORT = 1883
 
-API_URL = "http://26.34.221.136:8000/api/devices/bookings/37"
+MQTT_AUTH_TOPIC = "hotel/+/auth"
+MQTT_RESULT_TOPIC = "hotel/{room}/result"
 
-db_config = {
-    'user': 'root',
-    'password': '',
-    'host': '127.0.0.1',
-    'database': 'hotelflowlocal'
+DB_CONFIG = {
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "",
+    "database": "hotelflowlocal",
+    "cursorclass": pymysql.cursors.DictCursor
 }
 
-def setup_database(conn):
-    cursor = conn.cursor()
-    tables = [
-        """CREATE TABLE IF NOT EXISTS bookings (
-            id INT PRIMARY KEY,
-            users_id INT,
-            startDate DATE,
-            endDate DATE,
-            checkInToken VARCHAR(255),
-            checkInstatus VARCHAR(50),
-            checkInTime DATETIME,
-            checkOutTime DATETIME,
-            status VARCHAR(50)
-        )""",
-        """CREATE TABLE IF NOT EXISTS rooms (
-            id INT PRIMARY KEY,
-            name VARCHAR(255)
-        )""",
-        """CREATE TABLE IF NOT EXISTS relations (
-            booking_id INT,
-            rooms_id INT,
-            PRIMARY KEY (booking_id, rooms_id)
-        )""",
-        """CREATE TABLE IF NOT EXISTS rfidkeys (
-            id INT PRIMARY KEY,
-            hotels_id INT,
-            isUsed TINYINT(1),
-            rfidKey VARCHAR(100)
-        )""",
-        """CREATE TABLE IF NOT EXISTS rfidConnections (
-            `key` VARCHAR(100),
-            roomId INT,
-            roomName VARCHAR(255)
-        )"""
-    ]
-    for table_sql in tables:
-        cursor.execute(table_sql)
-    conn.commit()
-    cursor.close()
-
-async def fetch_data_to_mysql():
-    conn = None
-    cursor = None # Előre definiáljuk, hogy a finally ágban ne legyen hiba
+def check_access(card_id: str, room_name: str) -> bool:
     try:
-        # 1. Csatlakozás az adatbázishoz
-        conn = mysql.connector.connect(**db_config)
-        setup_database(conn)
-        cursor = conn.cursor()
-
-        # --- ASZINKRON LEKÉRÉS (aiohttp) ---
-        # A 'verify_ssl=False' kiváltja a verify=False-t
-        connector = aiohttp.TCPConnector(ssl=False)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            print("Lekérés indítása (nem blokkoló)...")
-            async with session.get(API_URL, timeout=10) as response:
-                if response.status != 200:
-                    print(f"Szerver hiba: {response.status}")
-                    return False
-                
-                data = await response.json()
-                print("Adatok megérkeztek.")
-
-        bookings = data.get("bookings", [])
-        rooms = data.get("rooms", [])
-        relations = data.get("relations", [])
-        rfid_keys = data.get("rfidKeys", [])
-        rfid_connections = data.get("rfidConnections", [])
-
-        # ---- ADATOK FRISSÍTÉSE ----
-        if bookings:
-            sql = """INSERT INTO bookings (id, users_id, startDate, endDate, checkInToken, checkInTime, checkOutTime, checkInstatus, status)
-                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                     ON DUPLICATE KEY UPDATE users_id=VALUES(users_id), startDate=VALUES(startDate), endDate=VALUES(endDate), 
-                     checkInToken=VALUES(checkInToken), checkInstatus=VALUES(checkInstatus), status=VALUES(status)"""
-            for b in bookings:
-                cursor.execute(sql, (b['id'], b['users_id'], b['startDate'], b['endDate'], b['checkInToken'], b['checkInTime'], b['checkOutTime'], b['checkInstatus'], b['status']))
-
-        if rooms:
-            sql = "INSERT INTO rooms (id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name=VALUES(name)"
-            for r in rooms:
-                cursor.execute(sql, (r['id'], r['name']))
-
-        for rel in relations:
-            cursor.execute("INSERT IGNORE INTO relations (booking_id, rooms_id) VALUES (%s, %s)", (rel["booking_id"], rel["rooms_id"]))
-
-        if rfid_keys:
-            sql = "INSERT INTO rfidkeys (id, hotels_id, isUsed, rfidKey) VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE isUsed=VALUES(isUsed), rfidKey=VALUES(rfidKey)"
-            for rfid in rfid_keys:
-                cursor.execute(sql, (rfid['id'], rfid['hotels_id'], rfid['isUsed'], rfid['rfidKey']))
-
-        cursor.execute("TRUNCATE TABLE rfidConnections")
-        if rfid_connections:
-            sql = "INSERT INTO rfidConnections (`key`, roomId, roomName) VALUES (%s, %s, %s)"
-            for c in rfid_connections:
-                cursor.execute(sql, (c['key'], c['roomId'], c['roomName']))
-
-        # ---- TÖRLÉS (Sync) ----
-        if bookings:
-            ids = [b["id"] for b in bookings]
-            cursor.execute(f"DELETE FROM bookings WHERE id NOT IN ({','.join(['%s']*len(ids))})", tuple(ids))
-        
-        if rooms:
-            ids = [r["id"] for r in rooms]
-            cursor.execute(f"DELETE FROM rooms WHERE id NOT IN ({','.join(['%s']*len(ids))})", tuple(ids))
-
-        conn.commit()
-        print("Sikeres szinkronizáció!")
-        return True
-
-    except (requests.exceptions.RequestException, mysql.connector.Error) as e:
-        print(f"Kapcsolódási hiba: {e}")
-        return False
+        conn = pymysql.connect(**DB_CONFIG)
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM rfidConnections
+                WHERE `key` = %s
+                  AND roomName = %s
+                LIMIT 1
+                """,
+                (card_id, room_name)
+            )
+            return cur.fetchone() is not None
     except Exception as e:
-        print(f"Váratlan hiba: {e}")
+        print("DB ERROR:", e)
         return False
     finally:
-        # Csak akkor zárjuk le, ha valóban létrejöttek
-        if cursor:
-            cursor.close()
-        if conn and conn.is_connected():
+        try:
             conn.close()
+        except:
+            pass
 
-async def main():
-    while True:
-        print("\nSzinkronizáció indítása...")
-        success = await fetch_data_to_mysql()
-        
-        if success:
-            print(f"Minden adat friss.")
-            break
-        else:
-            # Ha hiba volt, próbáljuk újra sűrűbben (pl. 10 másodperc)
-            wait_time = 60
-            print(f"Újrapróbálkozás {wait_time} másodperc múlva...")
-        
-        await asyncio.sleep(wait_time)
+def on_message(client, userdata, msg):
+    payload = json.loads(msg.payload.decode())
+
+    card_id = payload.get("cardID")
+    room_name = payload.get("doorID")   # pl. "Room 868"
+
+    if not card_id or not room_name:
+        return
+
+    allowed = check_access(card_id, room_name)
+
+    result = {
+        "accessResult": "OK" if allowed else "DENY"
+    }
+
+    # topic továbbra is technikai (szóköz NINCS!)
+    topic_room = msg.topic.split("/")[1]  # room868
+    result_topic = MQTT_RESULT_TOPIC.format(room=topic_room)
+
+    client.publish(result_topic, json.dumps(result), qos=1)
+
+    print("RX:", payload)
+    print("TX:", result_topic, result)
+
+def main():
+    client = mqtt.Client("hotel-auth-service")
+    client.on_message = on_message
+
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.subscribe(MQTT_AUTH_TOPIC)
+
+    print("Auth service running...")
+    client.loop_forever()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nProgram leállítva a felhasználó által.")
+    main()
