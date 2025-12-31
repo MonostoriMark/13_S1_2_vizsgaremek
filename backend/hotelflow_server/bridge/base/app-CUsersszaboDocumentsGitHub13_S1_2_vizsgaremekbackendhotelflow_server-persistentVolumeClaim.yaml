@@ -1,0 +1,18 @@
+#! app-C:\Users\szabo\Documents\GitHub\13_S1_2_vizsgaremek\backend\hotelflow_server-persistentVolumeClaim.yaml
+# Generated code, do not edit
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: app-c--users-szabo-documents-github-13-s1-2-vizsgaremek-backend-hotelflow-server
+    namespace: hotelflow-server
+    labels:
+        com.docker.compose.service: app
+        com.docker.compose.volume: C:\Users\szabo\Documents\GitHub\13_S1_2_vizsgaremek\backend\hotelflow_server
+spec:
+    accessModes:
+        # TODO would need to check which services use this volume
+        - ReadWriteOnce
+    volumeMode: Filesystem
+    resources:
+        requests:
+            storage: 100Mi
