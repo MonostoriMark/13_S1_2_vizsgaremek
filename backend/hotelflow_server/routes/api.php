@@ -13,6 +13,7 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\HotelTagController;
 use App\Http\Controllers\RoomTagController;
+use App\Http\Controllers\ServiceController;
 
 use Illuminate\Support\Facades\Http;
 
@@ -45,6 +46,13 @@ Route::get('/rooms/{id}', [RoomController::class, 'getRoomById']);
 Route::post('/rooms/create/{hotel_id}', [RoomController::class, 'createRoom'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/rooms/delete/{id}', [RoomController::class, 'deleteRoom'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/rooms/update/{id}', [RoomController::class, 'updateRoom'])->middleware('auth:sanctum', 'role:hotel');
+
+//SERVICE VÉGPONTOK
+Route::get('/services/hotel/{hotel_id}', [ServiceController::class, 'getServicesByHotelId']);
+Route::get('/services/{id}', [ServiceController::class, 'getServiceById']);
+Route::post('/services', [ServiceController::class, 'createService'])->middleware('auth:sanctum', 'role:hotel');
+Route::put('/services/{id}', [ServiceController::class, 'updateService'])->middleware('auth:sanctum', 'role:hotel');
+Route::delete('/services/{id}', [ServiceController::class, 'deleteService'])->middleware('auth:sanctum', 'role:hotel');
 
 //IDE MÉG JÖN EGY ELÉRHETŐSÉG ELLENŐRZÉS VÉGPONT
 

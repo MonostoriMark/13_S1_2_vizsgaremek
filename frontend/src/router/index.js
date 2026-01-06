@@ -43,6 +43,30 @@ const router = createRouter({
       name: 'AdminBookings',
       component: () => import('../views/admin/BookingsList.vue'),
       meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin',
+      name: 'AdminDashboard',
+      component: () => import('../views/admin/Dashboard.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin/hotels',
+      name: 'AdminHotels',
+      component: () => import('../views/admin/Hotels.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin/rooms',
+      name: 'AdminRooms',
+      component: () => import('../views/admin/Rooms.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin/services',
+      name: 'AdminServices',
+      component: () => import('../views/admin/Services.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
     }
   ]
 })
