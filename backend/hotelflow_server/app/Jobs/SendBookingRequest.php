@@ -80,4 +80,5 @@ class SendBookingRequest implements ShouldQueue, ShouldBeUnique
         throw $e;
     }
 }
+
 }

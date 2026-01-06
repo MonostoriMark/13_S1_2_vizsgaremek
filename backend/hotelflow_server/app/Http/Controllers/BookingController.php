@@ -209,6 +209,9 @@ public function store(Request $request)
 public function deleteBooking($id)
 {
     $booking = Booking::find($id);
+    $rooms = $booking->rooms;
+        // RFID kulcsok felszabadítása
+   
     if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
@@ -217,8 +220,19 @@ public function deleteBooking($id)
     if ($booking->users_id !== auth()->id()) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
-
+     foreach ($rooms as $room) {
+        $rfidConnection = RFIDConnection::where('rooms_id', $room->id)->first();
+        if ($rfidConnection) {
+            $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
+            if ($rfidKey) {
+                $rfidKey->isUsed = 0;
+                $rfidKey->save();
+            }
+            $rfidConnection->delete();
+        }
+    }
     $booking->delete();
+
 
     return response()->json(['message' => 'Booking deleted successfully'], 200);
 

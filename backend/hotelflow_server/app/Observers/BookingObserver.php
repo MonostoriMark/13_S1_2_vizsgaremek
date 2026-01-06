@@ -9,7 +9,7 @@ class BookingObserver
 {
     public function created(Booking $booking): void
     {
-        SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
+        //SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
     }
 
     public function updated(Booking $booking): void
@@ -24,11 +24,11 @@ class BookingObserver
 
     public function restored(Booking $booking): void
     {
-        SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
+        //SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
     }
 
     public function forceDeleted(Booking $booking): void
     {
-        SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
+        //SendBookingRequest::dispatch($booking->hotels_id)->afterCommit();
     }
 }
