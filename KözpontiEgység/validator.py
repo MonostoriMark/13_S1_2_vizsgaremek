@@ -1,5 +1,5 @@
 import json
-import mysql.connector
+import pymysql
 import paho.mqtt.client as mqtt
 
 # -------- CONFIG --------
@@ -8,9 +8,9 @@ MQTT_PORT = 1883
 
 DB_CONFIG = {
     "host": "127.0.0.1",
-    "user": "root",
-    "password": "",
-    "database": "hotelflowlocal"
+    "user": "appuser",
+    "password": "123",
+    "database": "hotelflowLocal"
 }
 
 # -------- SIMPLE SIG (UGYANAZ, MINT ARDUINO) --------
@@ -29,7 +29,7 @@ def simple_sig(cardID: str, doorID: str, ts: int) -> int:
 
 # -------- DB CHECK --------
 def is_allowed(card_id: str, room_name: str) -> bool:
-    conn = mysql.connector.connect(**DB_CONFIG)
+    conn = pymysql.connect(**DB_CONFIG)
     cur = conn.cursor()
     cur.execute("""
         SELECT 1

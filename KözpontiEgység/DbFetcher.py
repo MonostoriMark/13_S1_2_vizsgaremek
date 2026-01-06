@@ -1,78 +1,144 @@
-import json
 import pymysql
-import paho.mqtt.client as mqtt
-
-MQTT_BROKER = "127.0.0.1"
-MQTT_PORT = 1883
-
-MQTT_AUTH_TOPIC = "hotel/+/auth"
-MQTT_RESULT_TOPIC = "hotel/{room}/result"
+import requests
+import asyncio
 
 DB_CONFIG = {
-    "host": "127.0.0.1",
-    "user": "root",
-    "password": "",
-    "database": "hotelflowlocal",
-    "cursorclass": pymysql.cursors.DictCursor
+    "host": "localhost",
+    "user": "appuser",
+    "password": "123",
+    "database": "hotelflowLocal"
 }
 
-def check_access(card_id: str, room_name: str) -> bool:
-    try:
-        conn = pymysql.connect(**DB_CONFIG)
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1
-                FROM rfidConnections
-                WHERE `key` = %s
-                  AND roomName = %s
-                LIMIT 1
-                """,
-                (card_id, room_name)
+API_URL = "http://172.16.13.18:8000/api/devices/bookings/37"
+API_HEADERS = {
+    "Accept": "application/json"
+}
+
+async def fetchDb():
+    conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
+    cursor = conn.cursor()
+
+    # --- Tábla létrehozása, ha nincs ---
+    tables = {
+        "bookings": """
+            CREATE TABLE IF NOT EXISTS bookings (
+                id INT PRIMARY KEY,
+                users_id INT,
+                startDate DATE,
+                endDate DATE,
+                checkInToken VARCHAR(255),
+                checkInstatus VARCHAR(255),
+                checkInTime DATETIME,
+                checkOutTime DATETIME,
+                status VARCHAR(50)
             )
-            return cur.fetchone() is not None
-    except Exception as e:
-        print("DB ERROR:", e)
-        return False
-    finally:
-        try:
-            conn.close()
-        except:
-            pass
-
-def on_message(client, userdata, msg):
-    payload = json.loads(msg.payload.decode())
-
-    card_id = payload.get("cardID")
-    room_name = payload.get("doorID")   # pl. "Room 868"
-
-    if not card_id or not room_name:
-        return
-
-    allowed = check_access(card_id, room_name)
-
-    result = {
-        "accessResult": "OK" if allowed else "DENY"
+        """,
+        "rooms": """
+            CREATE TABLE IF NOT EXISTS rooms (
+                id INT PRIMARY KEY,
+                name VARCHAR(255)
+            )
+        """,
+        "relations": """
+            CREATE TABLE IF NOT EXISTS relations (
+                booking_id INT,
+                rooms_id INT,
+                PRIMARY KEY (booking_id, rooms_id)
+            )
+        """,
+        "rfidKeys": """
+            CREATE TABLE IF NOT EXISTS rfidKeys (
+                id INT PRIMARY KEY,
+                hotels_id INT,
+                isUsed TINYINT(1),
+                rfidKey VARCHAR(50)
+            )
+        """,
+        "rfidConnections": """
+            CREATE TABLE IF NOT EXISTS rfidConnections (
+                rfidKey VARCHAR(50) PRIMARY KEY,
+                roomId INT,
+                roomName VARCHAR(255)
+            )
+        """
     }
 
-    # topic továbbra is technikai (szóköz NINCS!)
-    topic_room = msg.topic.split("/")[1]  # room868
-    result_topic = MQTT_RESULT_TOPIC.format(room=topic_room)
+    for sql in tables.values():
+        cursor.execute(sql)
+    conn.commit()
 
-    client.publish(result_topic, json.dumps(result), qos=1)
+    # --- API hívás ---
+    response = requests.get(API_URL, headers=API_HEADERS)
+    data = response.json()
 
-    print("RX:", payload)
-    print("TX:", result_topic, result)
+    # --- Upsert függvény ---
+    def upsert(cursor, table, data):
+        placeholders = ", ".join("%s" for _ in data)
+        columns = ", ".join(f"`{c}`" for c in data.keys())
+        updates = ", ".join(f"`{k}`=VALUES(`{k}`)" for k in data.keys())
+        sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}"
+        cursor.execute(sql, list(data.values()))
 
-def main():
-    client = mqtt.Client("hotel-auth-service")
-    client.on_message = on_message
+    # --- Rekordok ID listák az API alapján ---
+    api_ids = {
+        "bookings": [],
+        "rooms": [],
+        "relations": [],
+        "rfidKeys": [],
+        "rfidConnections": []
+    }
 
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    client.subscribe(MQTT_AUTH_TOPIC)
+    # --- Upsert + ID gyűjtés ---
+    for booking in data.get("bookings", []):
+        upsert(cursor, "bookings", booking)
+        api_ids["bookings"].append(booking["id"])
 
-    print("Auth service running...")
-    client.loop_forever()
+    for room in data.get("rooms", []):
+        upsert(cursor, "rooms", room)
+        api_ids["rooms"].append(room["id"])
 
-if __name__ == "__main__":
-    main()
+    for rel in data.get("relations", []):
+        upsert(cursor, "relations", rel)
+        api_ids["relations"].append((rel["booking_id"], rel["rooms_id"]))
+
+    for key in data.get("rfidKeys", []):
+        upsert(cursor, "rfidKeys", key)
+        api_ids["rfidKeys"].append(key["id"])
+
+    for connData in data.get("rfidConnections", []):
+        connData['rfidKey'] = connData.pop('key')
+        upsert(cursor, "rfidConnections", connData)
+        api_ids["rfidConnections"].append(connData["rfidKey"])
+
+    # --- Lokális törlés, ami nincs az API-ban ---
+    if api_ids["bookings"]:
+        placeholders = ','.join(['%s'] * len(api_ids["bookings"]))
+        cursor.execute(f"DELETE FROM bookings WHERE id NOT IN ({placeholders})", api_ids["bookings"])
+
+    if api_ids["rooms"]:
+        placeholders = ','.join(['%s'] * len(api_ids["rooms"]))
+        cursor.execute(f"DELETE FROM rooms WHERE id NOT IN ({placeholders})", api_ids["rooms"])
+
+    if api_ids["relations"]:
+        cursor.execute("SELECT booking_id, rooms_id FROM relations")
+        for row in cursor.fetchall():
+            if (row["booking_id"], row["rooms_id"]) not in api_ids["relations"]:
+                cursor.execute(
+                    "DELETE FROM relations WHERE booking_id=%s AND rooms_id=%s",
+                    (row["booking_id"], row["rooms_id"])
+                )
+
+    if api_ids["rfidKeys"]:
+        placeholders = ','.join(['%s'] * len(api_ids["rfidKeys"]))
+        cursor.execute(f"DELETE FROM rfidKeys WHERE id NOT IN ({placeholders})", api_ids["rfidKeys"])
+
+    if api_ids["rfidConnections"]:
+        placeholders = ','.join(['%s'] * len(api_ids["rfidConnections"]))
+        cursor.execute(
+            f"DELETE FROM rfidConnections WHERE rfidKey NOT IN ({placeholders})",
+            api_ids["rfidConnections"]
+        )
+
+    conn.commit()
+    cursor.close()
+    conn.close()

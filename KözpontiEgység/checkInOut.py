@@ -1,22 +1,24 @@
-import mysql.connector
+import pymysql
 import json
-#from qrReader import read_qr_from_image
 from post import put_request_example
 
 # MySQL KONFIGURÁCIÓ
 db_config = {
-    'user': 'root',
-    'password': '',
+    'user': 'appuser',
+    'password': '123',
     'host': '127.0.0.1',
-    'database': 'hotelflowlocal'
+    'database': 'hotelflowLocal',
+    'cursorclass': pymysql.cursors.DictCursor  # DictCursor a könnyebb kezeléshez
 }
 
 def check_in_out(auth_token: str):
+    conn = None
+    cursor = None
     try:
-        conn = mysql.connector.connect(**db_config)
+        conn = pymysql.connect(**db_config)
         cursor = conn.cursor()
 
-        # Biztosítjuk, hogy a pending_requests tábla létezik MySQL-ben
+        # Biztosítjuk, hogy a pending_requests tábla létezik
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_requests (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,9 +37,11 @@ def check_in_out(auth_token: str):
         if pending:
             print(f"{len(pending)} korábbi sikertelen kérés újraküldése...")
             for row in pending:
-                req_id, b_id, payload_json = row
-                # MySQL-nél a JSON mező lehet string vagy diktátum a konnektortól függően
-                payload_data = json.loads(payload_json) if isinstance(payload_json, str) else payload_json
+                req_id = row['id']
+                b_id = row['booking_id']
+                payload_data = row['payload']
+                if isinstance(payload_data, str):
+                    payload_data = json.loads(payload_data)
 
                 if put_request_example(payload_data, b_id):
                     cursor.execute("DELETE FROM pending_requests WHERE id = %s", (req_id,))
@@ -55,17 +59,20 @@ def check_in_out(auth_token: str):
 
         if not booking:
             print("Nincs ilyen foglalás.")
-            exit()
+            return
 
-        booking_id, status, db_checkInTime, db_checkOutTime = booking
+        booking_id = booking['id']
+        status = booking['checkInstatus']
+        db_checkInTime = booking['checkInTime']
+        db_checkOutTime = booking['checkOutTime']
+
         print("Aktuális státusz:", status)
 
         # -----------------------------
-        # CHECK-IN / CHECK-OUT logika (MySQL szintaxis)
+        # CHECK-IN / CHECK-OUT logika
         # -----------------------------
-        if status is None or status == "" or status == "confirmed":
+        if status is None or status == "" or status.lower() == "confirmed":
             print("\nVendég bejelentkeztetése...")
-            # MySQL-ben a NOW() használatos, az időzónát a szerver kezeli
             cursor.execute("""
                 UPDATE bookings
                 SET checkInstatus='checkedIn',
@@ -88,9 +95,12 @@ def check_in_out(auth_token: str):
         # ÚJRA LEKÉRDEZZÜK A FRISS ADATOKAT
         # -----------------------------
         cursor.execute("SELECT checkInstatus, checkInTime, checkOutTime FROM bookings WHERE id = %s", (booking_id,))
-        new_status, new_checkInTime, new_checkOutTime = cursor.fetchone()
+        booking = cursor.fetchone()
+        new_status = booking['checkInstatus']
+        new_checkInTime = booking['checkInTime']
+        new_checkOutTime = booking['checkOutTime']
 
-        # MySQL DATETIME objektumot JSON-kompatibilis stringgé kell alakítani
+        # Payload a backend felé
         payload = {
             "checkInstatus": new_status,
             "checkInTime": new_checkInTime.strftime('%Y-%m-%d %H:%M:%S') if new_checkInTime else None,
@@ -114,9 +124,10 @@ def check_in_out(auth_token: str):
 
         print("\nMűvelet kész.")
 
-    except mysql.connector.Error as err:
+    except pymysql.MySQLError as err:
         print(f"Adatbázis hiba: {err}")
     finally:
-        if 'conn' in locals() and conn.is_connected():
+        if cursor:
             cursor.close()
+        if conn:
             conn.close()

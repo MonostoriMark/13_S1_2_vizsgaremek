@@ -1,25 +1,26 @@
 import requests
 import json
-import mysql.connector
+import pymysql
 
 DB_CONFIG = {
-    'user': 'root',
-    'password': '',
+    'user': 'appuser',
+    'password': '123',
     'host': '127.0.0.1',
-    'database': 'hotelflowlocal'
+    'database': 'hotelflowLocal'
 }
 
 def put_request_example(payload, booking_id):
-    url_template = "http://26.34.221.136:8000/api/devices/update-booking/"
+    url_template = "http://172.16.13.18:8000/api/devices/update-booking/"
     headers = {
         "Authorization": "Bearer TOKEN",
         "Content-Type": "application/json"
     }
 
     conn = None
+    cursor = None
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        conn = pymysql.connect(**DB_CONFIG, cursorclass=pymysql.cursors.DictCursor)
+        cursor = conn.cursor()
 
         # --- 1. PENDING REQUESTS ÚJRAKÜLDÉSE ---
         cursor.execute("SELECT id, booking_id, payload FROM pending_requests ORDER BY id ASC")
@@ -32,17 +33,14 @@ def put_request_example(payload, booking_id):
                 p_booking_id = item['booking_id']
                 p_payload_raw = item['payload']
 
-                # HIBAJAVÍTÁS: Bytes kezelése
+                # JSON dekódolás
                 try:
-                    # Ha bytes, dekódoljuk stringgé
                     if isinstance(p_payload_raw, (bytes, bytearray)):
                         p_payload_raw = p_payload_raw.decode('utf-8')
-                    
-                    # Ha string, alakítsuk dict-é a küldéshez
                     if isinstance(p_payload_raw, str):
                         p_payload = json.loads(p_payload_raw)
                     else:
-                        p_payload = p_payload_raw # Már dict volt
+                        p_payload = p_payload_raw
                 except Exception as e:
                     print(f"Hiba a JSON dekódolásánál (ID: {p_id}): {e}")
                     continue
@@ -72,13 +70,11 @@ def put_request_example(payload, booking_id):
             return False
 
     except Exception as e:
-        # Itt jelentkezett a "bytes is not JSON serializable" hiba
         print(f"Hálózati hiba vagy szerver nem elérhető: {e}")
         
         # --- 3. MENTÉS PENDINGBE ---
-        if conn and conn.is_connected():
+        if conn:
             try:
-                # A biztonság kedvéért itt is stringgé alakítjuk a mentés előtt
                 payload_to_save = json.dumps(payload)
                 cursor.execute(
                     "INSERT INTO pending_requests (booking_id, payload) VALUES (%s, %s)",
@@ -92,6 +88,7 @@ def put_request_example(payload, booking_id):
         return False
 
     finally:
-        if conn and conn.is_connected():
+        if cursor:
             cursor.close()
+        if conn:
             conn.close()

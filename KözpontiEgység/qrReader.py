@@ -1,6 +1,5 @@
 from picamera2 import Picamera2
 from pyzbar import pyzbar
-import cv2
 import time
 import logging
 import checkInOut
@@ -52,7 +51,7 @@ try:
         else:
             logging.debug("Nincs QR a képkockában")
 
-        time.sleep(0.1)  # CPU spórolás
+        time.sleep(1)  # CPU spórolás
 
 except KeyboardInterrupt:
     logging.info("QR olvasó debug leállítva kézzel")
