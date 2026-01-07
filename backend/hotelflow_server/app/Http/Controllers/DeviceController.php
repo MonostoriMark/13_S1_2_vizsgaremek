@@ -47,7 +47,9 @@ public function getBookings($hotelId)
         'bookings' => $bookings,
         'rooms' => $rooms,
         'relations' => $relations,
-        'rfidKeys' => RFIDKey::where('hotels_id', $hotelId)->get(),
+        'rfidKeys' => RFIDKey::where('hotels_id', $hotelId)
+        ->select('id', 'hotels_id', 'isUsed', 'rfidKey')
+        ->get(),
         'rfidConnections' => $rfidConnections
         
     ], 200);
@@ -61,7 +63,7 @@ public function updateData(Request $request, $bookingId)
     }
 
     // Csak a megengedett mezőket frissítjük
-    $allowedFields = ['checkInstatus', 'checkInTime', 'checkOutTime'];
+    $allowedFields = ['checkInstatus', 'checkInTime','status', 'checkOutTime'];
     foreach ($allowedFields as $field) {
         if ($request->has($field)) {
             $booking->$field = $request->input($field);
