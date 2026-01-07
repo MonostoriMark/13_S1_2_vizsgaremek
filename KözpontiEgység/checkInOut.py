@@ -68,6 +68,8 @@ def check_in_out(auth_token: str):
 
         print("Aktuális státusz:", status)
 
+        
+
         # -----------------------------
         # CHECK-IN / CHECK-OUT logika
         # -----------------------------

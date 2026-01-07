@@ -31,12 +31,21 @@ def simple_sig(cardID: str, doorID: str, ts: int) -> int:
 def is_allowed(card_id: str, room_name: str) -> bool:
     conn = pymysql.connect(**DB_CONFIG)
     cur = conn.cursor()
-    cur.execute("""
+    
+    query = """
         SELECT 1
-        FROM rfidConnections
-        WHERE rfidKey = %s AND roomName = %s
+        FROM bookings b
+        JOIN relations r ON r.booking_id = b.id
+        JOIN rooms ro ON ro.id = r.rooms_id
+        JOIN rfidConnections rc ON rc.roomId = ro.id
+        JOIN rfidkeys rk ON rk.rfidKey = rc.rfidKey
+        WHERE rk.rfidKey = %s
+          AND ro.name = %s
+          AND b.checkInStatus = 'active'
+          AND rk.isUsed = 1
         LIMIT 1
-    """, (card_id, room_name))
+    """
+    cur.execute(query, (card_id, room_name))
     result = cur.fetchone()
     cur.close()
     conn.close()
@@ -85,10 +94,10 @@ def on_message(client, userdata, msg):
     
 # -------- MAIN --------
 def main():
-    client = mqtt.Client(client_id="hotel-auth-service")
+    client = mqtt.Client(client_id="hotel-auth-service-001")
     client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
     client.loop_forever()
 
 if __name__ == "__main__":

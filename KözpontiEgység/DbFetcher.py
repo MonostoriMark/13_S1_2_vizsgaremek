@@ -3,13 +3,13 @@ import requests
 import asyncio
 
 DB_CONFIG = {
-    "host": "localhost",
+    "host": "127.0.0.1",
     "user": "appuser",
     "password": "123",
     "database": "hotelflowLocal"
 }
 
-API_URL = "http://172.16.13.18:8000/api/devices/bookings/37"
+API_URL = "http://172.16.50.41:8000/api/devices/bookings/37"
 API_HEADERS = {
     "Accept": "application/json"
 }
