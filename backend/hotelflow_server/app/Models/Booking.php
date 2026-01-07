@@ -30,4 +30,12 @@ class Booking extends Model
     public function services() {
         return $this->belongsToMany(Service::class, 'servicesRelation', 'bookings_id', 'services_id');
     }
+
+    public function rfidAssignments() {
+        return $this->hasMany(RFIDAssignment::class);
+    }
+
+    public function activeRfidAssignments() {
+        return $this->hasMany(RFIDAssignment::class)->whereNull('released_at');
+    }
 }

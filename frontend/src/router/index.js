@@ -67,6 +67,12 @@ const router = createRouter({
       name: 'AdminServices',
       component: () => import('../views/admin/Services.vue'),
       meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin/rfid-keys',
+      name: 'AdminRFIDKeys',
+      component: () => import('../views/admin/RFIDKeys.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
     }
   ]
 })
@@ -96,8 +102,8 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // If authenticated user tries to access login/register
-  if (!requiresAuth && isAuthenticated) {
+  // If authenticated user tries to access login/register, redirect them
+  if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
     if (userRole === 'user') {
       next('/bookings')
     } else if (userRole === 'hotel') {

@@ -10,7 +10,6 @@
         <div class="nav-menu" :class="{ active: mobileMenuOpen }">
           <template v-if="isAuthenticated">
             <router-link 
-              v-if="userRole === 'user'" 
               to="/search" 
               class="nav-link"
               @click="closeMobileMenu"

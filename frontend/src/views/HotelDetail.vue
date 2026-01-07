@@ -138,8 +138,12 @@ const createBooking = async () => {
       rooms: pendingBooking.value.plan.rooms.map(room => ({
         id: room.room_id,
         guests: room.capacity
-      })),
-      services: selectedServices.value
+      }))
+    }
+
+    // Only include services if any are selected
+    if (selectedServices.value && selectedServices.value.length > 0) {
+      bookingData.services = selectedServices.value
     }
 
     await bookingService.createBooking(bookingData)

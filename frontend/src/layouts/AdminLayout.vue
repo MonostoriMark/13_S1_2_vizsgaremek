@@ -64,7 +64,8 @@ const menuItems = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
   { path: '/admin/hotels', label: 'Hotels', icon: '🏨' },
   { path: '/admin/rooms', label: 'Rooms', icon: '🛏️' },
-  { path: '/admin/services', label: 'Services', icon: '✨' }
+  { path: '/admin/services', label: 'Services', icon: '✨' },
+  { path: '/admin/rfid-keys', label: 'RFID Keys', icon: '🔑' }
 ]
 
 const pageTitle = computed(() => {

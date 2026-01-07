@@ -12,6 +12,7 @@ use App\Mail\BookingConfirmationMail;
 use App\Models\Guest;
 use App\Models\RFIDKey;
 use App\Models\RFIDConnection;
+use App\Models\RFIDAssignment;
 
 class BookingController extends Controller
 {
@@ -37,7 +38,8 @@ public function store(Request $request)
         return response()->json(['error' => 'Legalább egy szobát ki kell választani'], 400);
     }
 
-    if ($request->has('services') && count($request->services) === 0) {
+    // Only validate services if they are provided and not empty
+    if ($request->has('services') && is_array($request->services) && count($request->services) === 0) {
         return response()->json(['error' => 'Ha szolgáltatásokat adsz meg, legalább egyet ki kell választani'], 400);
     }
 
@@ -111,14 +113,19 @@ public function store(Request $request)
 
         // --------- IDE JÖN AZ ÚJ RFID KÓD ---------
         foreach ($roomIds as $roomId) {
+            // Check for available RFID key
+            // Try both boolean false and integer 0 to handle database type differences
             $rfidKey = RFIDKey::where('hotels_id', $request->hotelId)
-                            ->where('isUsed', false)
+                            ->where(function($query) {
+                                $query->where('isUsed', false)
+                                      ->orWhere('isUsed', 0);
+                            })
                             ->first();
 
             if (!$rfidKey) {
                 DB::rollBack();
                 return response()->json([
-                    'error' => "Nincs elérhető RFID kulcs a hotelhez"
+                    'error' => "Nincs elérhető RFID kulcs a hotelhez. Kérjük, vegye fel a kapcsolatot a szállodával."
                 ], 400);
             }
 
@@ -225,7 +232,7 @@ public function deleteBooking($id)
         if ($rfidConnection) {
             $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
             if ($rfidKey) {
-                $rfidKey->isUsed = 0;
+                $rfidKey->isUsed = false; // Use false instead of 0 for consistency
                 $rfidKey->save();
             }
             $rfidConnection->delete();
@@ -282,9 +289,28 @@ function updateStatus(Request $request, $id)
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 */
+    $oldStatus = $booking->status;
     $booking->status = $request->status;
     $booking->touch();
     $booking->save();
+
+    // Automatically release RFID keys when booking is completed or cancelled
+    if (in_array($request->status, ['completed', 'cancelled'])) {
+        $assignments = RFIDAssignment::where('booking_id', $booking->id)
+            ->whereNull('released_at')
+            ->get();
+
+        foreach ($assignments as $assignment) {
+            $assignment->released_at = now();
+            $assignment->save();
+
+            $rfidKey = RFIDKey::find($assignment->rfid_key_id);
+            if ($rfidKey) {
+                $rfidKey->isUsed = false;
+                $rfidKey->save();
+            }
+        }
+    }
 
     return response()->json(['message' => 'Booking status updated successfully'], 200);
 }

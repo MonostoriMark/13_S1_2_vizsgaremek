@@ -14,6 +14,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\HotelTagController;
 use App\Http\Controllers\RoomTagController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\RFIDKeyController;
 
 use Illuminate\Support\Facades\Http;
 
@@ -53,6 +54,18 @@ Route::get('/services/{id}', [ServiceController::class, 'getServiceById']);
 Route::post('/services', [ServiceController::class, 'createService'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/services/{id}', [ServiceController::class, 'updateService'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/services/{id}', [ServiceController::class, 'deleteService'])->middleware('auth:sanctum', 'role:hotel');
+
+//RFID KEY VÉGPONTOK
+Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
+    Route::get('/rfid-keys', [RFIDKeyController::class, 'index']);
+    Route::get('/rfid-keys/bookings', [RFIDKeyController::class, 'getAvailableBookings']);
+    Route::get('/rfid-keys/{id}', [RFIDKeyController::class, 'show']);
+    Route::post('/rfid-keys', [RFIDKeyController::class, 'store']);
+    Route::patch('/rfid-keys/{id}', [RFIDKeyController::class, 'update']);
+    Route::delete('/rfid-keys/{id}', [RFIDKeyController::class, 'destroy']);
+    Route::post('/rfid-keys/{id}/assign', [RFIDKeyController::class, 'assign']);
+    Route::post('/rfid-keys/{id}/release', [RFIDKeyController::class, 'release']);
+});
 
 //IDE MÉG JÖN EGY ELÉRHETŐSÉG ELLENŐRZÉS VÉGPONT
 
