@@ -10,14 +10,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingConfirmationMail;
 use App\Models\Guest;
+use App\Models\RFIDKey;
+use App\Models\RFIDConnection;
 
 class BookingController extends Controller
 {
-    // Foglalás létrehozása
-    public function store(Request $request)
+public function store(Request $request)
 {
     $request->validate([
         'userId' => 'required|exists:users,id',
+        'hotelId' => 'required|exists:hotels,id',
         'startDate' => 'required|date',
         'endDate' => 'required|date|after_or_equal:startDate',
         'rooms' => 'required|array|min:1',
@@ -26,22 +28,27 @@ class BookingController extends Controller
         'services' => 'array',
         'services.*' => 'exists:services,id'
     ]);
-    if($request->userId !== auth()->id()){
+
+    if ($request->userId !== auth()->id()) {
         return response()->json(['error' => 'Nincs jogosultságod'], 403);
     }
+
     if (count($request->rooms) === 0) {
         return response()->json(['error' => 'Legalább egy szobát ki kell választani'], 400);
     }
+
     if ($request->has('services') && count($request->services) === 0) {
         return response()->json(['error' => 'Ha szolgáltatásokat adsz meg, legalább egyet ki kell választani'], 400);
     }
+
     if (strtotime($request->endDate) < strtotime($request->startDate)) {
         return response()->json(['error' => 'A távozási dátumnak későbbinek kell lennie, mint az érkezési dátum'], 400);
     }
-    if(strtotime($request->startDate) < strtotime(date('Y-m-d'))){
+
+    if (strtotime($request->startDate) < strtotime(date('Y-m-d'))) {
         return response()->json(['error' => 'Az érkezési dátum nem lehet múltbeli'], 400);
     }
-    
+
     DB::beginTransaction();
     try {
         // -------------------------
@@ -49,6 +56,7 @@ class BookingController extends Controller
         // -------------------------
         $booking = Booking::create([
             'users_id' => $request->userId,
+            'hotels_id' => $request->hotelId,
             'startDate' => $request->startDate,
             'endDate' => $request->endDate,
             'checkInToken' => str()->random(),
@@ -57,20 +65,72 @@ class BookingController extends Controller
         ]);
 
         $totalPrice = 0;
+        $roomIds = [];
 
         // -------------------------
-        // Szobák hozzáadása + ár számítása
+        // Szobák hozzáadása + ár számítása + ellenőrzések
         // -------------------------
-        $roomIds = [];
         foreach ($request->rooms as $roomData) {
             $room = Room::find($roomData['id']);
+
+            // 1. Ellenőrzés: szoba a hotelhez tartozik?
+            if ($room->hotels_id != $request->hotelId) {
+                DB::rollBack();
+                return response()->json(['error' => "A(z) {$room->name} szoba nem tartozik a kiválasztott hotelhez"], 400);
+            }
+
+            // 2. Ellenőrzés: szoba szabad-e a megadott időszakban?
+            $overlappingBooking = $room->bookings()
+                ->where('status', 'confirmed')
+                ->where(function($query) use ($request) {
+                    $query->whereBetween('startDate', [$request->startDate, $request->endDate])
+                          ->orWhereBetween('endDate', [$request->startDate, $request->endDate])
+                          ->orWhere(function($q) use ($request) {
+                              $q->where('startDate', '<=', $request->startDate)
+                                ->where('endDate', '>=', $request->endDate);
+                          });
+                })
+                ->exists();
+
+            if ($overlappingBooking) {
+                DB::rollBack();
+                return response()->json(['error' => "A(z) {$room->name} szoba nem elérhető a megadott időszakban"], 400);
+            }
+
             $roomIds[] = $room->id;
 
             $guestsCount = $roomData['guests'];
             $roomPrice = $room->basePrice + ($room->pricePerNight * $guestsCount);
             $totalPrice += $roomPrice;
         }
+
         $booking->rooms()->sync($roomIds);
+
+        // -------------------------
+        // RFID kulcsok hozzárendelése
+
+        // --------- IDE JÖN AZ ÚJ RFID KÓD ---------
+        foreach ($roomIds as $roomId) {
+            $rfidKey = RFIDKey::where('hotels_id', $request->hotelId)
+                            ->where('isUsed', false)
+                            ->first();
+
+            if (!$rfidKey) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => "Nincs elérhető RFID kulcs a hotelhez"
+                ], 400);
+            }
+
+            RFIDConnection::create([
+                'rfidKeys_id' => $rfidKey->rfidKey,
+                'rooms_id' => $roomId
+            ]);
+
+            $rfidKey->isUsed = true;
+            $rfidKey->save();
+        }
+
 
         // -------------------------
         // Szolgáltatások hozzáadása + ár számítása
@@ -109,6 +169,7 @@ class BookingController extends Controller
         ], 500);
     }
 }
+
     public function addGuests(Request $request, $bookingId)
 {
     $request->validate([
@@ -148,6 +209,9 @@ class BookingController extends Controller
 public function deleteBooking($id)
 {
     $booking = Booking::find($id);
+    $rooms = $booking->rooms;
+        // RFID kulcsok felszabadítása
+   
     if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
@@ -156,8 +220,19 @@ public function deleteBooking($id)
     if ($booking->users_id !== auth()->id()) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
-
+     foreach ($rooms as $room) {
+        $rfidConnection = RFIDConnection::where('rooms_id', $room->id)->first();
+        if ($rfidConnection) {
+            $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
+            if ($rfidKey) {
+                $rfidKey->isUsed = 0;
+                $rfidKey->save();
+            }
+            $rfidConnection->delete();
+        }
+    }
     $booking->delete();
+
 
     return response()->json(['message' => 'Booking deleted successfully'], 200);
 
@@ -189,5 +264,28 @@ public function getGuestsByBookingId($bookingId)
 
     $guests = Guest::where('bookings_id', $bookingId)->get();
     return response()->json(['guests' => $guests], 200);
+}
+function updateStatus(Request $request, $id)
+{
+    $request->validate([
+        'status' => 'required|in:pending,confirmed,cancelled,completed'
+    ]);
+
+    $booking = Booking::find($id);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // 🔥 Jogosultság ellenőrzés 
+    /*
+    if ($booking->users_id !== auth()->id()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+*/
+    $booking->status = $request->status;
+    $booking->touch();
+    $booking->save();
+
+    return response()->json(['message' => 'Booking status updated successfully'], 200);
 }
 }

@@ -35,11 +35,14 @@ return new class extends Migration
         // RFID KEYS
         Schema::create('rfidKeys', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('hotels_id')->constrained('hotels')->onDelete('cascade');
+            $table->boolean('isUsed')->default(false);
             $table->string('rfidKey')->unique();
         });
 
         // RFID CONNECTION
         Schema::create('rfidKeyConnection', function (Blueprint $table) {
+            $table->id();
             $table->string('rfidKeys_id');
             $table->unsignedBigInteger('rooms_id');
 
@@ -51,14 +54,15 @@ return new class extends Migration
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('users_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('hotels_id')->constrained('hotels')->onDelete('cascade');
             $table->date('startDate');
             $table->date('endDate');
             $table->integer('totalPrice');
             $table->string('checkInToken')->nullable();
             $table->enum('checkInstatus', ['checkedOut', 'checkedIn'])->nullable();
             $table->timestamp('checkInTime')->nullable();
-            $table->timestamp('checOutTime')->nullable();
-            $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
+            $table->timestamp('checkOutTime')->nullable();
+            $table->enum('status', ['pending', 'confirmed', 'cancelled', 'finished'])->default('pending');
             $table->timestamp('createdAt')->useCurrent();
         });
 

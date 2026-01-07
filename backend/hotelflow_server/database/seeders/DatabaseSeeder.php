@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
 {
     $this->call([
         FullDemoSeeder::class,
+        ImageSeeder::class,
+        tagSeeder::class,
     ]);
 }
 }

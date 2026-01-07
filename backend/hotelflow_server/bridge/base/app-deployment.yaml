@@ -1,0 +1,128 @@
+#! app-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: app
+    namespace: hotelflow-server
+    labels:
+        com.docker.compose.project: hotelflow_server
+        com.docker.compose.service: app
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: hotelflow_server
+            com.docker.compose.service: app
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: hotelflow_server
+                com.docker.compose.service: app
+                com.docker.compose.network.default: "true"
+        spec:
+            containers:
+                - name: laravel-app
+                  image: hotelflow_server-app
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: APP_DEBUG
+                      value: "true"
+                    - name: APP_ENV
+                      value: "local"
+                    - name: APP_KEY
+                      value: "base64:UEHIKaKcEEcA4vjtbwkkGd4hZu1N7L8/LUvypnGrhEI="
+                    - name: APP_NAME
+                      value: "HotelFlow"
+                    - name: APP_URL
+                      value: "http://localhost:8000"
+                    - name: AWS_ACCESS_KEY_ID
+                      value: ""
+                    - name: AWS_BUCKET
+                      value: ""
+                    - name: AWS_DEFAULT_REGION
+                      value: "us-east-1"
+                    - name: AWS_SECRET_ACCESS_KEY
+                      value: ""
+                    - name: AWS_USE_PATH_STYLE_ENDPOINT
+                      value: "false"
+                    - name: BROADCAST_DRIVER
+                      value: "log"
+                    - name: CACHE_DRIVER
+                      value: "file"
+                    - name: DB_CONNECTION
+                      value: "mysql"
+                    - name: DB_DATABASE
+                      value: "laravel"
+                    - name: DB_HOST
+                      value: "db"
+                    - name: DB_PASSWORD
+                      value: "secret"
+                    - name: DB_PORT
+                      value: "3306"
+                    - name: DB_USERNAME
+                      value: "laravel"
+                    - name: FILESYSTEM_DISK
+                      value: "local"
+                    - name: LOG_CHANNEL
+                      value: "stack"
+                    - name: LOG_DEPRECATIONS_CHANNEL
+                      value: "null"
+                    - name: LOG_LEVEL
+                      value: "debug"
+                    - name: MAIL_ENCRYPTION
+                      value: "tls"
+                    - name: MAIL_FROM_ADDRESS
+                      value: "szabomate403@gmail.com"
+                    - name: MAIL_FROM_NAME
+                      value: "HotelFlow"
+                    - name: MAIL_HOST
+                      value: "smtp.gmail.com"
+                    - name: MAIL_MAILER
+                      value: "smtp"
+                    - name: MAIL_PASSWORD
+                      value: "jbwydtaayfrvuobz"
+                    - name: MAIL_PORT
+                      value: "587"
+                    - name: MAIL_USERNAME
+                      value: "szabomate403@gmail.com"
+                    - name: MEMCACHED_HOST
+                      value: "127.0.0.1"
+                    - name: MIX_PUSHER_APP_CLUSTER
+                      value: "mt1"
+                    - name: MIX_PUSHER_APP_KEY
+                      value: ""
+                    - name: PUSHER_APP_CLUSTER
+                      value: "mt1"
+                    - name: PUSHER_APP_ID
+                      value: ""
+                    - name: PUSHER_APP_KEY
+                      value: ""
+                    - name: PUSHER_APP_SECRET
+                      value: ""
+                    - name: QUEUE_CONNECTION
+                      value: "sync"
+                    - name: REDIS_HOST
+                      value: "127.0.0.1"
+                    - name: REDIS_PASSWORD
+                      value: "null"
+                    - name: REDIS_PORT
+                      value: "6379"
+                    - name: SESSION_DRIVER
+                      value: "file"
+                    - name: SESSION_LIFETIME
+                      value: "120"
+                  ports:
+                    - name: app-8000
+                      containerPort: 8000
+                    - name: app-9000
+                      containerPort: 9000
+                  volumeMounts:
+                    - name: var-www
+                      mountPath: /var/www
+            volumes:
+                - name: var-www
+                  hostPath:
+                    path: C:\Users\szabo\Documents\GitHub\13_S1_2_vizsgaremek\backend\hotelflow_server

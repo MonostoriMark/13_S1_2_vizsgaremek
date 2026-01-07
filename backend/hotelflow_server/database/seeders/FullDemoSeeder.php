@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\Booking;
 use App\Models\Guest;
 use App\Models\Review;
+use App\Models\RFIDKey;
 use Faker\Factory as Faker;
 use Illuminate\Support\Facades\DB;
 
@@ -49,6 +50,53 @@ class FullDemoSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'user',
             ]);
+             $user = User::create([
+            'name' => 'Hotel Admin',
+            'email' => 'hoteladmin@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'hotel',
+        ]);
+
+        // 2️⃣ Hotel létrehozása ehhez a userhez
+        $hotel = Hotel::create([
+            'user_id' => $user->id,
+            'location' => 'Budapest, Hungary',
+            'description' => 'Egy szép hotel a város szívében.',
+            'type' => 'hotel',
+            'starRating' => 4,
+        ]);
+
+        // 3️⃣ Pár szoba létrehozása a hotelhez
+        $rooms = [
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Standard Room',
+                'description' => 'Kényelmes, klasszikus szoba két fő részére.',
+                'pricePerNight' => 10000,
+                'capacity' => 2,
+                'basePrice' => 10000,
+            ],
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Deluxe Room',
+                'description' => 'Nagyobb szoba, extra kényelmi szolgáltatásokkal.',
+                'pricePerNight' => 15000,
+                'capacity' => 3,
+                'basePrice' => 15000,
+            ],
+            [
+                'hotels_id' => $hotel->id,
+                'name' => 'Suite',
+                'description' => 'Luxus lakosztály a pihenésre.',
+                'pricePerNight' => 25000,
+                'capacity' => 4,
+                'basePrice' => 25000,
+            ],
+        ];
+
+        foreach ($rooms as $roomData) {
+            Room::create($roomData);
+        }
 
             // -------------------------
             // 2️⃣ Hotels, Rooms, Services
@@ -95,11 +143,41 @@ class FullDemoSeeder extends Seeder
                     }
                 }
             }
+             RFIDKey::create([
+                'hotels_id' => 37,
+                'isUsed' => false,
+                'rfidKey' => 'F4E4C928'
+
+            ]);
+            RFIDKey::create([
+                'hotels_id' => 37,
+                'isUsed' => false,
+                'rfidKey' => 'B7E5C37A'
+
+            ]);
+            // -------------------------
+            // RFID kulcsok generálása minden hotelhez
+            // -------------------------
+            foreach ($allHotels as $hotel) {
+
+                // Hotelhez 5–10 RFID kulcs
+                $numKeys = rand(5, 10);
+
+                for ($k = 0; $k < $numKeys; $k++) {
+                    RFIDKey::create([
+                        'hotels_id' => $hotel->id,
+                        'isUsed' => false,
+                        'rfidKey' => strtoupper($faker->bothify('########'))
+                    ]);
+                }
+}
+
 
             // -------------------------
             // 3️⃣ Bookings, Guests, Reviews
             // -------------------------
             $allUsers = array_merge($users, $hotelUsers); // bárki foglalhat
+
 
             foreach ($allUsers as $user) {
                 $numBookings = rand(1,3);
@@ -109,6 +187,7 @@ class FullDemoSeeder extends Seeder
                     if ($rooms->isEmpty()) continue;
 
                     $booking = Booking::create([
+                        'hotels_id' => $hotel->id,
                         'users_id' => $user->id,
                         'startDate' => $faker->dateTimeBetween('-1 month', '+1 month')->format('Y-m-d'),
                         'endDate' => $faker->dateTimeBetween('+1 day', '+2 weeks')->format('Y-m-d'),
