@@ -29,27 +29,40 @@ def simple_sig(cardID: str, doorID: str, ts: int) -> int:
 
 # -------- DB CHECK --------
 def is_allowed(card_id: str, room_name: str) -> bool:
+    import pymysql
+
     conn = pymysql.connect(**DB_CONFIG)
-    cur = conn.cursor()
-    
-    query = """
-        SELECT 1
-        FROM bookings b
-        JOIN relations r ON r.booking_id = b.id
-        JOIN rooms ro ON ro.id = r.rooms_id
-        JOIN rfidConnections rc ON rc.roomId = ro.id
-        JOIN rfidkeys rk ON rk.rfidKey = rc.rfidKey
-        WHERE rk.rfidKey = %s
-          AND ro.name = %s
-          AND b.checkInStatus = 'active'
-          AND rk.isUsed = 1
-        LIMIT 1
-    """
-    cur.execute(query, (card_id, room_name))
-    result = cur.fetchone()
-    cur.close()
-    conn.close()
-    return result is not None
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+
+    try:
+        # 1️⃣ Szoba lekérése
+        cur.execute("SELECT * FROM rooms WHERE name = %s", (room_name,))
+        room = cur.fetchone()
+        if not room:
+            return False  # Szoba nem létezik
+
+        room_id = room["id"]
+
+        # 2️⃣ Ellenőrzés: kulcs + foglalás + checkedIn
+        cur.execute("""
+            SELECT b.id
+            FROM rfidConnections rc
+            JOIN relations r ON r.rooms_id = rc.roomId
+            JOIN bookings b ON b.id = r.booking_id
+            WHERE rc.rfidKey = %s
+              AND rc.roomId = %s
+              AND b.checkInstatus = 'checkedIn'
+            LIMIT 1
+        """, (card_id, room_id))
+
+        record = cur.fetchone()
+        return record is not None
+
+    finally:
+        cur.close()
+        conn.close()
+
+
 
 # -------- MQTT CALLBACKS --------
 def on_connect(client, userdata, flags, rc):
