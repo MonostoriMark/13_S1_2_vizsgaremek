@@ -314,4 +314,35 @@ function updateStatus(Request $request, $id)
 
     return response()->json(['message' => 'Booking status updated successfully'], 200);
 }
+
+public function getBookingsByHotelId($hotelId)
+{
+    // Get the authenticated user
+    $user = auth()->user();
+    if (!$user) {
+        return response()->json(['message' => 'Unauthorized'], 401);
+    }
+
+    // Check if user is a hotel admin
+    if ($user->role !== 'hotel') {
+        return response()->json(['message' => 'Unauthorized - Hotel admin access required'], 403);
+    }
+
+    // Verify the hotel belongs to the authenticated user
+    $hotel = \App\Models\Hotel::where('id', $hotelId)
+        ->where('user_id', $user->id)
+        ->first();
+
+    if (!$hotel) {
+        return response()->json(['message' => 'Hotel not found or unauthorized'], 404);
+    }
+
+    // Get all bookings for this hotel (including pending, confirmed, cancelled, finished)
+    $bookings = Booking::where('hotels_id', $hotelId)
+        ->with(['user', 'rooms', 'guests', 'services'])
+        ->orderBy('createdAt', 'desc')
+        ->get();
+
+    return response()->json(['bookings' => $bookings], 200);
+}
 }

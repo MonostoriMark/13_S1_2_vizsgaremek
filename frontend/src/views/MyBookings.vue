@@ -1,61 +1,266 @@
 <template>
   <div class="bookings-page">
-    <h1>My Bookings</h1>
-    <div v-if="loading" class="loading">Loading bookings...</div>
+    <div class="page-header">
+      <h1>My Bookings</h1>
+      <p class="page-subtitle">Manage your hotel reservations</p>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Loading your bookings...</p>
+    </div>
+
+    <!-- Error State -->
     <div v-if="error" class="error-message">{{ error }}</div>
 
-    <div v-if="bookings.length === 0 && !loading" class="no-bookings">
-      <p>You don't have any bookings yet.</p>
+    <!-- Empty State -->
+    <div v-if="bookings.length === 0 && !loading" class="empty-state">
+      <div class="empty-icon">📅</div>
+      <h2>No Bookings Yet</h2>
+      <p>Start exploring amazing hotels and create your first booking!</p>
       <router-link to="/search" class="btn-primary">Search Hotels</router-link>
     </div>
 
-    <div v-if="bookings.length > 0" class="bookings-list">
-      <div v-for="booking in bookings" :key="booking.id" class="booking-card card">
-        <div class="booking-header">
-          <h3>Booking #{{ booking.id }}</h3>
-          <span :class="['status-badge', `status-${booking.status}`]">
-            {{ booking.status }}
-          </span>
+    <!-- Bookings List -->
+    <div v-if="bookings.length > 0" class="bookings-container">
+      <div class="bookings-stats">
+        <div class="stat-card">
+          <div class="stat-value">{{ bookings.length }}</div>
+          <div class="stat-label">Total Bookings</div>
         </div>
-        <div class="booking-details">
-          <p><strong>Check-in:</strong> {{ formatDate(booking.startDate) }}</p>
-          <p><strong>Check-out:</strong> {{ formatDate(booking.endDate) }}</p>
-          <p><strong>Total Price:</strong> {{ booking.totalPrice }} €</p>
+        <div class="stat-card">
+          <div class="stat-value">{{ confirmedCount }}</div>
+          <div class="stat-label">Confirmed</div>
         </div>
-        <div v-if="booking.rooms && booking.rooms.length > 0" class="booking-rooms">
-          <h4>Rooms:</h4>
-          <ul>
-            <li v-for="room in booking.rooms" :key="room.id">
-              {{ room.name }} ({{ room.capacity }} guests)
-            </li>
-          </ul>
-        </div>
-        <div v-if="booking.services && booking.services.length > 0" class="booking-services">
-          <h4>Services:</h4>
-          <ul>
-            <li v-for="service in booking.services" :key="service.id">
-              {{ service.name }} - {{ service.price }} €
-            </li>
-          </ul>
-        </div>
-        <div class="booking-actions">
-          <button
-            v-if="booking.status === 'pending'"
-            @click="cancelBooking(booking.id)"
-            class="btn-danger"
-            :disabled="deleting === booking.id"
-          >
-            {{ deleting === booking.id ? 'Cancelling...' : 'Cancel Booking' }}
-          </button>
+        <div class="stat-card">
+          <div class="stat-value">{{ pendingCount }}</div>
+          <div class="stat-label">Pending</div>
         </div>
       </div>
+
+      <div class="bookings-grid">
+        <div
+          v-for="booking in bookings"
+          :key="booking.id"
+          class="booking-card"
+          :class="`status-${booking.status}`"
+        >
+          <!-- Booking Header -->
+          <div class="booking-card-header">
+            <div class="booking-id-section">
+              <span class="booking-label">Booking</span>
+              <h3 class="booking-id">#{{ booking.id }}</h3>
+            </div>
+            <span :class="['status-badge', `badge-${booking.status}`]">
+              {{ formatStatus(booking.status) }}
+            </span>
+          </div>
+
+          <!-- Booking Dates -->
+          <div class="booking-dates-section">
+            <div class="date-card">
+              <div class="date-icon">📅</div>
+              <div class="date-info">
+                <span class="date-label">Check-in</span>
+                <span class="date-value">{{ formatDate(booking.startDate) }}</span>
+              </div>
+            </div>
+            <div class="date-separator">→</div>
+            <div class="date-card">
+              <div class="date-icon">📅</div>
+              <div class="date-info">
+                <span class="date-label">Check-out</span>
+                <span class="date-value">{{ formatDate(booking.endDate) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Booking Details -->
+          <div class="booking-details">
+            <div class="detail-row">
+              <span class="detail-label">Total Price</span>
+              <span class="detail-value price">{{ booking.totalPrice }} €</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Nights</span>
+              <span class="detail-value">{{ calculateNights(booking.startDate, booking.endDate) }} nights</span>
+            </div>
+          </div>
+
+          <!-- Rooms Section -->
+          <div v-if="booking.rooms && booking.rooms.length > 0" class="booking-rooms-section">
+            <h4 class="section-title">Rooms</h4>
+            <div class="rooms-list">
+              <div
+                v-for="room in booking.rooms"
+                :key="room.id"
+                class="room-item"
+              >
+                <div class="room-icon">🛏️</div>
+                <div class="room-info">
+                  <span class="room-name">{{ room.name }}</span>
+                  <span class="room-capacity">{{ room.capacity }} guests</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Services Section -->
+          <div v-if="booking.services && booking.services.length > 0" class="booking-services-section">
+            <h4 class="section-title">Additional Services</h4>
+            <div class="services-list">
+              <div
+                v-for="service in booking.services"
+                :key="service.id"
+                class="service-item"
+              >
+                <span class="service-name">{{ service.name }}</span>
+                <span class="service-price">{{ service.price }} €</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guests Section -->
+          <div class="booking-guests-section">
+            <div class="guests-header">
+              <div class="guests-title-section">
+                <h4 class="section-title">Guest Information</h4>
+                <span class="guests-capacity-info">
+                  {{ getCurrentGuestCount(booking) }}/{{ getMaxCapacity(booking) }} guests
+                </span>
+              </div>
+              <button
+                @click="openGuestModal(booking.id)"
+                class="btn-add-guest"
+                :disabled="booking.status === 'cancelled' || isAtCapacity(booking)"
+                :title="isAtCapacity(booking) ? 'Maximum guest capacity reached' : 'Add guest'"
+              >
+                + Add Guest
+              </button>
+            </div>
+            <div v-if="booking.guests && booking.guests.length > 0" class="guests-list">
+              <div
+                v-for="guest in booking.guests"
+                :key="guest.id"
+                class="guest-item"
+              >
+                <div class="guest-icon">👤</div>
+                <div class="guest-info">
+                  <span class="guest-name">{{ guest.name }}</span>
+                  <div class="guest-details">
+                    <span class="guest-id">ID: {{ guest.idNumber }}</span>
+                    <span class="guest-dob">DOB: {{ formatDate(guest.dateOfBirth) }}</span>
+                  </div>
+                </div>
+                <div class="guest-actions">
+                  <button
+                    @click="editGuest(guest, booking.id)"
+                    class="btn-edit-guest"
+                    :disabled="booking.status === 'cancelled'"
+                    title="Edit guest"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    @click="deleteGuest(guest.id, booking.id)"
+                    class="btn-delete-guest"
+                    :disabled="booking.status === 'cancelled'"
+                    title="Delete guest"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="no-guests">
+              <p>No guests added yet. Click "Add Guest" to register guest information.</p>
+            </div>
+            <div v-if="isAtCapacity(booking)" class="capacity-warning">
+              ⚠️ Maximum guest capacity reached ({{ getMaxCapacity(booking) }} guests)
+            </div>
+          </div>
+
+          <!-- Booking Actions -->
+          <div class="booking-actions">
+            <button
+              v-if="booking.status === 'pending'"
+              @click="cancelBooking(booking.id)"
+              class="btn-cancel"
+              :disabled="deleting === booking.id"
+            >
+              {{ deleting === booking.id ? 'Cancelling...' : 'Cancel Booking' }}
+            </button>
+            <div v-else-if="booking.status === 'confirmed'" class="confirmed-badge">
+              ✅ Confirmed - Ready for check-in
+            </div>
+            <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
+              ❌ Cancelled
+            </div>
+            <div v-else-if="booking.status === 'finished'" class="completed-badge">
+              ✓ Completed
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guest Modal -->
+  <div v-if="showGuestModal" class="modal-overlay" @click.self="closeGuestModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>{{ editingGuest ? 'Edit Guest' : 'Add Guest' }}</h2>
+        <button @click="closeGuestModal" class="btn-close-modal">×</button>
+      </div>
+      <form @submit.prevent="saveGuest" class="guest-form">
+        <div class="form-group">
+          <label for="guestName">Full Name *</label>
+          <input
+            id="guestName"
+            v-model="guestForm.name"
+            type="text"
+            required
+            placeholder="Enter guest's full name"
+          />
+        </div>
+        <div class="form-group">
+          <label for="guestIdNumber">ID Number *</label>
+          <input
+            id="guestIdNumber"
+            v-model="guestForm.idNumber"
+            type="text"
+            required
+            placeholder="Enter ID/Passport number"
+          />
+        </div>
+        <div class="form-group">
+          <label for="guestDateOfBirth">Date of Birth *</label>
+          <input
+            id="guestDateOfBirth"
+            v-model="guestForm.dateOfBirth"
+            type="date"
+            required
+            :max="maxDate"
+          />
+        </div>
+        <div class="modal-actions">
+          <button type="button" @click="closeGuestModal" class="btn-cancel-modal">
+            Cancel
+          </button>
+          <button type="submit" class="btn-save-guest" :disabled="savingGuest">
+            {{ savingGuest ? 'Saving...' : (editingGuest ? 'Update Guest' : 'Add Guest') }}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { bookingService } from '../services/bookingService'
+import { guestService } from '../services/guestService'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -63,6 +268,23 @@ const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
 const deleting = ref(null)
+const showGuestModal = ref(false)
+const currentBookingId = ref(null)
+const editingGuest = ref(null)
+const savingGuest = ref(false)
+const guestForm = ref({
+  name: '',
+  idNumber: '',
+  dateOfBirth: ''
+})
+
+const confirmedCount = computed(() => {
+  return bookings.value.filter(b => b.status === 'confirmed').length
+})
+
+const pendingCount = computed(() => {
+  return bookings.value.filter(b => b.status === 'pending').length
+})
 
 onMounted(async () => {
   await loadBookings()
@@ -78,6 +300,12 @@ const loadBookings = async () => {
   try {
     const data = await bookingService.getBookingsByUserId(authStore.state.user.id)
     bookings.value = data.bookings || []
+    
+    // Ensure guests array exists for each booking
+    bookings.value = bookings.value.map(booking => ({
+      ...booking,
+      guests: booking.guests || []
+    }))
   } catch (err) {
     error.value = err.response?.data?.message || 'Failed to load bookings'
   } finally {
@@ -86,7 +314,30 @@ const loadBookings = async () => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString()
+  return new Date(dateString).toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const formatStatus = (status) => {
+  const statusMap = {
+    'pending': 'Pending',
+    'confirmed': 'Confirmed',
+    'cancelled': 'Cancelled',
+    'finished': 'Completed'
+  }
+  return statusMap[status] || status
+}
+
+const calculateNights = (startDate, endDate) => {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const diffTime = Math.abs(end - start)
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
 }
 
 const cancelBooking = async (bookingId) => {
@@ -104,112 +355,910 @@ const cancelBooking = async (bookingId) => {
     deleting.value = null
   }
 }
+
+const maxDate = computed(() => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+})
+
+const openGuestModal = (bookingId) => {
+  currentBookingId.value = bookingId
+  editingGuest.value = null
+  guestForm.value = {
+    name: '',
+    idNumber: '',
+    dateOfBirth: ''
+  }
+  showGuestModal.value = true
+}
+
+const editGuest = (guest, bookingId) => {
+  currentBookingId.value = bookingId
+  editingGuest.value = guest
+  guestForm.value = {
+    name: guest.name,
+    idNumber: guest.idNumber,
+    dateOfBirth: guest.dateOfBirth
+  }
+  showGuestModal.value = true
+}
+
+const closeGuestModal = () => {
+  showGuestModal.value = false
+  editingGuest.value = null
+  currentBookingId.value = null
+  guestForm.value = {
+    name: '',
+    idNumber: '',
+    dateOfBirth: ''
+  }
+}
+
+const saveGuest = async () => {
+  if (!currentBookingId.value) return
+
+  // Find the booking to check capacity
+  const booking = bookings.value.find(b => b.id === currentBookingId.value)
+  if (!booking) {
+    error.value = 'Booking not found'
+    return
+  }
+
+  // Check capacity before adding (not when editing)
+  if (!editingGuest.value) {
+    const currentCount = getCurrentGuestCount(booking)
+    const maxCapacity = getMaxCapacity(booking)
+    
+    if (currentCount >= maxCapacity) {
+      error.value = `Maximum guest capacity reached. This booking can accommodate ${maxCapacity} guest${maxCapacity !== 1 ? 's' : ''}.`
+      closeGuestModal()
+      return
+    }
+  }
+
+  savingGuest.value = true
+  try {
+    if (editingGuest.value) {
+      // Update existing guest
+      await guestService.updateGuest(editingGuest.value.id, {
+        name: guestForm.value.name,
+        idNumber: guestForm.value.idNumber,
+        dateOfBirth: guestForm.value.dateOfBirth
+      })
+    } else {
+      // Add new guest
+      await guestService.addGuests(currentBookingId.value, [{
+        name: guestForm.value.name,
+        idNumber: guestForm.value.idNumber,
+        dateOfBirth: guestForm.value.dateOfBirth
+      }])
+    }
+    await loadBookings()
+    closeGuestModal()
+    error.value = '' // Clear any previous errors
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to save guest information'
+  } finally {
+    savingGuest.value = false
+  }
+}
+
+const deleteGuest = async (guestId, bookingId) => {
+  if (!confirm('Are you sure you want to delete this guest?')) {
+    return
+  }
+
+  try {
+    await guestService.deleteGuest(guestId)
+    await loadBookings()
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Failed to delete guest'
+  }
+}
+
+const getMaxCapacity = (booking) => {
+  if (!booking.rooms || booking.rooms.length === 0) {
+    return 0
+  }
+  return booking.rooms.reduce((total, room) => {
+    // Handle different capacity formats
+    let capacity = 0
+    if (typeof room.capacity === 'number') {
+      capacity = room.capacity
+    } else if (typeof room.capacity === 'string') {
+      // Try to parse the string, handle cases like "2 guests" or just "2"
+      const parsed = parseInt(room.capacity)
+      capacity = isNaN(parsed) ? 0 : parsed
+    }
+    return total + capacity
+  }, 0)
+}
+
+const getCurrentGuestCount = (booking) => {
+  return booking.guests ? booking.guests.length : 0
+}
+
+const isAtCapacity = (booking) => {
+  return getCurrentGuestCount(booking) >= getMaxCapacity(booking)
+}
 </script>
 
 <style scoped>
-.bookings-page h1 {
-  margin-bottom: 2rem;
+.bookings-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+  padding: 2rem;
 }
 
-.no-bookings {
-  text-align: center;
-  padding: 3rem;
-  background-color: #ecf0f1;
-  border-radius: 8px;
+.page-header {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
 }
 
-.no-bookings p {
-  margin-bottom: 1rem;
+.page-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
   color: #7f8c8d;
 }
 
-.bookings-list {
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error Message */
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  border: 1px solid #fcc;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h2 {
+  font-size: 1.75rem;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #7f8c8d;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Bookings Container */
+.bookings-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Stats Cards */
+.bookings-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Bookings Grid */
+.bookings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 2rem;
+}
+
+/* Booking Card */
+.booking-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border-top: 4px solid transparent;
+}
+
+.booking-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.booking-card.status-pending {
+  border-top-color: #f39c12;
+}
+
+.booking-card.status-confirmed {
+  border-top-color: #27ae60;
+}
+
+.booking-card.status-cancelled {
+  border-top-color: #e74c3c;
+}
+
+.booking-card.status-finished {
+  border-top-color: #3498db;
+}
+
+/* Booking Header */
+.booking-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.booking-id-section {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
-.booking-card {
-  border-left: 4px solid #3498db;
+.booking-label {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
 }
 
-.booking-header {
+.booking-id {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-confirmed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge-finished {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+/* Dates Section */
+.booking-dates-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  border-radius: 12px;
+}
+
+.date-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.date-icon {
+  font-size: 1.5rem;
+}
+
+.date-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-label {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.date-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.date-separator {
+  font-size: 1.5rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* Booking Details */
+.booking-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-label {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-bottom: 0.25rem;
+}
+
+.detail-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.detail-value.price {
+  color: #27ae60;
+  font-size: 1.25rem;
+}
+
+/* Rooms Section */
+.booking-rooms-section,
+.booking-services-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.room-icon {
+  font-size: 1.5rem;
+}
+
+.room-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.room-capacity {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+/* Services Section */
+.services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.service-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.service-price {
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* Booking Actions */
+.booking-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+}
+
+.btn-cancel {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirmed-badge,
+.cancelled-badge,
+.completed-badge {
+  text-align: center;
+  padding: 0.875rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.confirmed-badge {
+  background: #d4edda;
+  color: #155724;
+}
+
+.cancelled-badge {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.completed-badge {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+/* Guests Section */
+.booking-guests-section {
+  margin-bottom: 1.5rem;
+}
+
+.guests-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
 
-.booking-header h3 {
+.guests-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.guests-capacity-info {
+  font-size: 0.85rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.btn-add-guest {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-add-guest:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-add-guest:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.guests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.guest-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.guest-item:hover {
+  background: #f0f0f0;
+}
+
+.guest-icon {
+  font-size: 1.5rem;
+}
+
+.guest-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.guest-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.guest-details {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.guest-id,
+.guest-dob {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.guest-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-edit-guest,
+.btn-delete-guest {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+}
+
+.btn-edit-guest:hover:not(:disabled) {
+  background: #e8f4f8;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.btn-delete-guest:hover:not(:disabled) {
+  background: #fee;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.btn-edit-guest:disabled,
+.btn-delete-guest:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.no-guests {
+  padding: 1.5rem;
+  text-align: center;
+  background: #f8f9fa;
+  border-radius: 12px;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.capacity-warning {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  color: #856404;
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Guest Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
   margin: 0;
 }
 
-.status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  text-transform: capitalize;
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #7f8c8d;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
 }
 
-.status-pending {
-  background-color: #fff3cd;
-  color: #856404;
+.btn-close-modal:hover {
+  background: #f0f0f0;
+  color: #2c3e50;
 }
 
-.status-confirmed {
-  background-color: #d4edda;
-  color: #155724;
+.guest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.status-cancelled {
-  background-color: #f8d7da;
-  color: #721c24;
+.guest-form .form-group {
+  display: flex;
+  flex-direction: column;
 }
 
-.status-completed {
-  background-color: #d1ecf1;
-  color: #0c5460;
-}
-
-.booking-details {
-  margin: 1rem 0;
-}
-
-.booking-details p {
-  margin: 0.5rem 0;
-}
-
-.booking-rooms,
-.booking-services {
-  margin: 1rem 0;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-}
-
-.booking-rooms h4,
-.booking-services h4 {
+.guest-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
   margin-bottom: 0.5rem;
 }
 
-.booking-rooms ul,
-.booking-services ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.guest-form input {
+  padding: 0.875rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
-.booking-rooms li,
-.booking-services li {
-  padding: 0.25rem 0;
+.guest-form input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.booking-actions {
+.modal-actions {
+  display: flex;
+  gap: 1rem;
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #ddd;
+}
+
+.btn-cancel-modal {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  background: #f0f0f0;
+  color: #2c3e50;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel-modal:hover {
+  background: #e0e0e0;
+}
+
+.btn-save-guest {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-save-guest:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-save-guest:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .bookings-page {
+    padding: 1rem;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+  }
+
+  .bookings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-dates-section {
+    flex-direction: column;
+  }
+
+  .date-separator {
+    transform: rotate(90deg);
+  }
+
+  .booking-details {
+    grid-template-columns: 1fr;
+  }
+
+  .guests-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .btn-add-guest {
+    width: 100%;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 1.5rem;
+  }
 }
 </style>
-
-

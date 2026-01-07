@@ -22,16 +22,15 @@ export const bookingService = {
   },
 
   // For hotel admins - get bookings for their hotel
-  // Note: This endpoint only returns confirmed bookings
-  // For pending bookings, a backend extension would be needed
+  // This endpoint returns ALL bookings (pending, confirmed, cancelled, finished)
   async getBookingsByHotelId(hotelId) {
     try {
-      const response = await api.get(`/devices/bookings/${hotelId}`)
+      const response = await api.get(`/bookings/hotel/${hotelId}`)
       return response.data
     } catch (error) {
       // Handle 404 (no bookings) gracefully
       if (error.response?.status === 404) {
-        return { bookings: [], rooms: [], relations: [] }
+        return { bookings: [] }
       }
       throw error
     }

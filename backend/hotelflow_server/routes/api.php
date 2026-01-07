@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
 
 Route::post('/bookings', [BookingController::class, 'store'])->middleware('auth:sanctum');
 Route::get('/bookings/user/{userId}', [BookingController::class, 'getBookingsByUserId'])->middleware('auth:sanctum');
+Route::get('/bookings/hotel/{hotelId}', [BookingController::class, 'getBookingsByHotelId'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/bookings/delete/{id}', [BookingController::class, 'deleteBooking'])->middleware('auth:sanctum');
 Route::put('/bookings/update-status/{id}', [BookingController::class, 'updateStatus']);//->middleware('auth:sanctum');
 
