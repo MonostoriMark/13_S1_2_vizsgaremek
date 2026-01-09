@@ -1,6 +1,12 @@
 <template>
   <div class="admin-bookings-page">
     <div class="page-header">
+      <div class="page-header-top">
+        <router-link to="/admin" class="back-to-dashboard-btn">
+          <span class="back-icon">←</span>
+          <span>Back to Dashboard</span>
+        </router-link>
+      </div>
       <h1>Hotel Bookings</h1>
       <p class="page-subtitle">Manage bookings for your hotel</p>
     </div>
@@ -322,6 +328,38 @@ const updateBookingStatus = async (bookingId, status) => {
 .page-header {
   max-width: 1400px;
   margin: 0 auto 2rem;
+}
+
+.page-header-top {
+  margin-bottom: 1rem;
+}
+
+.back-to-dashboard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  border: none;
+  cursor: pointer;
+}
+
+.back-to-dashboard-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.back-icon {
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
 .page-header h1 {

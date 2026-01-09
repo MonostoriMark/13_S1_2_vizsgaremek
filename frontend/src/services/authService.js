@@ -30,6 +30,11 @@ export const authService = {
   async getMe() {
     const response = await api.get('/auth/me')
     return response.data
+  },
+
+  async updateUser(userId, userData) {
+    const response = await api.put(`/auth/updateuser/${userId}`, userData)
+    return response.data
   }
 }
 

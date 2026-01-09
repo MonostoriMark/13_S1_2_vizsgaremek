@@ -2,12 +2,18 @@
   <div class="admin-layout">
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
-        <router-link to="/admin" class="logo">
-          <span class="logo-icon">🏨</span>
-          <span v-if="!sidebarCollapsed" class="logo-text">HotelFlow Admin</span>
-        </router-link>
-        <button class="sidebar-toggle" @click="toggleSidebar">
-          {{ sidebarCollapsed ? '→' : '←' }}
+        <div class="user-profile-sidebar">
+          <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
+          <div v-if="!sidebarCollapsed" class="user-info-sidebar">
+            <div class="logo-text">HOTELFLOW</div>
+            <div class="logo-subtitle">Admin Panel</div>
+          </div>
+        </div>
+        <button class="sidebar-toggle" @click="toggleSidebar" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+          <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path v-if="!sidebarCollapsed" d="M15 18l-6-6 6-6"/>
+            <path v-else d="M9 18l6-6-6-6"/>
+          </svg>
         </button>
       </div>
       <nav class="sidebar-nav">
@@ -23,6 +29,14 @@
         </router-link>
       </nav>
       <div class="sidebar-footer">
+        <router-link
+          to="/admin/bookings"
+          class="nav-item bookings-nav-item"
+          :title="sidebarCollapsed ? 'Bookings' : ''"
+        >
+          <span class="nav-icon">📅</span>
+          <span v-if="!sidebarCollapsed" class="nav-label">Bookings</span>
+        </router-link>
         <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? 'Logout' : ''">
           <span class="nav-icon">🚪</span>
           <span v-if="!sidebarCollapsed">Logout</span>
@@ -69,6 +83,9 @@ const menuItems = [
 ]
 
 const pageTitle = computed(() => {
+  if (route.path === '/admin/bookings') {
+    return 'Bookings'
+  }
   const item = menuItems.find(i => i.path === route.path)
   return item ? item.label : 'Admin Panel'
 })
@@ -104,21 +121,31 @@ onMounted(() => {
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #f5f6fa;
+  background-color: #e8f4f8;
+  overflow-x: hidden;
+  position: relative;
+  margin-top: 0;
+  padding-top: 0;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
-  background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-  color: white;
+  width: 280px;
+  background: linear-gradient(180deg, #e0d5ff 0%, #d4c5f7 100%);
+  color: #2c3e50;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
   position: fixed;
+  top: 0;
+  left: 0;
   height: 100vh;
-  z-index: 1000;
+  z-index: 2000;
+  overflow: hidden;
+  border: none;
+  outline: none;
+  border-right: none;
 }
 
 .sidebar.collapsed {
@@ -126,45 +153,112 @@ onMounted(() => {
 }
 
 .sidebar-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 0.875rem;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 65px;
+  position: relative;
+  gap: 0.5rem;
+  width: 100%;
 }
 
-.logo {
+.user-profile-sidebar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  color: white;
-  font-size: 1.25rem;
-  font-weight: 700;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
 }
 
-.logo-icon {
-  font-size: 1.5rem;
+.user-avatar-sidebar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.user-info-sidebar {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
 }
 
 .logo-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2c3e50;
+  letter-spacing: 0.5px;
   white-space: nowrap;
+  margin-bottom: 0.15rem;
+  line-height: 1.2;
+  overflow: visible;
+}
+
+.logo-subtitle {
+  font-size: 0.65rem;
+  color: rgba(44, 62, 80, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  line-height: 1.2;
+  overflow: visible;
 }
 
 .sidebar-toggle {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
   border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
+  color: #667eea;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  opacity: 0.7;
+  min-width: 28px;
 }
 
 .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(102, 126, 234, 0.1);
+  color: #764ba2;
+  opacity: 1;
+}
+
+.sidebar-toggle:active {
+  background: rgba(102, 126, 234, 0.15);
+  transform: scale(0.95);
+}
+
+.toggle-icon {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-toggle:hover .toggle-icon {
+  transform: scale(1.1);
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  margin-left: 0;
+  width: 100%;
+  justify-content: center;
 }
 
 .sidebar-nav {
@@ -178,26 +272,32 @@ onMounted(() => {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #2c3e50;
   text-decoration: none;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
+  background-color: rgba(102, 126, 234, 0.1);
+  color: #667eea;
 }
 
 .nav-item.router-link-active {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-left-color: #3498db;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  border-left-color: white;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .nav-icon {
-  font-size: 1.25rem;
-  width: 24px;
+  font-size: 1.3rem;
+  width: 28px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -210,9 +310,33 @@ onMounted(() => {
   display: none;
 }
 
+.sidebar.collapsed .user-info-sidebar {
+  display: none;
+}
+
+.sidebar.collapsed .user-avatar-sidebar {
+  width: 40px;
+  height: 40px;
+  font-size: 0.9rem;
+}
+
 .sidebar-footer {
-  padding: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem 0;
+  border-top: 2px solid rgba(26, 35, 126, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bookings-nav-item {
+  margin: 0 1.25rem;
+  padding: 0.875rem 1rem;
+}
+
+.sidebar.collapsed .bookings-nav-item {
+  margin: 0 0.75rem;
+  padding: 0.875rem;
+  justify-content: center;
 }
 
 .logout-btn {
@@ -220,24 +344,29 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(231, 76, 60, 0.2);
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  border: 2px solid #e74c3c;
   color: white;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .logout-btn:hover {
-  background: rgba(231, 76, 60, 0.3);
-  border-color: rgba(231, 76, 60, 0.5);
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  border-color: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
 
 .sidebar.collapsed .logout-btn {
   justify-content: center;
-  padding: 0.75rem;
+  padding: 0.875rem;
 }
 
 .sidebar.collapsed .logout-btn span:not(.nav-icon) {
@@ -247,27 +376,34 @@ onMounted(() => {
 /* Main Content */
 .main-content {
   flex: 1;
-  margin-left: 260px;
+  margin-left: 280px;
   display: flex;
   flex-direction: column;
   transition: margin-left 0.3s ease;
+  min-width: 0;
+  background: white;
+  width: calc(100% - 280px);
 }
 
 .sidebar.collapsed ~ .main-content {
   margin-left: 80px;
+  width: calc(100% - 80px);
 }
 
 .topbar {
   background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 2px solid #e8f4f8;
+  margin-left: 0;
+  width: 100%;
 }
 
 .topbar-content {
   max-width: 100%;
-  padding: 1.5rem 2rem;
+  padding: 1.25rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -275,9 +411,11 @@ onMounted(() => {
 
 .page-title {
   font-size: 1.75rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #2c3e50;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .topbar-actions {
@@ -291,32 +429,37 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 1rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
 }
 
 .user-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #667eea;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .user-name {
-  font-weight: 500;
-  color: #2c3e50;
+  font-weight: 600;
+  color: white;
+  font-size: 0.95rem;
 }
 
 .content-area {
   flex: 1;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
   overflow-y: auto;
+  max-width: 100%;
+  background: white;
 }
 
 @media (max-width: 768px) {
@@ -325,7 +468,7 @@ onMounted(() => {
   }
 
   .sidebar:not(.collapsed) {
-    width: 260px;
+    width: 280px;
     z-index: 2000;
   }
 
@@ -334,7 +477,7 @@ onMounted(() => {
   }
 
   .topbar-content {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
   }
 
   .page-title {
@@ -342,7 +485,14 @@ onMounted(() => {
   }
 
   .content-area {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .sidebar-toggle {
+    right: -18px;
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
   }
 }
 </style>

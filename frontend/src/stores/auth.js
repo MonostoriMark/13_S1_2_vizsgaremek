@@ -106,12 +106,34 @@ export const useAuthStore = () => {
     }
   }
 
+  const updateUser = async (userId, userData) => {
+    try {
+      const data = await authService.updateUser(userId, userData)
+      // Update local state
+      if (state.user && state.user.id === userId) {
+        state.user = {
+          ...state.user,
+          name: data.name || state.user.name,
+          email: data.email || state.user.email
+        }
+        localStorage.setItem('auth_user', JSON.stringify(state.user))
+      }
+      return { success: true, data }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to update user'
+      }
+    }
+  }
+
   return {
     state,
     login,
     registerUser,
     registerHotel,
-    logout
+    logout,
+    updateUser
   }
 }
 

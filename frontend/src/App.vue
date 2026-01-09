@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <nav class="navbar">
+    <nav v-if="!isAdminRoute" class="navbar">
       <div class="nav-container">
         <router-link to="/" class="nav-logo">
           <span class="logo-icon">🏨</span>
@@ -42,10 +42,10 @@
             </router-link>
             
             <div class="user-menu">
-              <div class="user-info">
+              <router-link to="/profile" class="user-info" @click="closeMobileMenu">
                 <span class="user-avatar">{{ getUserInitials }}</span>
                 <span class="user-name">{{ userName }}</span>
-              </div>
+              </router-link>
               <button @click="handleLogout" class="btn-logout">
                 <span class="logout-icon">🚪</span>
                 <span>Sign Out</span>
@@ -92,6 +92,17 @@
       </div>
     </nav>
     
+    <!-- Admin Loading Screen -->
+    <Transition name="fade">
+      <div v-if="adminLoading && isAdminRoute" class="admin-loading-screen">
+        <div class="loading-content">
+          <div class="loading-spinner-large"></div>
+          <h2>Loading Admin Panel</h2>
+          <p>Please wait...</p>
+        </div>
+      </div>
+    </Transition>
+
     <main class="main-content">
       <router-view />
     </main>
@@ -100,14 +111,33 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import Toast from './components/Toast.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
+const adminLoading = ref(false)
+
+const isAdminRoute = computed(() => {
+  return route.path.startsWith('/admin')
+})
+
+// Watch for admin route navigation and show loading
+watch(() => route.path, (newPath, oldPath) => {
+  if (newPath.startsWith('/admin') && !oldPath.startsWith('/admin')) {
+    adminLoading.value = true
+    // Hide loading after a short delay to allow page to render
+    setTimeout(() => {
+      adminLoading.value = false
+    }, 500)
+  } else {
+    adminLoading.value = false
+  }
+}, { immediate: true })
 
 const isAuthenticated = computed(() => authStore.state.isAuthenticated)
 const userRole = computed(() => authStore.state.user?.role)
@@ -256,6 +286,17 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  text-decoration: none;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.user-info:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .user-avatar {
@@ -460,6 +501,59 @@ body {
   .logo-icon {
     font-size: 1.5rem;
   }
+}
+
+/* Admin Loading Screen */
+.admin-loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-spinner-large {
+  width: 64px;
+  height: 64px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 2rem;
+}
+
+.loading-content h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.loading-content p {
+  font-size: 1rem;
+  opacity: 0.9;
+  color: white;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
 

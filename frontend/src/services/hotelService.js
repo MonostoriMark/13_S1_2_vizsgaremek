@@ -17,6 +17,18 @@ export const hotelService = {
     return response.data
   },
 
+  async getServicesByHotelId(hotelId) {
+    try {
+      const response = await api.get(`/services/hotel/${hotelId}`)
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return []
+      }
+      throw error
+    }
+  },
+
   async getRecommendedHotels() {
     // Get all hotels and fetch their rooms with images
     const hotels = await this.getHotels()

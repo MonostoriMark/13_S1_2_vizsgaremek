@@ -153,17 +153,47 @@
                   {{ room.name }} - {{ room.price }} €
                 </div>
               </div>
+              <div v-if="selectedServices.length > 0" class="summary-services">
+                <div class="summary-services-header">Additional Services:</div>
+                <div
+                  v-for="serviceId in selectedServices"
+                  :key="serviceId"
+                  class="summary-service"
+                >
+                  {{ getServiceName(serviceId) }} - {{ getServicePrice(serviceId) }} €
+                </div>
+              </div>
+              <div class="summary-total">
+                <div class="total-line">
+                  <span>Plan Total:</span>
+                  <span>{{ searchResultsData.hotel.plans[selectedPlanIndex].total_price }} €</span>
+                </div>
+                <div v-if="selectedServices.length > 0" class="total-line">
+                  <span>Services Total:</span>
+                  <span>{{ getSelectedServicesTotal() }} €</span>
+                </div>
+                <div class="total-line final-total">
+                  <span><strong>Grand Total:</strong></span>
+                  <span><strong>{{ getGrandTotal() }} €</strong></span>
+                </div>
+              </div>
             </div>
           </div>
 
           <!-- Additional Services -->
-          <div v-if="hotel.services && hotel.services.length > 0" class="services-section">
+          <div v-if="availableServices.length > 0" class="services-section">
             <h3 class="services-title">Additional Services</h3>
-            <div class="services-grid">
+            <p class="services-subtitle">Select additional services for your stay</p>
+            <div v-if="servicesLoading" class="services-loading">
+              <div class="loading-spinner-small"></div>
+              <span>Loading services...</span>
+            </div>
+            <div v-else class="services-grid">
               <label
-                v-for="service in hotel.services"
+                v-for="service in availableServices"
                 :key="service.id"
                 class="service-item"
+                :class="{ 'selected': selectedServices.includes(service.id) }"
               >
                 <input
                   type="checkbox"
@@ -172,11 +202,33 @@
                   class="service-checkbox"
                 />
                 <div class="service-content">
-                  <span class="service-name">{{ service.name }}</span>
-                  <span class="service-price">{{ service.price }} €</span>
+                  <div class="service-info">
+                    <span class="service-name">{{ service.name }}</span>
+                    <span v-if="service.description" class="service-description">{{ service.description }}</span>
+                  </div>
+                  <span class="service-price">{{ service.price || 0 }} €</span>
                 </div>
               </label>
             </div>
+            <div v-if="selectedServices.length > 0" class="selected-services-summary">
+              <h4>Selected Services</h4>
+              <div class="selected-services-list">
+                <div
+                  v-for="serviceId in selectedServices"
+                  :key="serviceId"
+                  class="selected-service-item"
+                >
+                  <span>{{ getServiceName(serviceId) }}</span>
+                  <span class="service-price">{{ getServicePrice(serviceId) }} €</span>
+                </div>
+              </div>
+              <div class="services-total">
+                <strong>Services Total: {{ getSelectedServicesTotal() }} €</strong>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!servicesLoading" class="no-services">
+            <p>No additional services available for this hotel.</p>
           </div>
 
           <!-- Booking Actions -->
@@ -238,6 +290,8 @@ const searchResultsData = ref(null)
 const selectedPlanIndex = ref(null)
 const currentPlanIndex = ref(0)
 const selectedServices = ref([])
+const availableServices = ref([])
+const servicesLoading = ref(false)
 const bookingLoading = ref(false)
 const bookingError = ref('')
 const bookingSuccess = ref(false)
@@ -264,12 +318,29 @@ onMounted(async () => {
   try {
     const data = await hotelService.getHotelById(hotelId)
     hotel.value = data
+    
+    // Load services for this hotel
+    // Use hotel_id from search results if available, otherwise use hotel.id or route hotelId
+    const servicesHotelId = searchResultsData.value?.hotel?.hotel_id || data.id || hotelId
+    await loadServices(servicesHotelId)
   } catch (err) {
     error.value = err.response?.data?.message || 'Failed to load hotel details'
   } finally {
     loading.value = false
   }
 })
+
+const loadServices = async (hotelId) => {
+  servicesLoading.value = true
+  try {
+    availableServices.value = await hotelService.getServicesByHotelId(hotelId)
+  } catch (err) {
+    console.error('Failed to load services:', err)
+    availableServices.value = []
+  } finally {
+    servicesLoading.value = false
+  }
+}
 
 const getHotelImage = () => {
   // Try to get image from hotel rooms
@@ -378,6 +449,31 @@ const createBooking = async () => {
 
 const goBackToSearch = () => {
   router.push('/search')
+}
+
+const getServiceName = (serviceId) => {
+  const service = availableServices.value.find(s => s.id === serviceId)
+  return service ? service.name : 'Unknown Service'
+}
+
+const getServicePrice = (serviceId) => {
+  const service = availableServices.value.find(s => s.id === serviceId)
+  return service ? (service.price || 0) : 0
+}
+
+const getSelectedServicesTotal = () => {
+  return selectedServices.value.reduce((total, serviceId) => {
+    return total + getServicePrice(serviceId)
+  }, 0)
+}
+
+const getGrandTotal = () => {
+  if (!searchResultsData.value || selectedPlanIndex.value === null) {
+    return 0
+  }
+  const planTotal = searchResultsData.value.hotel.plans[selectedPlanIndex.value].total_price || 0
+  const servicesTotal = getSelectedServicesTotal()
+  return planTotal + servicesTotal
 }
 </script>
 
@@ -895,6 +991,136 @@ const goBackToSearch = () => {
 .service-price {
   font-weight: 600;
   color: #667eea;
+  font-size: 1.1rem;
+}
+
+.service-item.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.service-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.service-description {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.services-subtitle {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.services-loading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #7f8c8d;
+  justify-content: center;
+}
+
+.loading-spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.selected-services-summary {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+}
+
+.selected-services-summary h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.selected-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.selected-service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: white;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.services-total {
+  padding-top: 1rem;
+  border-top: 2px solid #e0e0e0;
+  text-align: right;
+  font-size: 1.1rem;
+  color: #2c3e50;
+}
+
+.no-services {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.summary-services {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.summary-services-header {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+
+.summary-service {
+  font-size: 0.95rem;
+  opacity: 0.9;
+  margin-left: 1rem;
+}
+
+.summary-total {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.total-line.final-total {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.25rem;
 }
 
 /* Booking Actions */
