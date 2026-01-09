@@ -1,60 +1,119 @@
 <template>
   <div class="search-page">
-    <!-- Sticky Search Form -->
-    <div class="search-form-container" :class="{ 'is-sticky': isSticky }">
-      <div class="search-form-wrapper">
-        <form @submit.prevent="handleSearch" class="search-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="city">Where to?</label>
-              <input
-                id="city"
-                v-model="searchParams.city"
-                type="text"
-                required
-                placeholder="City or destination"
-              />
+    <!-- Hero with background image and search form -->
+    <section class="search-hero" :class="{ 'is-sticky': isSticky }">
+      <div class="hero-background">
+        <div class="hero-image"></div>
+        <div class="hero-overlay"></div>
+      </div>
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1>Find your perfect stay</h1>
+          <p>
+            Explore a wide range of hotels, compare plans and services, and book your next getaway
+            with ease.
+          </p>
+        </div>
+        <div class="hero-search-card">
+          <form @submit.prevent="handleSearch" class="search-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="city">Where to?</label>
+                <input
+                  id="city"
+                  v-model="searchParams.city"
+                  type="text"
+                  required
+                  placeholder="City or destination"
+                />
+              </div>
+              <div class="form-group">
+                <label for="startDate">Check-in</label>
+                <input
+                  id="startDate"
+                  v-model="searchParams.startDate"
+                  type="date"
+                  required
+                  :min="minDate"
+                />
+              </div>
+              <div class="form-group">
+                <label for="endDate">Check-out</label>
+                <input
+                  id="endDate"
+                  v-model="searchParams.endDate"
+                  type="date"
+                  required
+                  :min="searchParams.startDate || minDate"
+                />
+              </div>
+              <div class="form-group">
+                <label for="guests">Guests</label>
+                <input
+                  id="guests"
+                  v-model.number="searchParams.guests"
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="1"
+                />
+              </div>
+              <div class="form-group form-group-button">
+                <button type="submit" class="btn-search" :disabled="loading">
+                  {{ loading ? 'Searching...' : 'Search' }}
+                </button>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="startDate">Check-in</label>
-              <input
-                id="startDate"
-                v-model="searchParams.startDate"
-                type="date"
-                required
-                :min="minDate"
-              />
+          </form>
+
+          <!-- Filter bar -->
+          <div class="filters-row">
+            <div class="filter-group">
+              <label for="typeFilter">Type</label>
+              <select id="typeFilter" v-model="filters.type">
+                <option value="">Any</option>
+                <option value="hotel">Hotel</option>
+                <option value="apartment">Apartment</option>
+                <option value="villa">Villa</option>
+              </select>
             </div>
-            <div class="form-group">
-              <label for="endDate">Check-out</label>
-              <input
-                id="endDate"
-                v-model="searchParams.endDate"
-                type="date"
-                required
-                :min="searchParams.startDate || minDate"
-              />
+            <div class="filter-group">
+              <label>Price / night</label>
+              <div class="price-filter">
+                <input
+                  v-model.number="filters.minPrice"
+                  type="number"
+                  min="0"
+                  placeholder="Min"
+                />
+                <span class="price-separator">–</span>
+                <input
+                  v-model.number="filters.maxPrice"
+                  type="number"
+                  min="0"
+                  placeholder="Max"
+                />
+              </div>
             </div>
-            <div class="form-group">
-              <label for="guests">Guests</label>
-              <input
-                id="guests"
-                v-model.number="searchParams.guests"
-                type="number"
-                required
-                min="1"
-                placeholder="1"
-              />
-            </div>
-            <div class="form-group form-group-button">
-              <button type="submit" class="btn-search" :disabled="loading">
-                {{ loading ? 'Searching...' : 'Search' }}
-              </button>
+            <div class="filter-group services-filter">
+              <label>Services</label>
+              <div class="services-chips">
+                <button
+                  v-for="service in popularServices"
+                  :key="service"
+                  type="button"
+                  class="chip"
+                  :class="{ active: filters.services.includes(service) }"
+                  @click="toggleServiceFilter(service)"
+                >
+                  {{ service }}
+                </button>
+              </div>
             </div>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Content Area -->
     <div class="search-content">
@@ -68,11 +127,11 @@
       <div v-if="error" class="error-message">{{ error }}</div>
 
       <!-- Search Results -->
-      <div v-if="hasSearched && results.length > 0" class="results-section">
-        <h2 class="section-title">Search Results ({{ results.length }})</h2>
+      <div v-if="hasSearched && filteredResults.length > 0" class="results-section">
+        <h2 class="section-title">Search Results ({{ filteredResults.length }})</h2>
         <div class="hotels-grid">
           <div
-            v-for="hotel in results"
+            v-for="hotel in filteredResults"
             :key="hotel.hotel_id"
             class="hotel-card"
             @click="viewHotel(hotel.hotel_id)"
@@ -98,6 +157,15 @@
               </p>
               <div v-if="hotel.tags && hotel.tags.length > 0" class="hotel-tags">
                 <span v-for="tag in hotel.tags.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
+              </div>
+              <div v-if="getHotelServices(hotel).length" class="hotel-services">
+                <span
+                  v-for="service in getHotelServices(hotel)"
+                  :key="service"
+                  class="service-pill"
+                >
+                  {{ service }}
+                </span>
               </div>
               <div class="hotel-footer">
                 <div class="price-info">
@@ -165,7 +233,7 @@
       </div>
 
       <!-- Empty State (No Search Results) -->
-      <div v-if="hasSearched && results.length === 0 && !loading" class="empty-state">
+      <div v-if="hasSearched && filteredResults.length === 0 && !loading" class="empty-state">
         <div class="empty-icon">🏨</div>
         <h2>No hotels found</h2>
         <p>We couldn't find any hotels matching your search criteria.</p>
@@ -234,6 +302,22 @@ const minDate = computed(() => {
   return new Date().toISOString().split('T')[0]
 })
 
+// Simple client-side filters
+const filters = ref({
+  type: '',
+  minPrice: null,
+  maxPrice: null,
+  services: []
+})
+
+const popularServices = [
+  'Free Wi-Fi',
+  'Breakfast included',
+  'Pool',
+  'Parking',
+  'Airport shuttle'
+]
+
 // Image fallback
 const imageFallback = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
 
@@ -263,6 +347,20 @@ const getStartingPrice = (hotel) => {
   return 'N/A'
 }
 
+const getHotelServices = (hotel) => {
+  // Try to infer services from hotel data – adjust as needed to match backend
+  const services = []
+  if (hotel.services && Array.isArray(hotel.services)) {
+    services.push(...hotel.services.map(s => s.name || s.title || s))
+  }
+  if (hotel.availableServices && Array.isArray(hotel.availableServices)) {
+    services.push(...hotel.availableServices.map(s => s.name || s.title || s))
+  }
+  // Deduplicate and limit for display
+  const unique = [...new Set(services)].filter(Boolean)
+  return unique.slice(0, 4)
+}
+
 const truncateText = (text, maxLength) => {
   if (!text) return ''
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
@@ -288,6 +386,33 @@ const handleSearch = async () => {
     loading.value = false
   }
 }
+
+const filteredResults = computed(() => {
+  if (!results.value.length) return []
+
+  return results.value.filter(hotel => {
+    const price = parseFloat(getStartingPrice(hotel))
+    if (!Number.isNaN(filters.value.minPrice) && filters.value.minPrice !== null) {
+      if (!Number.isNaN(price) && price < filters.value.minPrice) return false
+    }
+    if (!Number.isNaN(filters.value.maxPrice) && filters.value.maxPrice !== null && filters.value.maxPrice > 0) {
+      if (!Number.isNaN(price) && price > filters.value.maxPrice) return false
+    }
+
+    if (filters.value.type && hotel.type && hotel.type.toLowerCase() !== filters.value.type) {
+      return false
+    }
+
+    if (filters.value.services.length) {
+      const hotelServices = getHotelServices(hotel).map(s => s.toLowerCase())
+      const required = filters.value.services.map(s => s.toLowerCase())
+      const hasAll = required.every(s => hotelServices.includes(s))
+      if (!hasAll) return false
+    }
+
+    return true
+  })
+})
 
 const viewHotel = (hotelId) => {
   // Find the hotel in search results
@@ -315,6 +440,15 @@ const clearSearch = () => {
 const showRecommended = () => {
   clearSearch()
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const toggleServiceFilter = (service) => {
+  const idx = filters.value.services.indexOf(service)
+  if (idx === -1) {
+    filters.value.services.push(service)
+  } else {
+    filters.value.services.splice(idx, 1)
+  }
 }
 
 const loadRecommendedHotels = async () => {
@@ -356,27 +490,84 @@ onUnmounted(() => {
 <style scoped>
 .search-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: #f3f6fb;
 }
 
-/* Sticky Search Form */
-.search-form-container {
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  z-index: 100;
+/* Hero Section */
+.search-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0 0 2rem;
 }
 
-.search-form-container.is-sticky {
+.hero-background {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-image {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1501117716987-c8e1ecb2108a?auto=format&fit=crop&w=1600&q=80');
+  background-size: cover;
+  background-position: center;
+  transform-origin: center;
+  animation: heroZoom 20s ease-in-out infinite;
+}
+
+@keyframes heroZoom {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  /* Softer overlay so the image dominates and there is no harsh white band */
+  background:
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.55), transparent 55%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(15, 23, 42, 0.45) 45%, rgba(15, 23, 42, 0.05) 90%, transparent 100%);
+}
+
+.hero-content {
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 3.5rem 4vw 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.hero-text {
+  max-width: 620px;
+  color: white;
+}
+
+.hero-text h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.hero-text p {
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+.hero-search-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 18px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.22);
+}
+
+.search-hero.is-sticky .hero-search-card {
   position: sticky;
   top: 70px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.search-form-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.5rem 2rem;
+  z-index: 20;
 }
 
 .search-form {
@@ -444,6 +635,90 @@ onUnmounted(() => {
 .btn-search:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Filters row */
+.filters-row {
+  display: grid;
+  grid-template-columns: 180px 260px minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.25rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-group select,
+.price-filter input {
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.filter-group select:focus,
+.price-filter input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+}
+
+.price-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-separator {
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.services-filter {
+  overflow: hidden;
+}
+
+.services-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 0.35rem 0.9rem;
+  background: #f9fafb;
+  color: #4b5563;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+.chip:hover {
+  transform: translateY(-1px);
 }
 
 /* Content Area */
@@ -583,6 +858,22 @@ onUnmounted(() => {
   color: #667eea;
   border-radius: 12px;
   font-weight: 500;
+}
+
+.hotel-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.service-pill {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid rgba(129, 140, 248, 0.6);
 }
 
 .hotel-footer {
@@ -750,6 +1041,14 @@ onUnmounted(() => {
 
 /* Responsive Design */
 @media (max-width: 1200px) {
+  .filters-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .services-filter {
+    grid-column: 1 / -1;
+  }
+
   .form-row {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
@@ -761,10 +1060,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .search-form-wrapper {
-    padding: 1rem;
-  }
-
   .form-row {
     grid-template-columns: 1fr;
   }
@@ -795,6 +1090,10 @@ onUnmounted(() => {
   .btn-primary,
   .btn-secondary {
     width: 100%;
+  }
+
+  .filters-row {
+    grid-template-columns: 1fr;
   }
 }
 
