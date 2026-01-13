@@ -3,22 +3,22 @@
     <div class="rfid-keys-page">
       <div class="page-header">
         <h1>RFID Key Management</h1>
-        <button @click="openCreateModal" class="btn-primary" :disabled="!selectedHotel">
+        <button @click="openCreateModal" class="btn-primary">
           <span>➕</span> Add RFID Key
         </button>
       </div>
 
-      <div v-if="!selectedHotel" class="hotel-selector card">
+      <div class="hotel-selector card">
         <h3>Select Hotel</h3>
-        <select v-model="selectedHotelId" @change="loadKeys" class="hotel-select">
+        <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
           <option value="">Choose a hotel...</option>
           <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.location || hotel.user?.name || `Hotel #${hotel.id}` }}
+            {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
           </option>
         </select>
       </div>
 
-      <div v-else>
+      <div v-if="selectedHotel">
         <DataTable
           :data="keys"
           :columns="columns"
@@ -84,6 +84,16 @@
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
+
+              <div v-if="!editingKey" class="form-group">
+                <label>Select Hotel *</label>
+                <select v-model="form.hotelId" required class="form-select">
+                  <option value="">Choose a hotel...</option>
+                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+                  </option>
+                </select>
+              </div>
 
               <div class="form-group">
                 <label>UID (RFID Identifier) *</label>
@@ -205,7 +215,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
@@ -217,7 +227,7 @@ import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
 const hotels = ref([])
 const keys = ref([])
-const loading = ref(true)
+const loading = ref(false)
 const showModal = ref(false)
 const showAssignModal = ref(false)
 const showDeleteDialog = ref(false)
@@ -240,6 +250,7 @@ const selectedHotel = computed(() => {
 })
 
 const form = ref({
+  hotelId: null,
   uid: '',
   status: 'available'
 })
@@ -255,6 +266,14 @@ const columns = [
   { key: 'current_booking', label: 'Current Assignment' },
   { key: 'created_at', label: 'Created', type: 'date' }
 ]
+
+const showToast = (message, type) => {
+  if (toast.value) {
+    toast.value.showToast(message, type)
+  } else if (window.showToast) {
+    window.showToast(message, type)
+  }
+}
 
 const loadHotels = async () => {
   try {
@@ -274,15 +293,25 @@ const loadHotels = async () => {
   }
 }
 
+const handleHotelChange = async () => {
+  if (selectedHotelId.value) {
+    await loadKeys()
+  } else {
+    keys.value = []
+    loading.value = false
+  }
+}
+
 const loadKeys = async () => {
   if (!selectedHotelId.value) {
     loading.value = false
+    keys.value = []
     return
   }
 
   loading.value = true
   try {
-    const response = await rfidKeyService.getKeys({})
+    const response = await rfidKeyService.getKeys({ hotel_id: selectedHotelId.value })
     // Handle response structure
     if (Array.isArray(response)) {
       keys.value = response
@@ -302,10 +331,6 @@ const loadKeys = async () => {
 }
 
 const openCreateModal = () => {
-  if (!selectedHotel.value) {
-    showToast('Please select a hotel first', 'warning')
-    return
-  }
   editingKey.value = null
   resetForm()
   showModal.value = true
@@ -407,7 +432,7 @@ const confirmRelease = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!selectedHotel.value) {
+  if (!editingKey.value && !form.value.hotelId) {
     showToast('Please select a hotel', 'warning')
     return
   }
@@ -427,7 +452,8 @@ const handleSubmit = async () => {
       showToast('RFID key updated successfully', 'success')
     } else {
       await rfidKeyService.createKey({
-        uid: form.value.uid
+        uid: form.value.uid,
+        hotel_id: form.value.hotelId
       })
       showToast('RFID key created successfully', 'success')
     }
@@ -457,6 +483,7 @@ const closeAssignModal = () => {
 
 const resetForm = () => {
   form.value = {
+    hotelId: null,
     uid: '',
     status: 'available'
   }
@@ -476,16 +503,21 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-const showToast = (message, type) => {
-  if (toast.value) {
-    toast.value.showToast(message, type)
-  } else if (window.showToast) {
-    window.showToast(message, type)
-  }
+const handleHotelsUpdated = async () => {
+  await loadHotels()
 }
 
-onMounted(() => {
-  loadHotels()
+onMounted(async () => {
+  try {
+    await loadHotels()
+  } catch (err) {
+    console.error('Error loading RFID keys page:', err)
+  }
+  window.addEventListener('hotels-updated', handleHotelsUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hotels-updated', handleHotelsUpdated)
 })
 </script>
 

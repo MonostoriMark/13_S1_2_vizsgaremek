@@ -65,6 +65,7 @@ class FullDemoSeeder extends Seeder
             // -------------------------
             $mainHotel = Hotel::create([
                 'user_id' => $user->id,
+                'name' => 'Hotel Budapest',
                 'location' => 'Budapest, Hungary',
                 'description' => 'Egy szép hotel a város szívében.',
                 'type' => 'hotel',
@@ -114,6 +115,7 @@ class FullDemoSeeder extends Seeder
                     $hotel = Hotel::create([
                         'user_id' => $host->id,
                         'location' => $faker->city,
+                        'name' => $faker->company(),
                         'description' => $faker->sentence(),
                         'type' => $faker->randomElement(['hotel','apartment','villa','other']),
                         'starRating' => $faker->numberBetween(1,5),

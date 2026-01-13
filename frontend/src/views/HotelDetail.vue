@@ -33,7 +33,13 @@
               <span v-if="hotel.type" class="type-badge">{{ hotel.type }}</span>
             </div>
             <div v-if="hotel.tags && hotel.tags.length > 0" class="hotel-tags">
-              <span v-for="tag in hotel.tags" :key="tag" class="tag">{{ tag }}</span>
+              <span
+                v-for="(tag, idx) in hotel.tags"
+                :key="typeof tag === 'object' ? tag.id : idx"
+                class="tag"
+              >
+                {{ typeof tag === 'object' ? tag.name : tag }}
+              </span>
             </div>
           </div>
           <p v-if="hotel.description" class="hotel-description">{{ hotel.description }}</p>
@@ -93,7 +99,13 @@
                         <span class="spec-item">💰 {{ room.price }} €</span>
                       </div>
                       <div v-if="room.tags && room.tags.length > 0" class="room-tags">
-                        <span v-for="tag in room.tags" :key="tag" class="room-tag">{{ tag }}</span>
+                        <span
+                          v-for="(tag, idx) in room.tags"
+                          :key="typeof tag === 'object' ? tag.id : idx"
+                          class="room-tag"
+                        >
+                          {{ typeof tag === 'object' ? tag.name : tag }}
+                        </span>
                       </div>
                     </div>
                   </div>

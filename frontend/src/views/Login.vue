@@ -1,48 +1,14 @@
 <template>
   <div class="login-page">
-    <!-- Animated Background -->
-    <div class="background-container">
-      <div class="background-image"></div>
-      <div class="gradient-overlay"></div>
-      <div class="animated-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-      </div>
-    </div>
-
-    <!-- Glass-morphism Card -->
-    <div class="glass-card">
-      <div class="card-layout">
-        <!-- Image Carousel Side -->
-        <div class="card-image-column">
-          <div
-            class="carousel-slide"
-            :style="{ backgroundImage: `url(${heroImages[currentImageIndex]})` }"
-          >
-            <div class="carousel-overlay"></div>
-            <div class="carousel-content">
-              <h2 class="carousel-title">Explore the world</h2>
-              <p class="carousel-subtitle">
-                From skylines to sunsets – discover your next stay.
-              </p>
-            </div>
-          </div>
-          <div class="carousel-dots">
-            <button
-              v-for="(img, index) in heroImages"
-              :key="index"
-              type="button"
-              class="dot"
-              :class="{ active: index === currentImageIndex }"
-              @click="goToSlide(index)"
-            ></button>
-          </div>
-        </div>
-
-        <!-- Form Side -->
-        <div class="card-form-column">
-          <div class="card-content">
+    <!-- Home Button -->
+    <router-link to="/" class="home-button">
+      <span class="home-icon">🏠</span>
+      <span class="home-text">Home</span>
+    </router-link>
+    
+    <!-- Minimal Card -->
+    <div class="login-card">
+      <div class="card-content">
             <div class="welcome-header">
               <div class="travel-icon-wrapper">
                 <div class="travel-icon">✈️</div>
@@ -122,20 +88,11 @@
             </form>
           </div>
         </div>
-      </div>
-
-      <!-- City Silhouettes -->
-      <div class="city-silhouettes">
-        <span class="city-icon">🏛️</span>
-        <span class="city-icon">⛪</span>
-        <span class="city-icon">🗼</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -146,42 +103,6 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-
-// Vibrant travel hero images shown next to the form
-const heroImages = [
-  'https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1496395031089-3a6501e3b4b1?auto=format&fit=crop&w=1200&q=80'
-]
-
-const currentImageIndex = ref(0)
-let carouselTimer = null
-
-const startCarousel = () => {
-  if (carouselTimer) return
-  carouselTimer = setInterval(() => {
-    currentImageIndex.value = (currentImageIndex.value + 1) % heroImages.length
-  }, 7000)
-}
-
-const stopCarousel = () => {
-  if (carouselTimer) {
-    clearInterval(carouselTimer)
-    carouselTimer = null
-  }
-}
-
-const goToSlide = (index) => {
-  currentImageIndex.value = index
-}
-
-onMounted(() => {
-  startCarousel()
-})
-
-onBeforeUnmount(() => {
-  stopCarousel()
-})
 
 const handleLogin = async () => {
   error.value = ''
@@ -208,242 +129,71 @@ const handleLogin = async () => {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  width: 100%;
+  height: 100vh;
+  width: 100vw;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  position: relative;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-/* Animated Background */
-.background-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-}
-
-.background-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  animation: backgroundShift 20s ease-in-out infinite;
-}
-
-@keyframes backgroundShift {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
-.gradient-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(102, 126, 234, 0.85) 0%, 
-    rgba(118, 75, 162, 0.9) 50%,
-    rgba(139, 69, 199, 0.85) 100%);
-  backdrop-filter: blur(2px);
-}
-
-.animated-shapes {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-}
-
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.3;
-  animation: float 15s ease-in-out infinite;
-}
-
-.shape-1 {
-  width: 400px;
-  height: 400px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  top: -100px;
-  left: -100px;
-  animation-delay: 0s;
-}
-
-.shape-2 {
-  width: 300px;
-  height: 300px;
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
-  bottom: -50px;
-  right: -50px;
-  animation-delay: 5s;
-}
-
-.shape-3 {
-  width: 250px;
-  height: 250px;
-  background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
-  top: 50%;
-  right: 10%;
-  animation-delay: 10s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-}
-
-/* Glass-morphism Card */
-.glass-card {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 900px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-    0 0 60px rgba(102, 126, 234, 0.3);
-  padding: 3rem 2.5rem;
-  animation: cardEntrance 0.6s ease-out;
-  overflow: hidden;
-}
-
-.card-layout {
-  display: grid;
-  grid-template-columns: 1.1fr 1.2fr;
-  gap: 2rem;
-  align-items: stretch;
-}
-
-.card-image-column {
-  position: relative;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-}
-
-.carousel-slide {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 320px;
-  background-size: cover;
-  background-position: center;
-  transform-origin: center;
-  animation: subtleZoom 12s ease-in-out infinite;
-}
-
-@keyframes subtleZoom {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-
-.carousel-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    145deg,
-    rgba(15, 23, 42, 0.9) 0%,
-    rgba(88, 28, 135, 0.8) 50%,
-    rgba(37, 99, 235, 0.6) 100%
-  );
-}
-
-.carousel-content {
-  position: relative;
-  z-index: 2;
-  height: 100%;
-  padding: 2.25rem 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  color: white;
-}
-
-.carousel-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.carousel-subtitle {
-  font-size: 0.95rem;
-  opacity: 0.9;
-}
-
-.carousel-dots {
-  position: absolute;
-  bottom: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 0.5rem;
-  z-index: 3;
-}
-
-.carousel-dots .dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.35);
-  cursor: pointer;
   padding: 0;
-  transition: all 0.25s ease;
-}
-
-.carousel-dots .dot.active {
-  width: 22px;
-  background: #ffffff;
-}
-
-.card-form-column {
-  position: relative;
-}
-
-@keyframes cardEntrance {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.glass-card::before {
-  content: '';
-  position: absolute;
+  margin: 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.5) 50%, 
-    transparent 100%);
+  bottom: 0;
+  overflow-y: auto;
+}
+
+/* Home Button */
+.home-button {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  color: #667eea;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.home-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #764ba2;
+}
+
+.home-icon {
+  font-size: 1.1rem;
+}
+
+.home-text {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .home-text {
+    display: inline;
+  }
+}
+
+/* Minimal Card */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem 2rem;
 }
 
 .card-content {
@@ -454,63 +204,29 @@ const handleLogin = async () => {
 /* Welcome Header */
 .welcome-header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .travel-icon-wrapper {
-  position: relative;
   display: inline-block;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .travel-icon {
-  font-size: 2.5rem;
-  filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
-  animation: iconFloat 3s ease-in-out infinite;
-  position: relative;
-  z-index: 2;
-}
-
-@keyframes iconFloat {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(5deg); }
-}
-
-.icon-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, transparent 70%);
-  border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.3; }
+  font-size: 2rem;
 }
 
 .welcome-header h1 {
-  font-size: 2.25rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ffffff 0%, #e0d5ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0.5rem 0;
-  text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
-  letter-spacing: -0.5px;
 }
 
 .welcome-subtitle {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.95rem;
+  color: #6b7280;
+  font-size: 0.9rem;
   font-weight: 500;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 /* Form Styles */
@@ -525,10 +241,9 @@ const handleLogin = async () => {
 .form-group label {
   display: block;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
-  letter-spacing: 0.3px;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
 }
 
 .input-wrapper {
@@ -537,58 +252,38 @@ const handleLogin = async () => {
 
 .input-icon {
   position: absolute;
-  left: 1.25rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 1.1rem;
+  font-size: 1rem;
   z-index: 3;
-  filter: drop-shadow(0 0 5px rgba(102, 126, 234, 0.5));
+  color: #9ca3af;
 }
 
 .glass-input {
   width: 100%;
-  padding: 1rem 1rem 1rem 3.5rem;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   font-size: 0.95rem;
-  color: white;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
+  color: #1f2937;
+  transition: all 0.2s ease;
 }
 
 .glass-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: #9ca3af;
 }
 
 .glass-input:focus {
   outline: none;
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 
-    0 0 0 4px rgba(102, 126, 234, 0.3),
-    0 0 20px rgba(102, 126, 234, 0.4),
-    inset 0 0 20px rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+  background: white;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .input-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.glass-input:focus + .input-glow {
-  opacity: 1;
+  display: none;
 }
 
 .forgot-password {
@@ -597,65 +292,41 @@ const handleLogin = async () => {
 }
 
 .forgot-link {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.85rem;
+  color: #667eea;
+  font-size: 0.875rem;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: color 0.2s ease;
   font-weight: 500;
 }
 
 .forgot-link:hover {
-  color: white;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  color: #764ba2;
 }
 
 /* Button */
 .btn-login {
   width: 100%;
-  padding: 1.125rem 2rem;
+  padding: 0.875rem 2rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 16px;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 1px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   margin-bottom: 1.5rem;
   position: relative;
   overflow: hidden;
-  text-transform: uppercase;
-  box-shadow: 
-    0 4px 15px rgba(102, 126, 234, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-}
-
-.btn-login::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s ease;
-}
-
-.btn-login:hover::before {
-  left: 100%;
 }
 
 .btn-login:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 
-    0 8px 25px rgba(102, 126, 234, 0.5),
-    0 0 30px rgba(102, 126, 234, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-login:active:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translateY(0);
 }
 
 .btn-login:disabled {
@@ -665,21 +336,7 @@ const handleLogin = async () => {
 }
 
 .button-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
-  border-radius: 16px;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  pointer-events: none;
-}
-
-.btn-login:hover .button-glow {
-  opacity: 1;
+  display: none;
 }
 
 .loading-spinner {
@@ -702,21 +359,21 @@ const handleLogin = async () => {
   align-items: center;
   text-align: center;
   margin: 1.5rem 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: #9ca3af;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .divider::before,
 .divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .divider span {
   padding: 0 1rem;
-  background: transparent;
+  background: white;
 }
 
 /* Social Buttons */
@@ -728,148 +385,75 @@ const handleLogin = async () => {
 }
 
 .social-btn {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
   padding: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.social-btn::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  transition: transform 0.4s ease;
-}
-
-.social-btn:hover::before {
-  transform: translate(-50%, -50%) scale(1);
+  color: #374151;
 }
 
 .social-btn:hover {
-  transform: translateY(-3px) scale(1.05);
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .social-btn.google {
-  color: white;
-}
-
-.social-btn.google .social-icon {
-  background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc05 75%, #ea4335 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  position: relative;
-  z-index: 2;
+  color: #4285f4;
 }
 
 .social-btn.facebook {
-  background: rgba(24, 119, 242, 0.3);
-  border-color: rgba(24, 119, 242, 0.5);
-  color: white;
+  color: #1877f2;
 }
 
 .social-btn.apple {
-  background: rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: white;
+  color: #000000;
 }
 
 /* Register Link */
 .register-link {
   text-align: center;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
+  color: #6b7280;
+  font-size: 0.875rem;
   margin: 0;
 }
 
 .register-link a {
-  color: white;
+  color: #667eea;
   text-decoration: none;
-  font-weight: 700;
-  transition: all 0.3s ease;
-  text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+  font-weight: 600;
+  transition: color 0.2s ease;
 }
 
 .register-link a:hover {
-  text-shadow: 0 0 20px rgba(102, 126, 234, 1);
-  transform: scale(1.05);
-  display: inline-block;
+  color: #764ba2;
 }
 
 /* Error Message */
 .error-message {
-  background: rgba(231, 76, 60, 0.2);
-  backdrop-filter: blur(10px);
-  color: white;
-  padding: 1rem 1.25rem;
-  border-radius: 12px;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
   margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  border: 1px solid rgba(231, 76, 60, 0.4);
+  font-size: 0.875rem;
+  border: 1px solid #fecaca;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  animation: shake 0.5s ease;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-10px); }
-  75% { transform: translateX(10px); }
 }
 
 .error-icon {
-  font-size: 1.2rem;
-}
-
-/* City Silhouettes */
-.city-silhouettes {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  opacity: 0.4;
-}
-
-.city-icon {
-  font-size: 1.5rem;
-  filter: drop-shadow(0 0 5px rgba(102, 126, 234, 0.5));
-  animation: cityFloat 4s ease-in-out infinite;
-}
-
-.city-icon:nth-child(2) {
-  animation-delay: 1.3s;
-}
-
-.city-icon:nth-child(3) {
-  animation-delay: 2.6s;
-}
-
-@keyframes cityFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  font-size: 1.1rem;
 }
 
 /* Responsive Design */
@@ -878,37 +462,28 @@ const handleLogin = async () => {
     padding: 1rem;
   }
 
-  .glass-card {
-    padding: 2.5rem 2rem;
-    border-radius: 24px;
-  }
-
-  .welcome-header h1 {
-    font-size: 1.75rem;
-  }
-
-  .travel-icon {
-    font-size: 2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .login-page {
-    padding: 0;
-  }
-
-  .glass-card {
-    border-radius: 0;
-    min-height: 100vh;
+  .login-card {
     padding: 2rem 1.5rem;
+    max-width: 100%;
   }
 
   .welcome-header h1 {
     font-size: 1.5rem;
   }
+}
 
-  .glass-input {
-    padding: 0.875rem 0.875rem 0.875rem 3rem;
+@media (max-width: 480px) {
+  .login-page {
+    padding: 1rem;
+  }
+
+  .login-card {
+    padding: 1.5rem 1.25rem;
+    max-width: 100%;
+  }
+
+  .welcome-header h1 {
+    font-size: 1.375rem;
   }
 }
 </style>

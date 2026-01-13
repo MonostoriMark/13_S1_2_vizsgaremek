@@ -3,22 +3,22 @@
     <div class="services-page">
       <div class="page-header">
         <h1>Services Management</h1>
-        <button @click="openCreateModal" class="btn-primary" :disabled="!selectedHotel">
+        <button @click="openCreateModal" class="btn-primary">
           <span>➕</span> Add Service
         </button>
       </div>
 
-      <div v-if="!selectedHotel" class="hotel-selector card">
+      <div class="hotel-selector card">
         <h3>Select Hotel</h3>
-        <select v-model="selectedHotelId" @change="loadServices" class="hotel-select">
+        <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
           <option value="">Choose a hotel...</option>
           <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.location || hotel.user?.name || `Hotel #${hotel.id}` }}
+            {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
           </option>
         </select>
       </div>
 
-      <div v-else>
+      <div v-if="selectedHotel">
         <DataTable
           :data="services"
           :columns="columns"
@@ -50,6 +50,16 @@
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
+
+              <div v-if="!editingService" class="form-group">
+                <label>Select Hotel *</label>
+                <select v-model="form.hotelId" required class="form-select">
+                  <option value="">Choose a hotel...</option>
+                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+                  </option>
+                </select>
+              </div>
 
               <div class="form-group">
                 <label>Service Name *</label>
@@ -114,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
@@ -141,6 +151,7 @@ const selectedHotel = computed(() => {
 })
 
 const form = ref({
+  hotelId: null,
   name: '',
   description: '',
   price: null,
@@ -168,6 +179,15 @@ const loadHotels = async () => {
   }
 }
 
+const handleHotelChange = async () => {
+  if (selectedHotelId.value) {
+    await loadServices()
+  } else {
+    services.value = []
+    loading.value = false
+  }
+}
+
 const loadServices = async () => {
   if (!selectedHotelId.value) return
 
@@ -187,10 +207,6 @@ const loadServices = async () => {
 }
 
 const openCreateModal = () => {
-  if (!selectedHotel.value) {
-    showToast('Please select a hotel first', 'warning')
-    return
-  }
   editingService.value = null
   resetForm()
   showModal.value = true
@@ -238,7 +254,13 @@ const handleImageUpload = async (imageObj) => {
 }
 
 const handleSubmit = async () => {
-  if (!selectedHotel.value) {
+  if (!editingService.value && !form.value.hotelId) {
+    showToast('Please select a hotel', 'warning')
+    return
+  }
+
+  const hotelId = editingService.value ? selectedHotel.value?.id : form.value.hotelId
+  if (!hotelId) {
     showToast('Please select a hotel', 'warning')
     return
   }
@@ -255,7 +277,7 @@ const handleSubmit = async () => {
       })
       showToast('Service updated successfully', 'success')
     } else {
-      await adminService.createService(selectedHotel.value.id, {
+      await adminService.createService(hotelId, {
         name: form.value.name,
         description: form.value.description,
         price: form.value.price || null
@@ -281,6 +303,7 @@ const closeModal = () => {
 
 const resetForm = () => {
   form.value = {
+    hotelId: null,
     name: '',
     description: '',
     price: null,
@@ -296,8 +319,17 @@ const showToast = (message, type) => {
   }
 }
 
+const handleHotelsUpdated = async () => {
+  await loadHotels()
+}
+
 onMounted(() => {
   loadHotels()
+  window.addEventListener('hotels-updated', handleHotelsUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hotels-updated', handleHotelsUpdated)
 })
 </script>
 

@@ -75,6 +75,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'hotel' }
     },
     {
+      path: '/admin/tags',
+      name: 'AdminTags',
+      component: () => import('../views/admin/Tags.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
       path: '/admin/rfid-keys',
       name: 'AdminRFIDKeys',
       component: () => import('../views/admin/RFIDKeys.vue'),

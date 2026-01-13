@@ -3,6 +3,7 @@ import api from './api'
 export const rfidKeyService = {
   async getKeys(filters = {}) {
     const params = new URLSearchParams()
+    if (filters.hotel_id) params.append('hotel_id', filters.hotel_id)
     if (filters.status) params.append('status', filters.status)
     if (filters.search) params.append('search', filters.search)
 

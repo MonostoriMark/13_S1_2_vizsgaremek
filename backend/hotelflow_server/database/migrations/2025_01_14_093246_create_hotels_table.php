@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('hotels', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('name')->nullable();
             $table->string('location');
             $table->text('description')->nullable();
             $table->enum('type', ['hotel', 'apartment', 'villa', 'other']);

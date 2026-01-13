@@ -14,7 +14,7 @@
         :loading="loading"
         search-placeholder="Search hotels..."
         empty-message="No hotels found"
-        :search-fields="['location', 'type', 'description']"
+        :search-fields="['name', 'location', 'type', 'description']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
       >
@@ -54,9 +54,9 @@
                   <select v-model="form.type">
                     <option value="">Select type</option>
                     <option value="hotel">Hotel</option>
-                    <option value="resort">Resort</option>
                     <option value="apartment">Apartment</option>
-                    <option value="hostel">Hostel</option>
+                    <option value="villa">Villa</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -90,6 +90,50 @@
                 </label>
               </div>
 
+              <!-- Tags Section -->
+              <div v-if="editingHotel" class="form-group">
+                <label>Tags</label>
+                <div class="tags-section">
+                  <div v-if="currentHotelTags.length > 0" class="current-tags">
+                    <div
+                      v-for="tag in currentHotelTags"
+                      :key="tag.id"
+                      class="tag-chip"
+                    >
+                      <span>{{ tag.name }}</span>
+                      <button
+                        type="button"
+                        @click="removeTagFromHotel(tag.id)"
+                        class="tag-remove"
+                        :disabled="savingTags"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="no-tags">No tags assigned</div>
+                  
+                  <div class="add-tags-section">
+                    <label class="add-tags-label">Add Tags</label>
+                    <div class="available-tags">
+                      <button
+                        v-for="tag in availableTagsForHotel"
+                        :key="tag.id"
+                        type="button"
+                        @click="addTagToHotel(tag.id)"
+                        class="tag-option"
+                        :disabled="savingTags"
+                      >
+                        + {{ tag.name }}
+                      </button>
+                    </div>
+                    <p v-if="availableTagsForHotel.length === 0" class="no-available-tags">
+                      No available tags. Create tags in the Tags management page.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div class="modal-footer">
                 <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
@@ -117,12 +161,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
+import { tagService } from '../../services/tagService'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -136,6 +181,12 @@ const error = ref('')
 const toast = ref(null)
 const hotelToDelete = ref(null)
 
+// Tags management
+const allTags = ref([])
+const tagUsage = ref({ hotel_tags: [], room_tags: [] })
+const currentHotelTags = ref([])
+const savingTags = ref(false)
+
 const form = ref({
   name: '',
   location: '',
@@ -146,6 +197,7 @@ const form = ref({
 })
 
 const columns = [
+  { key: 'name', label: 'Hotel Name', sortable: true },
   { key: 'location', label: 'Location', sortable: true },
   { key: 'type', label: 'Type', sortable: true },
   { key: 'starRating', label: 'Rating', sortable: true },
@@ -157,7 +209,10 @@ const loadHotels = async () => {
   try {
     const data = await adminService.getHotels()
     // Filter to show only hotels belonging to the current user
-    hotels.value = data.filter(h => h.user_id === authStore.state.user?.id)
+    hotels.value = data.filter(h => h.user_id === authStore.state.user?.id).map(hotel => ({
+      ...hotel,
+      tags: hotel.tags || []
+    }))
   } catch (err) {
     showToast('Failed to load hotels', 'error')
   } finally {
@@ -171,16 +226,31 @@ const openCreateModal = () => {
   showModal.value = true
 }
 
-const handleEdit = (hotel) => {
+const handleEdit = async (hotel) => {
   editingHotel.value = hotel
   form.value = {
-    name: hotel.user?.name || '',
+    name: hotel.name || '',
     location: hotel.location || '',
     type: hotel.type || '',
     starRating: hotel.starRating || null,
     description: hotel.description || '',
     active: true // Note: active field may need to be added to backend
   }
+  
+  // Load hotel tags - ensure we have proper tag objects
+  if (hotel.tags && Array.isArray(hotel.tags)) {
+    // Normalize tags - handle both object format and string format
+    currentHotelTags.value = hotel.tags.map(tag => {
+      if (typeof tag === 'object' && tag !== null) {
+        return tag // Already an object with id, name, etc.
+      }
+      return { id: null, name: tag } // String format, convert to object
+    })
+  } else {
+    currentHotelTags.value = []
+  }
+  
+  await loadTags()
   showModal.value = true
 }
 
@@ -218,9 +288,16 @@ const handleSubmit = async () => {
       })
       showToast('Hotel updated successfully', 'success')
     } else {
-      // Note: Hotel creation might need a different endpoint
-      // For now, we'll show an error if the endpoint doesn't exist
-      showToast('Hotel creation endpoint not available', 'warning')
+      await adminService.createHotel({
+        name: form.value.name,
+        location: form.value.location,
+        type: form.value.type,
+        starRating: form.value.starRating,
+        description: form.value.description
+      })
+      showToast('Hotel created successfully', 'success')
+      // Refresh hotel list to update dropdowns in other pages
+      window.dispatchEvent(new CustomEvent('hotels-updated'))
     }
     closeModal()
     await loadHotels()
@@ -235,8 +312,74 @@ const handleSubmit = async () => {
 const closeModal = () => {
   showModal.value = false
   editingHotel.value = null
+  currentHotelTags.value = []
   resetForm()
   error.value = ''
+}
+
+const loadTags = async () => {
+  try {
+    const [tagsData, usageData] = await Promise.all([
+      tagService.getAllTags(),
+      tagService.getTagUsage()
+    ])
+    allTags.value = tagsData
+    tagUsage.value = usageData
+  } catch (err) {
+    console.error('Failed to load tags:', err)
+  }
+}
+
+const availableTagsForHotel = computed(() => {
+  // Filter out tags that are already used on rooms (exclusivity)
+  return allTags.value.filter(tag => {
+    // Don't show tags already assigned to this hotel
+    if (currentHotelTags.value.some(t => t.id === tag.id)) {
+      return false
+    }
+    // Don't show tags that are used on any room
+    return !tagUsage.value.room_tags.includes(tag.id)
+  })
+})
+
+const addTagToHotel = async (tagId) => {
+  if (!editingHotel.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.addTagsToHotel(editingHotel.value.id, [tagId])
+    const tag = allTags.value.find(t => t.id === tagId)
+    if (tag) {
+      currentHotelTags.value.push(tag)
+    }
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Tag added successfully', 'success')
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to add tag'
+    showToast(message, 'error')
+  } finally {
+    savingTags.value = false
+  }
+}
+
+const removeTagFromHotel = async (tagId) => {
+  if (!editingHotel.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.removeTagFromHotel(editingHotel.value.id, tagId)
+    currentHotelTags.value = currentHotelTags.value.filter(t => t.id !== tagId)
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Tag removed successfully', 'success')
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to remove tag', 'error')
+  } finally {
+    savingTags.value = false
+  }
 }
 
 const resetForm = () => {
@@ -258,8 +401,9 @@ const showToast = (message, type) => {
   }
 }
 
-onMounted(() => {
-  loadHotels()
+onMounted(async () => {
+  await loadHotels()
+  await loadTags()
 })
 </script>
 
@@ -368,6 +512,117 @@ onMounted(() => {
 
 .form-group {
   margin-bottom: 1.5rem;
+}
+
+/* Tags Section */
+.tags-section {
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #f8f9fa;
+}
+
+.current-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  min-height: 2rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-remove {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.tag-remove:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tag-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-tags {
+  color: #7f8c8d;
+  font-style: italic;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+.add-tags-section {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.add-tags-label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.available-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-option {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #667eea;
+  color: #667eea;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-option:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.tag-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-available-tags {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 0.5rem;
 }
 
 .form-group label {

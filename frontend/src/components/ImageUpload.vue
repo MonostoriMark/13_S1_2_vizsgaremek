@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, getCurrentInstance } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -158,8 +158,56 @@ const processFiles = async (files) => {
   emit('update:modelValue', images.value)
 
   // Auto-upload if upload handler is provided
-  if (newImages.length > 0 && emit('upload')) {
-    await uploadImages(newImages)
+  // The parent component should handle the upload via @upload event
+  if (newImages.length > 0) {
+    // Upload each image individually via the upload event
+    for (const imageObj of newImages) {
+      // Verify file exists before uploading
+      if (!imageObj.file) {
+        console.error('No file in imageObj:', imageObj)
+        imageObj.error = 'File is missing'
+        continue
+      }
+
+      imageObj.uploading = true
+      imageObj.progress = 0
+      
+      // Emit upload event - parent component handles the actual upload
+      // The parent's async handler will be called, but we can't await emit directly
+      // So we'll use a promise-based approach
+      const uploadPromise = new Promise((resolve, reject) => {
+        // Create a wrapper that the parent can call
+        imageObj._uploadPromise = { resolve, reject }
+        
+        // Emit the event with the imageObj
+        // The parent handler should call resolve/reject when done
+        emit('upload', imageObj)
+        
+        // Set a timeout in case parent doesn't handle it
+        setTimeout(() => {
+          if (imageObj.uploading && imageObj.progress < 100) {
+            // If still uploading after 30 seconds, assume it failed
+            reject(new Error('Upload timeout'))
+          }
+        }, 30000)
+      })
+
+      try {
+        await uploadPromise
+        imageObj.progress = 100
+        imageObj.uploading = false
+      } catch (err) {
+        console.error('Upload error:', err)
+        imageObj.uploading = false
+        imageObj.error = err.message || 'Upload failed'
+        // Remove the failed image from the list
+        const index = images.value.findIndex(img => img.id === imageObj.id)
+        if (index !== -1) {
+          images.value.splice(index, 1)
+          emit('update:modelValue', images.value)
+        }
+      }
+    }
   }
 }
 
@@ -193,11 +241,16 @@ const uploadImages = async (imageObjs) => {
       }, 100)
 
       try {
-        await emit('upload', imageObj)
+        // Emit upload event - parent component handles the actual upload
+        emit('upload', imageObj)
+        // Wait a bit for the upload to complete
+        await new Promise(resolve => setTimeout(resolve, 100))
         imageObj.progress = 100
         clearInterval(progressInterval)
       } catch (err) {
         clearInterval(progressInterval)
+        imageObj.uploading = false
+        imageObj.error = err.message || 'Upload failed'
         throw err
       } finally {
         imageObj.uploading = false

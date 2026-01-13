@@ -13,6 +13,7 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\HotelTagController;
 use App\Http\Controllers\RoomTagController;
+use App\Http\Controllers\ServiceTagController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\RFIDKeyController;
 
@@ -38,6 +39,7 @@ Route::delete('/auth/deleteuser/{id}', [AuthController::class, 'deleteUser'])->m
 //HOTEL VÉGPONTOK
 Route::get('/hotels', [HotelController::class, 'getHotels']);
 Route::get('/hotels/{id}', [HotelController::class, 'getHotelById']);
+Route::post('/hotels', [HotelController::class, 'createHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/hotels/upgrade/{id}', [HotelController::class, 'upgradeHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->middleware('auth:sanctum', 'role:hotel');
 
@@ -98,7 +100,15 @@ Route::get('/rooms/{roomId}/images', [ImageController::class, 'roomImages']);
 Route::get('/images/{id}', [ImageController::class, 'show']);
 
 //SEARCH VÉGPONTOK
+Route::get('/search/locations', [SearchController::class, 'getLocations']);
 Route::get('/search', [SearchController::class, 'searchWithPlans']);
+
+//TAG VÉGPONTOK
+Route::get('/tags', [ServiceTagController::class, 'index']);
+Route::get('/tags/usage', [ServiceTagController::class, 'getUsage']);
+Route::post('/tags', [ServiceTagController::class, 'store'])->middleware('auth:sanctum', 'role:hotel');
+Route::put('/tags/{id}', [ServiceTagController::class, 'update'])->middleware('auth:sanctum', 'role:hotel');
+Route::delete('/tags/{id}', [ServiceTagController::class, 'destroy'])->middleware('auth:sanctum', 'role:hotel');
 
 //TAG-ek hozzáfűzése
 

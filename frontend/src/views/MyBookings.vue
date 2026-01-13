@@ -1254,9 +1254,7 @@ const isAtCapacity = (booking) => {
 
   .btn-add-guest {
     width: 100%;
-  }
-
-  .modal-content {
+  }  .modal-content {
     width: 95%;
     padding: 1.5rem;
   }

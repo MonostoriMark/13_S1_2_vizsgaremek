@@ -97,6 +97,7 @@ class AuthController extends Controller
                         'name' => ['required', 'string', 'max:255'],
                         'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
                         'password' => ['required', 'string', 'min:8'],
+                        'hotelName' => ['required', 'string', 'max:255'],
                         'location' => ['required', 'string', 'max:255'],
                         'type' => ['required', 'in:hotel,apartment,villa,other'],
                         'starRating' => ['nullable', 'integer', 'min:1', 'max:5']
@@ -111,6 +112,7 @@ class AuthController extends Controller
                     ]);
                     $hotel = Hotel::create([
                         'user_id' => $user->id,
+                        'name' => $validated['hotelName'],
                         'location' => $validated['location'],
                         'type' => $validated['type'],
                         'starRating' => $validated['starRating'],

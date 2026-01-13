@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <nav v-if="!isAdminRoute" class="navbar">
+    <nav v-if="!isAdminRoute && !isAuthRoute" class="navbar">
       <div class="nav-container">
         <router-link to="/" class="nav-logo">
           <span class="logo-icon">🏨</span>
@@ -103,7 +103,7 @@
       </div>
     </Transition>
 
-    <main class="main-content">
+    <main class="main-content" :class="{ 'full-screen': isAuthRoute }">
       <router-view />
     </main>
     <Toast />
@@ -124,6 +124,10 @@ const adminLoading = ref(false)
 
 const isAdminRoute = computed(() => {
   return route.path.startsWith('/admin')
+})
+
+const isAuthRoute = computed(() => {
+  return route.path === '/login' || route.path === '/register'
 })
 
 // Watch for admin route navigation and show loading
@@ -412,6 +416,12 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.main-content.full-screen {
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
 }
 
 /* Responsive Design */

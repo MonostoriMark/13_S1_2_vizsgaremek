@@ -79,6 +79,7 @@ const menuItems = [
   { path: '/admin/hotels', label: 'Hotels', icon: '🏨' },
   { path: '/admin/rooms', label: 'Rooms', icon: '🛏️' },
   { path: '/admin/services', label: 'Services', icon: '✨' },
+  { path: '/admin/tags', label: 'Tags', icon: '🏷️' },
   { path: '/admin/rfid-keys', label: 'RFID Keys', icon: '🔑' }
 ]
 

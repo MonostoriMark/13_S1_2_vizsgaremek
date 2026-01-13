@@ -9,6 +9,18 @@ use Carbon\Carbon;
 
 class SearchController extends Controller
 {
+    public function getLocations()
+    {
+        $locations = Hotel::select('location')
+            ->distinct()
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->orderBy('location')
+            ->pluck('location');
+
+        return response()->json($locations);
+    }
+
     public function searchWithPlans(Request $request)
     {
         // GET query paraméterek
@@ -27,8 +39,11 @@ class SearchController extends Controller
 
         $nights = Carbon::parse($startDate)->diffInDays($endDate);
 
-        // Hotel szűrés város alapján
-        $hotels = Hotel::where('location', 'LIKE', "%{$city}%")->get();
+        // Hotel szűrés név vagy location alapján
+        $hotels = Hotel::where(function($query) use ($city) {
+            $query->where('name', 'LIKE', "%{$city}%")
+                  ->orWhere('location', 'LIKE', "%{$city}%");
+        })->with(['tags', 'services'])->get();
 
         $results = [];
 
@@ -57,12 +72,16 @@ class SearchController extends Controller
 
             $results[] = [
                 'hotel_id'   => $hotel->id,
+                'name'       => $hotel->name,
                 'location'   => $hotel->location,
                 'type'       => $hotel->type,
                 'starRating' => $hotel->starRating,
 
-                // HOTEL TAGS
-                'tags' => $hotel->tags->pluck('name'),
+                // HOTEL TAGS (return full tag objects)
+                'tags' => $hotel->tags->map(fn ($tag) => [
+                    'id' => $tag->id,
+                    'name' => $tag->name
+                ]),
 
                 // IGÉNYBE VEHETŐ SZOLGÁLTATÁSOK
                 'services' => $hotel->services->map(fn ($s) => [
@@ -106,6 +125,11 @@ class SearchController extends Controller
 
     private function backtrack($rooms, $guests, $nights, $current, $index, &$plans)
     {
+        // Base case: no more rooms to try
+        if ($index >= $rooms->count()) {
+            return;
+        }
+
         $capacity = collect($current)->sum('capacity');
 
         if ($capacity >= $guests) {
@@ -113,6 +137,7 @@ class SearchController extends Controller
             return;
         }
 
+        // Try adding each remaining room
         for ($i = $index; $i < $rooms->count(); $i++) {
             $this->backtrack(
                 $rooms,

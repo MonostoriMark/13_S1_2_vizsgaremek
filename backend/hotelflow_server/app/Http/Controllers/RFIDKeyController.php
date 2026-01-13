@@ -25,14 +25,29 @@ class RFIDKeyController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 401);
             }
             
-            // Get hotel belonging to the user
-            $hotel = Hotel::where('user_id', $user->id)->first();
+            // Get hotel_id from request or from user's first hotel
+            $hotelId = $request->query('hotel_id');
             
-            if (!$hotel) {
-                return response()->json(['message' => 'Hotel not found'], 404);
+            if ($hotelId) {
+                // Verify the user owns the requested hotel
+                $hotel = Hotel::where('id', $hotelId)
+                             ->where('user_id', $user->id)
+                             ->first();
+                
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
+                }
+            } else {
+                // Fallback: Get first hotel belonging to the user
+                $hotel = Hotel::where('user_id', $user->id)->first();
+                
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found'], 404);
+                }
+                $hotelId = $hotel->id;
             }
 
-        $query = RFIDKey::where('hotels_id', $hotel->id);
+        $query = RFIDKey::where('hotels_id', $hotelId);
 
         // Filter by status (map to isUsed)
         if ($request->has('status')) {
@@ -114,19 +129,23 @@ class RFIDKeyController extends Controller
     public function store(Request $request)
     {
         $user = auth()->user();
-        $hotel = Hotel::where('user_id', $user->id)->first();
         
-        if (!$hotel) {
-            return response()->json(['message' => 'Hotel not found'], 404);
-        }
-
         $validator = Validator::make($request->all(), [
-            'uid' => 'required|string|max:255|unique:rfidKeys,rfidKey'
-            // Note: status and label removed - columns don't exist
+            'uid' => 'required|string|max:255|unique:rfidKeys,rfidKey',
+            'hotel_id' => 'required|integer|exists:hotels,id'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Verify the user owns the hotel
+        $hotel = Hotel::where('id', $request->hotel_id)
+                     ->where('user_id', $user->id)
+                     ->first();
+        
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
         }
 
         // Only use columns that exist: hotels_id, isUsed, rfidKey

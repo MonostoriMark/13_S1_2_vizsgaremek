@@ -11,11 +11,12 @@ export const authService = {
     return response.data
   },
 
-  async registerHotel(name, email, password, location, type, starRating) {
+  async registerHotel(name, email, password, hotelName, location, type, starRating) {
     const response = await api.post('/auth/register-hotel', {
       name,
       email,
       password,
+      hotelName,
       location,
       type,
       starRating

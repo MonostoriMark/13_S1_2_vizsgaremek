@@ -66,9 +66,9 @@ export const useAuthStore = () => {
     }
   }
 
-  const registerHotel = async (name, email, password, location, type, starRating) => {
+  const registerHotel = async (name, email, password, hotelName, location, type, starRating) => {
     try {
-      const data = await authService.registerHotel(name, email, password, location, type, starRating)
+      const data = await authService.registerHotel(name, email, password, hotelName, location, type, starRating)
       state.token = data.token
       state.user = {
         id: data.id,

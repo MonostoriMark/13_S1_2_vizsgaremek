@@ -3,22 +3,22 @@
     <div class="rooms-page">
       <div class="page-header">
         <h1>Rooms Management</h1>
-        <button @click="openCreateModal" class="btn-primary" :disabled="!selectedHotel">
+        <button @click="openCreateModal" class="btn-primary">
           <span>➕</span> Add Room
         </button>
       </div>
 
-      <div v-if="!selectedHotel" class="hotel-selector card">
+      <div class="hotel-selector card">
         <h3>Select Hotel</h3>
-        <select v-model="selectedHotelId" @change="loadRooms" class="hotel-select">
+        <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
           <option value="">Choose a hotel...</option>
           <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.location || hotel.user?.name || `Hotel #${hotel.id}` }}
+            {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
           </option>
         </select>
       </div>
 
-      <div v-else>
+      <div v-if="selectedHotel">
         <DataTable
           :data="rooms"
           :columns="columns"
@@ -52,6 +52,16 @@
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
+
+              <div v-if="!editingRoom" class="form-group">
+                <label>Select Hotel *</label>
+                <select v-model="form.hotelId" required class="form-select">
+                  <option value="">Choose a hotel...</option>
+                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+                  </option>
+                </select>
+              </div>
 
               <div class="form-group">
                 <label>Room Name/Number *</label>
@@ -93,6 +103,50 @@
                 />
               </div>
 
+              <!-- Tags Section -->
+              <div v-if="editingRoom" class="form-group">
+                <label>Tags</label>
+                <div class="tags-section">
+                  <div v-if="currentRoomTags.length > 0" class="current-tags">
+                    <div
+                      v-for="tag in currentRoomTags"
+                      :key="tag.id"
+                      class="tag-chip room"
+                    >
+                      <span>{{ tag.name }}</span>
+                      <button
+                        type="button"
+                        @click="removeTagFromRoom(tag.id)"
+                        class="tag-remove"
+                        :disabled="savingTags"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="no-tags">No tags assigned</div>
+                  
+                  <div class="add-tags-section">
+                    <label class="add-tags-label">Add Tags</label>
+                    <div class="available-tags">
+                      <button
+                        v-for="tag in availableTagsForRoom"
+                        :key="tag.id"
+                        type="button"
+                        @click="addTagToRoom(tag.id)"
+                        class="tag-option"
+                        :disabled="savingTags"
+                      >
+                        + {{ tag.name }}
+                      </button>
+                    </div>
+                    <p v-if="availableTagsForRoom.length === 0" class="no-available-tags">
+                      No available tags. Create tags in the Tags management page.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div class="modal-footer">
                 <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
@@ -120,13 +174,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import ImageUpload from '../../components/ImageUpload.vue'
 import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
+import { tagService } from '../../services/tagService'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -142,11 +197,18 @@ const toast = ref(null)
 const roomToDelete = ref(null)
 const selectedHotelId = ref(null)
 
+// Tags management
+const allTags = ref([])
+const tagUsage = ref({ hotel_tags: [], room_tags: [] })
+const currentRoomTags = ref([])
+const savingTags = ref(false)
+
 const selectedHotel = computed(() => {
   return hotels.value.find(h => h.id === selectedHotelId.value)
 })
 
 const form = ref({
+  hotelId: null,
   name: '',
   description: '',
   capacity: 1,
@@ -177,12 +239,25 @@ const loadHotels = async () => {
   }
 }
 
+const handleHotelChange = async () => {
+  if (selectedHotelId.value) {
+    await loadRooms()
+  } else {
+    rooms.value = []
+    loading.value = false
+  }
+}
+
 const loadRooms = async () => {
   if (!selectedHotelId.value) return
 
   loading.value = true
   try {
-    rooms.value = await adminService.getRoomsByHotelId(selectedHotelId.value)
+    const roomsData = await adminService.getRoomsByHotelId(selectedHotelId.value)
+    rooms.value = roomsData.map(room => ({
+      ...room,
+      tags: room.tags || room.serviceTags || []
+    }))
   } catch (err) {
     showToast('Failed to load rooms', 'error')
   } finally {
@@ -219,6 +294,27 @@ const handleEdit = async (room) => {
     console.error('Failed to load room images:', err)
   }
 
+  // Load room tags - ensure we have proper tag objects
+  if (room.tags && Array.isArray(room.tags)) {
+    // Normalize tags - handle both object format and string format
+    currentRoomTags.value = room.tags.map(tag => {
+      if (typeof tag === 'object' && tag !== null) {
+        return tag // Already an object with id, name, etc.
+      }
+      return { id: null, name: tag } // String format, convert to object
+    })
+  } else if (room.serviceTags && Array.isArray(room.serviceTags)) {
+    currentRoomTags.value = room.serviceTags.map(tag => {
+      if (typeof tag === 'object' && tag !== null) {
+        return tag
+      }
+      return { id: null, name: tag }
+    })
+  } else {
+    currentRoomTags.value = []
+  }
+
+  await loadTags()
   showModal.value = true
 }
 
@@ -242,25 +338,101 @@ const confirmDelete = async () => {
 }
 
 const handleImageUpload = async (imageObj) => {
-  if (!selectedHotel.value) return
+  // Resolve/reject the promise if it exists
+  const resolvePromise = imageObj._uploadPromise?.resolve
+  const rejectPromise = imageObj._uploadPromise?.reject
 
   try {
+    if (!selectedHotel.value) {
+      const error = 'Please select a hotel first'
+      showToast(error, 'warning')
+      imageObj.uploading = false
+      if (rejectPromise) rejectPromise(new Error(error))
+      return
+    }
+
     const roomId = editingRoom.value?.id
-    if (roomId) {
-      // Upload image and link to room
-      const result = await adminService.uploadImage(imageObj.file, [roomId])
+    if (!roomId) {
+      const error = 'Please select or create a room first. Images can only be uploaded when editing an existing room.'
+      showToast(error, 'warning')
+      imageObj.uploading = false
+      if (rejectPromise) rejectPromise(new Error(error))
+      return
+    }
+
+    // Check if file exists
+    if (!imageObj.file) {
+      const error = 'No file found in image object'
+      console.error('ImageObj:', imageObj)
+      throw new Error(error)
+    }
+
+    // Verify file is a File object
+    if (!(imageObj.file instanceof File) && !(imageObj.file instanceof Blob)) {
+      console.error('Invalid file type:', typeof imageObj.file, imageObj.file)
+      throw new Error('Invalid file object. Please try selecting the image again.')
+    }
+
+    console.log('Uploading file:', {
+      name: imageObj.file.name,
+      size: imageObj.file.size,
+      type: imageObj.file.type,
+      roomId: roomId
+    })
+
+    // Upload image and link to room
+    const result = await adminService.uploadImage(imageObj.file, [roomId])
+    if (result && result.image) {
       imageObj.id = result.image.id
       imageObj.url = result.image.url
       imageObj.preview = result.image.url
+      imageObj.progress = 100
+      imageObj.uploading = false
+      showToast('Image uploaded successfully', 'success')
+      if (resolvePromise) resolvePromise()
+    } else {
+      throw new Error('Invalid response from server')
     }
   } catch (err) {
-    showToast('Failed to upload image', 'error')
-    throw err
+    imageObj.uploading = false
+    imageObj.error = err.message || 'Upload failed'
+    
+    // Extract detailed error message
+    let errorMessage = 'Failed to upload image'
+    if (err.response?.data) {
+      if (err.response.data.errors) {
+        // Laravel validation errors
+        const errors = err.response.data.errors
+        const errorText = Object.values(errors).flat().join(', ')
+        errorMessage = errorText || err.response.data.message || errorMessage
+      } else if (err.response.data.message) {
+        errorMessage = err.response.data.message
+      }
+    } else if (err.message) {
+      errorMessage = err.message
+    }
+    
+    showToast(errorMessage, 'error')
+    console.error('Image upload error:', err.response?.data || err)
+    
+    // Reject the promise
+    if (rejectPromise) {
+      rejectPromise(err)
+    } else {
+      // Re-throw so the component can handle it
+      throw err
+    }
   }
 }
 
 const handleSubmit = async () => {
-  if (!selectedHotel.value) {
+  if (!editingRoom.value && !form.value.hotelId) {
+    showToast('Please select a hotel', 'warning')
+    return
+  }
+
+  const hotelId = editingRoom.value ? selectedHotel.value?.id : form.value.hotelId
+  if (!hotelId) {
     showToast('Please select a hotel', 'warning')
     return
   }
@@ -279,7 +451,7 @@ const handleSubmit = async () => {
       })
       showToast('Room updated successfully', 'success')
     } else {
-      await adminService.createRoom(selectedHotel.value.id, {
+      await adminService.createRoom(hotelId, {
         name: form.value.name,
         description: form.value.description,
         capacity: form.value.capacity,
@@ -301,12 +473,79 @@ const handleSubmit = async () => {
 const closeModal = () => {
   showModal.value = false
   editingRoom.value = null
+  currentRoomTags.value = []
   resetForm()
   error.value = ''
 }
 
+const loadTags = async () => {
+  try {
+    const [tagsData, usageData] = await Promise.all([
+      tagService.getAllTags(),
+      tagService.getTagUsage()
+    ])
+    allTags.value = tagsData
+    tagUsage.value = usageData
+  } catch (err) {
+    console.error('Failed to load tags:', err)
+  }
+}
+
+const availableTagsForRoom = computed(() => {
+  // Filter out tags that are already used on hotels (exclusivity)
+  return allTags.value.filter(tag => {
+    // Don't show tags already assigned to this room
+    if (currentRoomTags.value.some(t => t.id === tag.id)) {
+      return false
+    }
+    // Don't show tags that are used on any hotel
+    return !tagUsage.value.hotel_tags.includes(tag.id)
+  })
+})
+
+const addTagToRoom = async (tagId) => {
+  if (!editingRoom.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.addTagsToRoom(editingRoom.value.id, [tagId])
+    const tag = allTags.value.find(t => t.id === tagId)
+    if (tag) {
+      currentRoomTags.value.push(tag)
+    }
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Tag added successfully', 'success')
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to add tag'
+    showToast(message, 'error')
+  } finally {
+    savingTags.value = false
+  }
+}
+
+const removeTagFromRoom = async (tagId) => {
+  if (!editingRoom.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.removeTagFromRoom(editingRoom.value.id, tagId)
+    currentRoomTags.value = currentRoomTags.value.filter(t => t.id !== tagId)
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Tag removed successfully', 'success')
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to remove tag', 'error')
+  } finally {
+    savingTags.value = false
+  }
+}
+
 const resetForm = () => {
   form.value = {
+    hotelId: null,
     name: '',
     description: '',
     capacity: 1,
@@ -324,8 +563,18 @@ const showToast = (message, type) => {
   }
 }
 
-onMounted(() => {
-  loadHotels()
+const handleHotelsUpdated = async () => {
+  await loadHotels()
+}
+
+onMounted(async () => {
+  await loadHotels()
+  await loadTags()
+  window.addEventListener('hotels-updated', handleHotelsUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hotels-updated', handleHotelsUpdated)
 })
 </script>
 
@@ -489,6 +738,121 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+/* Tags Section */
+.tags-section {
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #f8f9fa;
+}
+
+.current-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  min-height: 2rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-chip.room {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.tag-remove {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.tag-remove:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tag-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-tags {
+  color: #7f8c8d;
+  font-style: italic;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+.add-tags-section {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.add-tags-label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.available-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-option {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #06b6d4;
+  color: #06b6d4;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-option:hover:not(:disabled) {
+  background: #06b6d4;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+}
+
+.tag-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-available-tags {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 0.5rem;
 }
 
 .modal-footer {
