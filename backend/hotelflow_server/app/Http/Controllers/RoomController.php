@@ -16,12 +16,12 @@ use App\Models\RFIDKey;
 class RoomController extends Controller
 {
     public function getRoomsByHotelId($hotel_id){
-        $rooms = Room::where('hotels_id', $hotel_id)->with('tags')->get();
+        $rooms = Room::where('hotels_id', $hotel_id)->with(['tags', 'images'])->get();
         return response()->json($rooms, 200);
     }
 
     public function getRoomById($id){
-        $room = Room::with('tags')->find($id);
+        $room = Room::with(['tags', 'images'])->find($id);
         if(!$room){
             return response()->json(['message' => 'Room not found'], 404);
         }

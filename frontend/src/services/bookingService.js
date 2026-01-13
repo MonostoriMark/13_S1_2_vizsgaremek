@@ -34,6 +34,11 @@ export const bookingService = {
       }
       throw error
     }
+  },
+
+  async updateBooking(bookingId, bookingData) {
+    const response = await api.put(`/bookings/update/${bookingId}`, bookingData)
+    return response.data
   }
 }
 

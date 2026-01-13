@@ -318,6 +318,7 @@ import { searchService } from '../services/searchService'
 import { hotelService } from '../services/hotelService'
 import { tagService } from '../services/tagService'
 import { useAuthStore } from '../stores/auth'
+import { getHotelCoverImage } from '../utils/imageUtils'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -365,17 +366,17 @@ const popularServices = ref([])
 const imageFallback = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
 
 const getHotelImage = (hotel) => {
-  // For search results, we don't have direct image access
-  // In a real implementation, you'd need to fetch images from rooms
-  return imageFallback
+  // Use cover_image from hotel or fallback to room images
+  return getHotelCoverImage(hotel, imageFallback)
 }
 
 const getRecommendedHotelImage = (hotel) => {
+  // First check coverImage (from hotelService.getRecommendedHotels)
   if (hotel.coverImage) {
-    // URL should already be properly formatted from hotelService
     return hotel.coverImage
   }
-  return imageFallback
+  // Then check cover_image field
+  return getHotelCoverImage(hotel, imageFallback)
 }
 
 const handleImageError = (event) => {

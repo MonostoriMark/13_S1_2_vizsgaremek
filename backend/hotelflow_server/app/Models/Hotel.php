@@ -16,6 +16,7 @@ class Hotel extends Model
         'description',
         'type',
         'starRating',
+        'cover_image',
         'createdAt'
     ];
 

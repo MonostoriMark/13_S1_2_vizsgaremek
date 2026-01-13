@@ -79,22 +79,25 @@
           </div>
 
           <div class="form-section">
-            <h3 class="section-title">Invoice Information</h3>
-            <p class="section-description">These fields are used for invoice generation</p>
+            <h3 class="section-title">Invoice Information *</h3>
+            <p class="section-description">These fields are required for invoice generation. You must complete them to access the admin panel.</p>
             
             <div class="form-group">
-              <label>Tax Number (Adószám)</label>
-              <input v-model="form.tax_number" type="text" placeholder="Enter tax number" />
+              <label>Tax Number (Adószám) *</label>
+              <input v-model="form.tax_number" type="text" placeholder="Enter tax number" required />
+              <span class="field-hint">Required for invoice generation</span>
             </div>
 
             <div class="form-group">
-              <label>Bank Account (Bankszámlaszám)</label>
-              <input v-model="form.bank_account" type="text" placeholder="Enter bank account number" />
+              <label>Bank Account (Bankszámlaszám) *</label>
+              <input v-model="form.bank_account" type="text" placeholder="Enter bank account number" required />
+              <span class="field-hint">Required for invoice generation</span>
             </div>
 
             <div class="form-group">
-              <label>EU Tax Number (Közösségi adószám)</label>
-              <input v-model="form.eu_tax_number" type="text" placeholder="Enter EU tax number (optional)" />
+              <label>EU Tax Number (Közösségi adószám) *</label>
+              <input v-model="form.eu_tax_number" type="text" placeholder="Enter EU tax number" required />
+              <span class="field-hint">Required for invoice generation</span>
             </div>
           </div>
 
@@ -372,6 +375,17 @@ const handleSubmit = async () => {
     form.value.tax_number = updatedUser.tax_number || ''
     form.value.bank_account = updatedUser.bank_account || ''
     form.value.eu_tax_number = updatedUser.eu_tax_number || ''
+    
+    // Update auth store with invoice data
+    if (authStore.state.user) {
+      authStore.state.user.tax_number = updatedUser.tax_number
+      authStore.state.user.bank_account = updatedUser.bank_account
+      authStore.state.user.eu_tax_number = updatedUser.eu_tax_number
+      localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
+    }
+    
+    // Trigger invoice data check in AdminLayout
+    window.dispatchEvent(new CustomEvent('invoice-data-updated'))
     userData.value = updatedUser
 
     successMessage.value = 'Profile updated successfully!'
@@ -762,6 +776,13 @@ onMounted(async () => {
   margin-top: 0.25rem;
   font-size: 0.8rem;
   color: #6b7280;
+}
+
+.field-hint {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-top: 0.25rem;
+  font-style: italic;
 }
 
 /* 2FA Toggle Styles */

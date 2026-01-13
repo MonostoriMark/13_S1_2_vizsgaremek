@@ -137,20 +137,55 @@
           </div>
 
           <!-- Guests Section -->
-          <div v-if="booking.guests && booking.guests.length > 0" class="booking-guests-section">
-            <h4 class="section-title">Registered Guests</h4>
-            <div class="guests-list">
+          <!-- Guests Section (Admin can manage) -->
+          <div class="booking-guests-section">
+            <div class="guests-header">
+              <h4 class="section-title">Registered Guests</h4>
+              <button
+                @click="openGuestModal(booking)"
+                class="btn-add-guest"
+                :disabled="booking.status === 'cancelled' || booking.status === 'finished' || isAtCapacity(booking)"
+                :title="isAtCapacity(booking) ? 'Maximum guest capacity reached' : 'Add guest'"
+              >
+                + Add Guest
+              </button>
+            </div>
+            <div v-if="booking.guests && booking.guests.length > 0" class="guests-list">
               <div
                 v-for="guest in booking.guests"
                 :key="guest.id"
-                class="guest-item"
+                class="guest-item-admin"
               >
                 <div class="guest-icon-small">👤</div>
                 <div class="guest-info-small">
                   <span class="guest-name-small">{{ guest.name }}</span>
                   <span class="guest-id">ID: {{ guest.idNumber }}</span>
+                  <span class="guest-dob" v-if="guest.dateOfBirth">
+                    DOB: {{ formatDate(guest.dateOfBirth) }}
+                  </span>
+                </div>
+                <div class="guest-actions">
+                  <button
+                    @click="openEditGuestModal(booking, guest)"
+                    class="btn-edit-guest"
+                    :disabled="booking.status === 'cancelled' || booking.status === 'finished'"
+                    title="Edit guest"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    @click="deleteGuest(guest.id, booking.id)"
+                    class="btn-delete-guest"
+                    :disabled="booking.status === 'cancelled' || booking.status === 'finished'"
+                    title="Delete guest"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
+            </div>
+            <div v-else class="no-guests">
+              <p>No guests registered yet</p>
             </div>
           </div>
 
@@ -165,6 +200,14 @@
                 <span class="invoice-number">{{ booking.invoice.invoice_number }}</span>
               </div>
               <div class="invoice-actions">
+                <button
+                  v-if="booking.invoice.status === 'draft'"
+                  @click="openEditInvoiceModal(booking)"
+                  class="btn-invoice-edit"
+                  :disabled="invoiceLoading === booking.id"
+                >
+                  ✏️ Edit
+                </button>
                 <button
                   v-if="booking.invoice.status === 'draft'"
                   @click="previewInvoice(booking.id)"
@@ -221,19 +264,196 @@
                 {{ updating === booking.id ? 'Updating...' : '✗ Reject' }}
               </button>
             </div>
-            <div v-else-if="booking.status === 'confirmed'" class="confirmed-badge">
-              ✅ Confirmed - Guest can check in
-            </div>
-            <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
-              ❌ Rejected
-            </div>
-            <div v-else-if="booking.status === 'finished'" class="completed-badge">
-              ✓ Completed
+            <div v-else class="booking-status-actions">
+              <button
+                @click="openEditBookingModal(booking)"
+                class="btn-edit-booking"
+                :disabled="updating === booking.id"
+              >
+                ✏️ Edit Booking
+              </button>
+              <div v-if="booking.status === 'confirmed'" class="confirmed-badge">
+                ✅ Confirmed - Guest can check in
+              </div>
+              <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
+                ❌ Rejected
+              </div>
+              <div v-else-if="booking.status === 'finished'" class="completed-badge">
+                ✓ Completed
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Edit Invoice Modal -->
+    <Transition name="modal">
+      <div v-if="showEditInvoiceModal" class="modal-overlay" @click.self="closeEditInvoiceModal">
+        <div class="modal-content invoice-modal">
+          <div class="modal-header">
+            <h2>Edit Invoice</h2>
+            <button @click="closeEditInvoiceModal" class="btn-close-modal">×</button>
+          </div>
+          <form @submit.prevent="saveInvoice" class="invoice-form">
+            <div class="form-group">
+              <label>Subtotal (EUR) *</label>
+              <input
+                v-model.number="invoiceForm.subtotal"
+                type="number"
+                step="0.01"
+                min="0"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Tax Rate (%) *</label>
+              <input
+                v-model.number="invoiceForm.tax_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Issue Date *</label>
+              <input
+                v-model="invoiceForm.issue_date"
+                type="date"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Due Date *</label>
+              <input
+                v-model="invoiceForm.due_date"
+                type="date"
+                :min="invoiceForm.issue_date"
+                required
+              />
+            </div>
+            <div class="invoice-summary">
+              <div class="summary-row">
+                <span>Tax Amount:</span>
+                <strong>{{ calculateTaxAmount }} EUR</strong>
+              </div>
+              <div class="summary-row total-row">
+                <span>Total Amount:</span>
+                <strong>{{ calculateTotalAmount }} EUR</strong>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="closeEditInvoiceModal" class="btn-cancel">
+                Cancel
+              </button>
+              <button type="submit" class="btn-save" :disabled="savingInvoice">
+                {{ savingInvoice ? 'Saving...' : 'Save Invoice' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Edit Booking Modal -->
+    <Transition name="modal">
+      <div v-if="showEditBookingModal" class="modal-overlay" @click.self="closeEditBookingModal">
+        <div class="modal-content booking-modal">
+          <div class="modal-header">
+            <h2>Edit Booking</h2>
+            <button @click="closeEditBookingModal" class="btn-close-modal">×</button>
+          </div>
+          <form @submit.prevent="saveBooking" class="booking-form">
+            <div class="form-group">
+              <label>Start Date *</label>
+              <input
+                v-model="bookingForm.startDate"
+                type="date"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>End Date *</label>
+              <input
+                v-model="bookingForm.endDate"
+                type="date"
+                :min="bookingForm.startDate"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Total Price (EUR) *</label>
+              <input
+                v-model.number="bookingForm.totalPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                required
+              />
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="closeEditBookingModal" class="btn-cancel">
+                Cancel
+              </button>
+              <button type="submit" class="btn-save" :disabled="savingBooking">
+                {{ savingBooking ? 'Saving...' : 'Save Booking' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Guest Management Modal -->
+    <Transition name="modal">
+      <div v-if="showGuestModal" class="modal-overlay" @click.self="closeGuestModal">
+        <div class="modal-content guest-modal">
+          <div class="modal-header">
+            <h2>{{ editingGuest ? 'Edit Guest' : 'Add Guest' }}</h2>
+            <button @click="closeGuestModal" class="btn-close-modal">×</button>
+          </div>
+          <form @submit.prevent="saveGuest" class="guest-form">
+            <div class="form-group">
+              <label>Full Name *</label>
+              <input
+                v-model="guestForm.name"
+                type="text"
+                required
+                placeholder="Enter guest's full name"
+              />
+            </div>
+            <div class="form-group">
+              <label>ID Number *</label>
+              <input
+                v-model="guestForm.idNumber"
+                type="text"
+                required
+                placeholder="Enter ID/Passport number"
+              />
+            </div>
+            <div class="form-group">
+              <label>Date of Birth *</label>
+              <input
+                v-model="guestForm.dateOfBirth"
+                type="date"
+                required
+                :max="maxDate"
+              />
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="closeGuestModal" class="btn-cancel">
+                Cancel
+              </button>
+              <button type="submit" class="btn-save" :disabled="savingGuest">
+                {{ savingGuest ? 'Saving...' : (editingGuest ? 'Update Guest' : 'Add Guest') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -242,6 +462,7 @@ import { ref, computed, onMounted } from 'vue'
 import { hotelService } from '../../services/hotelService'
 import { bookingService } from '../../services/bookingService'
 import { invoiceService } from '../../services/invoiceService'
+import { guestService } from '../../services/guestService'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -253,6 +474,42 @@ const error = ref('')
 const updating = ref(null)
 const invoiceLoading = ref(null)
 const successMessage = ref('')
+
+// Invoice editing
+const showEditInvoiceModal = ref(false)
+const editingInvoice = ref(null)
+const savingInvoice = ref(false)
+const invoiceForm = ref({
+  subtotal: 0,
+  tax_rate: 0,
+  issue_date: '',
+  due_date: ''
+})
+
+// Booking editing
+const showEditBookingModal = ref(false)
+const editingBooking = ref(null)
+const savingBooking = ref(false)
+const bookingForm = ref({
+  startDate: '',
+  endDate: '',
+  totalPrice: 0
+})
+
+// Guest management
+const showGuestModal = ref(false)
+const currentBookingForGuest = ref(null)
+const editingGuest = ref(null)
+const savingGuest = ref(false)
+const guestForm = ref({
+  name: '',
+  idNumber: '',
+  dateOfBirth: ''
+})
+const maxDate = computed(() => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+})
 
 const confirmedCount = computed(() => {
   return bookings.value.filter(b => b.status === 'confirmed').length
@@ -450,6 +707,216 @@ const sendInvoice = async (invoiceId, bookingId) => {
     invoiceLoading.value = null
   }
 }
+
+// Invoice editing functions
+const openEditInvoiceModal = (booking) => {
+  if (!booking.invoice || booking.invoice.status !== 'draft') {
+    error.value = 'Only draft invoices can be edited'
+    return
+  }
+  editingInvoice.value = booking.invoice
+  invoiceForm.value = {
+    subtotal: parseFloat(booking.invoice.subtotal) || 0,
+    tax_rate: parseFloat(booking.invoice.tax_rate) || 0,
+    issue_date: booking.invoice.issue_date || '',
+    due_date: booking.invoice.due_date || ''
+  }
+  showEditInvoiceModal.value = true
+}
+
+const closeEditInvoiceModal = () => {
+  showEditInvoiceModal.value = false
+  editingInvoice.value = null
+  invoiceForm.value = {
+    subtotal: 0,
+    tax_rate: 0,
+    issue_date: '',
+    due_date: ''
+  }
+}
+
+const calculateTaxAmount = computed(() => {
+  return (invoiceForm.value.subtotal * (invoiceForm.value.tax_rate / 100)).toFixed(2)
+})
+
+const calculateTotalAmount = computed(() => {
+  return (parseFloat(invoiceForm.value.subtotal) + parseFloat(calculateTaxAmount.value)).toFixed(2)
+})
+
+const saveInvoice = async () => {
+  if (!editingInvoice.value) return
+  
+  savingInvoice.value = true
+  try {
+    await invoiceService.updateInvoice(editingInvoice.value.id, {
+      subtotal: invoiceForm.value.subtotal,
+      tax_rate: invoiceForm.value.tax_rate,
+      issue_date: invoiceForm.value.issue_date,
+      due_date: invoiceForm.value.due_date
+    })
+    successMessage.value = 'Invoice updated successfully!'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+    closeEditInvoiceModal()
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to update invoice'
+  } finally {
+    savingInvoice.value = false
+  }
+}
+
+// Booking editing functions
+const openEditBookingModal = (booking) => {
+  editingBooking.value = booking
+  bookingForm.value = {
+    startDate: booking.startDate || '',
+    endDate: booking.endDate || '',
+    totalPrice: parseFloat(booking.totalPrice) || 0
+  }
+  showEditBookingModal.value = true
+}
+
+const closeEditBookingModal = () => {
+  showEditBookingModal.value = false
+  editingBooking.value = null
+  bookingForm.value = {
+    startDate: '',
+    endDate: '',
+    totalPrice: 0
+  }
+}
+
+const saveBooking = async () => {
+  if (!editingBooking.value) return
+  
+  savingBooking.value = true
+  try {
+    await bookingService.updateBooking(editingBooking.value.id, {
+      startDate: bookingForm.value.startDate,
+      endDate: bookingForm.value.endDate,
+      totalPrice: bookingForm.value.totalPrice
+    })
+    successMessage.value = 'Booking updated successfully!'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+    closeEditBookingModal()
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to update booking'
+  } finally {
+    savingBooking.value = false
+  }
+}
+
+// Guest management functions
+const getMaxCapacity = (booking) => {
+  if (!booking.rooms || booking.rooms.length === 0) {
+    return 0
+  }
+  return booking.rooms.reduce((total, room) => total + (room.capacity || 0), 0)
+}
+
+const getCurrentGuestCount = (booking) => {
+  return booking.guests ? booking.guests.length : 0
+}
+
+const isAtCapacity = (booking) => {
+  return getCurrentGuestCount(booking) >= getMaxCapacity(booking)
+}
+
+const openGuestModal = (booking) => {
+  currentBookingForGuest.value = booking
+  editingGuest.value = null
+  guestForm.value = {
+    name: '',
+    idNumber: '',
+    dateOfBirth: ''
+  }
+  showGuestModal.value = true
+}
+
+const openEditGuestModal = (booking, guest) => {
+  currentBookingForGuest.value = booking
+  editingGuest.value = guest
+  guestForm.value = {
+    name: guest.name || '',
+    idNumber: guest.idNumber || '',
+    dateOfBirth: guest.dateOfBirth || ''
+  }
+  showGuestModal.value = true
+}
+
+const closeGuestModal = () => {
+  showGuestModal.value = false
+  currentBookingForGuest.value = null
+  editingGuest.value = null
+  guestForm.value = {
+    name: '',
+    idNumber: '',
+    dateOfBirth: ''
+  }
+}
+
+const saveGuest = async () => {
+  if (!currentBookingForGuest.value) return
+
+  const booking = currentBookingForGuest.value
+
+  // Check capacity before adding (not when editing)
+  if (!editingGuest.value) {
+    const currentCount = getCurrentGuestCount(booking)
+    const maxCapacity = getMaxCapacity(booking)
+    
+    if (currentCount >= maxCapacity) {
+      error.value = `Maximum guest capacity reached. This booking can accommodate ${maxCapacity} guest${maxCapacity !== 1 ? 's' : ''}.`
+      closeGuestModal()
+      return
+    }
+  }
+
+  savingGuest.value = true
+  try {
+    if (editingGuest.value) {
+      // Update existing guest
+      await guestService.updateGuest(editingGuest.value.id, {
+        name: guestForm.value.name,
+        idNumber: guestForm.value.idNumber,
+        dateOfBirth: guestForm.value.dateOfBirth
+      })
+      successMessage.value = 'Guest updated successfully!'
+    } else {
+      // Add new guest
+      await guestService.addGuests(booking.id, [{
+        name: guestForm.value.name,
+        idNumber: guestForm.value.idNumber,
+        dateOfBirth: guestForm.value.dateOfBirth
+      }])
+      successMessage.value = 'Guest added successfully!'
+    }
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+    closeGuestModal()
+    error.value = ''
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to save guest information'
+  } finally {
+    savingGuest.value = false
+  }
+}
+
+const deleteGuest = async (guestId, bookingId) => {
+  if (!confirm('Are you sure you want to delete this guest?')) {
+    return
+  }
+
+  try {
+    await guestService.deleteGuest(guestId)
+    successMessage.value = 'Guest deleted successfully!'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to delete guest'
+  }
+}
 </script>
 
 <style scoped>
@@ -612,6 +1079,7 @@ const sendInvoice = async (invoiceId, bookingId) => {
   flex-wrap: wrap;
 }
 
+.btn-invoice-edit,
 .btn-invoice-preview,
 .btn-invoice-approve,
 .btn-invoice-send,
@@ -664,11 +1132,341 @@ const sendInvoice = async (invoiceId, bookingId) => {
   cursor: not-allowed;
 }
 
+.btn-invoice-edit {
+  background: #f39c12;
+  color: white;
+}
+
+.btn-invoice-edit:hover:not(:disabled) {
+  background: #e67e22;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.btn-invoice-edit:disabled,
 .btn-invoice-preview:disabled,
 .btn-invoice-approve:disabled,
 .btn-invoice-send:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-edit-booking {
+  padding: 0.625rem 1.25rem;
+  background: #f39c12;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 1rem;
+}
+
+.btn-edit-booking:hover:not(:disabled) {
+  background: #e67e22;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+}
+
+.btn-edit-booking:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.booking-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.btn-close-modal:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.invoice-form,
+.booking-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.invoice-summary {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.summary-row.total-row {
+  border-top: 2px solid #e0e0e0;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e0e0e0;
+}
+
+.btn-cancel {
+  padding: 0.75rem 1.5rem;
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #d0d0d0;
+}
+
+.btn-save {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-save:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
+/* Guest Management Styles */
+.guests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.btn-add-guest {
+  padding: 0.5rem 1rem;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-guest:hover:not(:disabled) {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.btn-add-guest:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.guest-item-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.guest-info-small {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.guest-dob {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+}
+
+.guest-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-edit-guest,
+.btn-delete-guest {
+  padding: 0.5rem;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit-guest:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.btn-delete-guest:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.btn-edit-guest:disabled,
+.btn-delete-guest:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-guests {
+  padding: 1rem;
+  text-align: center;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  background: #f8f9fa;
+  border-radius: 8px;
 }
 
 .no-invoice {

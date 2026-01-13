@@ -81,6 +81,51 @@
                 ></textarea>
               </div>
 
+              <!-- Cover Image Upload -->
+              <div v-if="editingHotel" class="form-group">
+                <label>Cover Image</label>
+                <div class="cover-image-section">
+                  <div v-if="coverImagePreview || editingHotel.cover_image" class="cover-image-preview">
+                    <img 
+                      :src="coverImagePreview || getImageUrl(editingHotel.cover_image)" 
+                      alt="Cover image"
+                      class="cover-preview-img"
+                      @error="handleImageError"
+                    />
+                    <button 
+                      type="button" 
+                      @click="removeCoverImage" 
+                      class="remove-cover-btn"
+                      :disabled="uploadingCover"
+                    >
+                      ×
+                    </button>
+                    <div v-if="uploadingCover" class="upload-overlay">
+                      <div class="upload-spinner"></div>
+                      <p>Uploading...</p>
+                    </div>
+                  </div>
+                  <div v-else class="cover-image-upload">
+                    <input
+                      ref="coverImageInput"
+                      type="file"
+                      accept="image/*"
+                      @change="handleCoverImageSelect"
+                      style="display: none"
+                    />
+                    <button 
+                      type="button" 
+                      @click="coverImageInput?.click()" 
+                      class="btn-upload-cover"
+                      :disabled="uploadingCover"
+                    >
+                      {{ uploadingCover ? 'Uploading...' : '📷 Upload Cover Image' }}
+                    </button>
+                    <p class="upload-hint">Upload a cover photo for your hotel (JPG, PNG, GIF, WebP - Max 4MB)</p>
+                  </div>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>Status</label>
                 <label class="switch">
@@ -196,6 +241,10 @@ const form = ref({
   active: true
 })
 
+const coverImageInput = ref(null)
+const coverImagePreview = ref(null)
+const uploadingCover = ref(false)
+
 const columns = [
   { key: 'name', label: 'Hotel Name', sortable: true },
   { key: 'location', label: 'Location', sortable: true },
@@ -236,6 +285,9 @@ const handleEdit = async (hotel) => {
     description: hotel.description || '',
     active: true // Note: active field may need to be added to backend
   }
+  
+  // Reset cover image preview
+  coverImagePreview.value = null
   
   // Load hotel tags - ensure we have proper tag objects
   if (hotel.tags && Array.isArray(hotel.tags)) {
@@ -315,6 +367,11 @@ const closeModal = () => {
   currentHotelTags.value = []
   resetForm()
   error.value = ''
+  // Clean up preview URL
+  if (coverImagePreview.value && coverImagePreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(coverImagePreview.value)
+  }
+  coverImagePreview.value = null
 }
 
 const loadTags = async () => {
@@ -391,6 +448,84 @@ const resetForm = () => {
     description: '',
     active: true
   }
+  coverImagePreview.value = null
+}
+
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null
+  // If already a full URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  // If relative path starting with /storage/, construct full URL
+  if (imagePath.startsWith('/storage/')) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return `${baseUrl}${imagePath}`
+  }
+  return imagePath
+}
+
+const handleCoverImageSelect = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  // Validate file
+  const maxSize = 4 * 1024 * 1024 // 4MB
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+
+  if (!validTypes.includes(file.type)) {
+    showToast('Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.', 'error')
+    return
+  }
+
+  if (file.size > maxSize) {
+    showToast('File size exceeds 4MB limit.', 'error')
+    return
+  }
+
+  if (!editingHotel.value) {
+    showToast('Please save the hotel first before uploading cover image', 'warning')
+    return
+  }
+
+  // Create preview
+  coverImagePreview.value = URL.createObjectURL(file)
+
+  // Upload immediately
+  uploadingCover.value = true
+  try {
+    const result = await adminService.uploadHotelCoverImage(editingHotel.value.id, file)
+    showToast('Cover image uploaded successfully', 'success')
+    // Update the hotel object
+    if (editingHotel.value) {
+      editingHotel.value.cover_image = result.cover_image
+    }
+    // Reload hotels to get updated data
+    await loadHotels()
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to upload cover image', 'error')
+    coverImagePreview.value = null
+  } finally {
+    uploadingCover.value = false
+    // Reset input
+    if (coverImageInput.value) {
+      coverImageInput.value.value = ''
+    }
+  }
+}
+
+const removeCoverImage = async () => {
+  if (!editingHotel.value) return
+
+  // Note: We'd need a delete endpoint for cover images
+  // For now, just clear the preview
+  coverImagePreview.value = null
+  showToast('Cover image removed. Upload a new one to replace it.', 'info')
+}
+
+const handleImageError = (event) => {
+  // If image fails to load, hide it
+  event.target.style.display = 'none'
 }
 
 const showToast = (message, type) => {
@@ -623,6 +758,131 @@ onMounted(async () => {
   font-size: 0.85rem;
   font-style: italic;
   margin-top: 0.5rem;
+}
+
+/* Cover Image Section */
+.cover-image-section {
+  margin-top: 0.5rem;
+}
+
+.cover-image-preview {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 16/9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e0e0e0;
+  background: #f5f5f5;
+}
+
+.cover-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-cover-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(231, 76, 60, 0.9);
+  color: white;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.remove-cover-btn:hover:not(:disabled) {
+  background-color: #e74c3c;
+  transform: scale(1.1);
+}
+
+.remove-cover-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.upload-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.cover-image-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cover-image-upload:hover {
+  border-color: #667eea;
+  background: #e8f4f8;
+}
+
+.btn-upload-cover {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-upload-cover:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-upload-cover:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-hint {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin: 0;
+  text-align: center;
 }
 
 .form-group label {

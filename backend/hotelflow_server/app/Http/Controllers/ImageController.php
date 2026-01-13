@@ -106,20 +106,13 @@ class ImageController extends Controller
             // fájl mentése
             $path = $request->file('image')->store('room_images', 'public');
 
-            // URL generálása - use Storage::url which returns /storage/... path
-            $url = Storage::url($path);
-            
-            // If we need full URL, construct it from APP_URL
-            if (config('app.url')) {
-                $baseUrl = rtrim(config('app.url'), '/');
-                if (!str_starts_with($url, 'http')) {
-                    $url = $baseUrl . $url;
-                }
-            }
+            // Store relative path in database (e.g., /storage/room_images/xxx.jpg)
+            // This allows the frontend to construct the full URL as needed
+            $relativePath = '/storage/' . $path;
 
             // új image rekord létrehozása
             $image = Image::create([
-                'url' => $url
+                'url' => $relativePath
             ]);
 
             // kapcsolatok mentése

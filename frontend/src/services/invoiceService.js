@@ -35,5 +35,10 @@ export const invoiceService = {
       responseType: 'blob'
     })
     return response.data
+  },
+
+  async updateInvoice(invoiceId, invoiceData) {
+    const response = await api.put(`/invoices/${invoiceId}`, invoiceData)
+    return response.data
   }
 }

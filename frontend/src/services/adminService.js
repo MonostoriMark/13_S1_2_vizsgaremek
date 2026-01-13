@@ -196,5 +196,22 @@ export const adminService = {
   async updateAdminProfile(data) {
     const response = await api.put('/auth/admin/profile', data)
     return response.data
+  },
+
+  // Hotel cover image upload
+  async uploadHotelCoverImage(hotelId, file) {
+    if (!file) {
+      throw new Error('No file provided')
+    }
+
+    if (!(file instanceof File) && !(file instanceof Blob)) {
+      throw new Error('Invalid file object provided. Expected File or Blob.')
+    }
+
+    const formData = new FormData()
+    formData.append('cover_image', file, file.name || 'cover.jpg')
+
+    const response = await api.post(`/hotels/${hotelId}/cover-image`, formData)
+    return response.data
   }
 }

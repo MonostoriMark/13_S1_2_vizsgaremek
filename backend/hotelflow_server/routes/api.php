@@ -54,6 +54,7 @@ Route::get('/hotels', [HotelController::class, 'getHotels']);
 Route::get('/hotels/{id}', [HotelController::class, 'getHotelById']);
 Route::post('/hotels', [HotelController::class, 'createHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/hotels/upgrade/{id}', [HotelController::class, 'upgradeHotel'])->middleware('auth:sanctum', 'role:hotel');
+Route::post('/hotels/{id}/cover-image', [HotelController::class, 'uploadCoverImage'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->middleware('auth:sanctum', 'role:hotel');
 
 //ROOM VÉGPONTOK
@@ -91,11 +92,13 @@ Route::get('/bookings/user/{userId}', [BookingController::class, 'getBookingsByU
 Route::get('/bookings/hotel/{hotelId}', [BookingController::class, 'getBookingsByHotelId'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/bookings/delete/{id}', [BookingController::class, 'deleteBooking'])->middleware('auth:sanctum');
 Route::put('/bookings/update-status/{id}', [BookingController::class, 'updateStatus']);//->middleware('auth:sanctum');
+Route::put('/bookings/update/{id}', [BookingController::class, 'update'])->middleware('auth:sanctum', 'role:hotel');
 
 //INVOICE VÉGPONTOK
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/booking/{bookingId}/preview', [InvoiceController::class, 'generatePreview']);
     Route::get('/invoices/booking/{bookingId}', [InvoiceController::class, 'getByBooking']);
+    Route::put('/invoices/{invoiceId}', [InvoiceController::class, 'update'])->middleware('role:hotel');
     Route::post('/invoices/{invoiceId}/approve', [InvoiceController::class, 'approve']);
     Route::post('/invoices/{invoiceId}/send', [InvoiceController::class, 'send']);
     Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download']);

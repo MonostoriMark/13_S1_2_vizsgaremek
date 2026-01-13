@@ -96,6 +96,73 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Update invoice (only if status is draft)
+     */
+    public function update(Request $request, $invoiceId)
+    {
+        $invoice = Invoice::with(['booking.hotel.user'])->find($invoiceId);
+        
+        if (!$invoice) {
+            return response()->json(['error' => 'Számla nem található'], 404);
+        }
+
+        // Check if user is hotel admin
+        if ($invoice->booking->hotel->user_id !== auth()->id()) {
+            return response()->json(['error' => 'Nincs jogosultságod'], 403);
+        }
+
+        // Only allow editing if status is draft
+        if ($invoice->status !== 'draft') {
+            return response()->json(['error' => 'Csak draft státuszú számla szerkeszthető'], 400);
+        }
+
+        $request->validate([
+            'subtotal' => 'sometimes|numeric|min:0',
+            'tax_rate' => 'sometimes|numeric|min:0|max:100',
+            'issue_date' => 'sometimes|date',
+            'due_date' => 'sometimes|date|after_or_equal:issue_date',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            if ($request->has('subtotal')) {
+                $invoice->subtotal = $request->subtotal;
+            }
+            if ($request->has('tax_rate')) {
+                $invoice->tax_rate = $request->tax_rate;
+                // Recalculate tax amount and total
+                $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
+                $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
+            } else if ($request->has('subtotal')) {
+                // Recalculate if subtotal changed but tax_rate didn't
+                $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
+                $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
+            }
+            if ($request->has('issue_date')) {
+                $invoice->issue_date = $request->issue_date;
+            }
+            if ($request->has('due_date')) {
+                $invoice->due_date = $request->due_date;
+            }
+
+            $invoice->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Számla sikeresen frissítve',
+                'invoice' => $invoice->fresh()
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Hiba a számla frissítésekor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Send invoice to guest
      */
     public function send($invoiceId)
@@ -209,13 +276,28 @@ class InvoiceController extends Controller
     private function createInvoice(Booking $booking)
     {
         // Calculate invoice details
+        // For EU sales, VAT can be 0% (tax-free)
         $subtotal = $booking->totalPrice;
-        $taxRate = 27; // 27% ÁFA
-        $taxAmount = round($subtotal * ($taxRate / 100), 2);
-        $totalAmount = $subtotal + $taxAmount;
+        $taxRate = 0; // 0% ÁFA for EU tax-free sales (can be configured per hotel)
+        $taxAmount = 0; // Tax-free for EU sales
+        $totalAmount = $subtotal; // Total equals subtotal when tax-free
 
-        // Generate invoice number
-        $invoiceNumber = 'SZ' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) . '/' . date('Y');
+        // Generate invoice number in format: EU2023/00001
+        $year = date('Y');
+        $prefix = 'EU' . $year . '/';
+        
+        // Get the last invoice number for this year
+        $lastInvoice = Invoice::where('invoice_number', 'like', $prefix . '%')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        if ($lastInvoice && preg_match('/' . preg_quote($prefix, '/') . '(\d+)/', $lastInvoice->invoice_number, $matches)) {
+            $sequence = (int)$matches[1] + 1;
+        } else {
+            $sequence = 1;
+        }
+        
+        $invoiceNumber = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
         // Calculate dates
         $issueDate = now()->toDateString();

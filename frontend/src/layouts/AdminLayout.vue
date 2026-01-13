@@ -5,7 +5,12 @@
       @enable="handleEnable2FA"
     />
     
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed, 'blocked': show2FABlocker }">
+    <InvoiceDataBlocker
+      :visible="showInvoiceDataBlocker"
+      @complete="handleInvoiceDataComplete"
+    />
+    
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed, 'blocked': show2FABlocker || showInvoiceDataBlocker }">
       <div class="sidebar-header">
         <div class="user-profile-sidebar">
           <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
@@ -64,7 +69,7 @@
         </div>
       </header>
 
-      <div class="content-area" :class="{ 'blocked': show2FABlocker }">
+      <div class="content-area" :class="{ 'blocked': show2FABlocker || showInvoiceDataBlocker }">
         <slot></slot>
       </div>
     </div>
@@ -76,6 +81,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import Admin2FABlocker from '../components/Admin2FABlocker.vue'
+import InvoiceDataBlocker from '../components/InvoiceDataBlocker.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -130,6 +136,21 @@ const handleEnable2FA = () => {
   show2FABlocker.value = false
 }
 
+const handleInvoiceDataComplete = async () => {
+  // Reload user data to check if invoice data is now complete
+  try {
+    const { authService } = await import('../services/authService')
+    const userData = await authService.getMe()
+    if (authStore.state.user) {
+      Object.assign(authStore.state.user, userData)
+      localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
+    }
+    showInvoiceDataBlocker.value = false
+  } catch (err) {
+    console.error('Failed to reload user data:', err)
+  }
+}
+
 const handleNavClick = (event, path) => {
   // Block navigation if 2FA is not enabled (except profile page)
   if (show2FABlocker.value && path !== '/admin/users') {
@@ -137,6 +158,14 @@ const handleNavClick = (event, path) => {
     event.stopPropagation()
     return false
   }
+}
+
+const showInvoiceDataBlocker = ref(false)
+
+const hasCompleteInvoiceData = (user) => {
+  if (!user) return false
+  // Required fields: tax_number, bank_account, eu_tax_number
+  return !!(user.tax_number && user.bank_account && user.eu_tax_number)
 }
 
 const check2FARequirement = async () => {
@@ -155,6 +184,24 @@ const check2FARequirement = async () => {
     }
   } else {
     show2FABlocker.value = false
+    
+    // After 2FA is enabled, check invoice data
+    if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+      if (!hasCompleteInvoiceData(authStore.state.user)) {
+        showInvoiceDataBlocker.value = true
+        // Allow access to profile page to fill invoice data
+        if (route.path === '/admin/users') {
+          showInvoiceDataBlocker.value = false
+        } else {
+          // Block other pages if invoice data is incomplete
+          if (route.path !== '/admin/users') {
+            router.push('/admin/users')
+          }
+        }
+      } else {
+        showInvoiceDataBlocker.value = false
+      }
+    }
   }
 }
 
@@ -175,12 +222,17 @@ onMounted(async () => {
     return
   }
   
-  // Load fresh user data to check 2FA status
+  // Load fresh user data to check 2FA status and invoice data
   try {
     const { authService } = await import('../services/authService')
     const userData = await authService.getMe()
     if (authStore.state.user) {
-      authStore.state.user.two_factor_enabled = userData.two_factor_enabled || false
+      Object.assign(authStore.state.user, {
+        two_factor_enabled: userData.two_factor_enabled || false,
+        tax_number: userData.tax_number,
+        bank_account: userData.bank_account,
+        eu_tax_number: userData.eu_tax_number
+      })
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
   } catch (err) {
@@ -191,7 +243,47 @@ onMounted(async () => {
   setTimeout(() => {
     check2FARequirement()
   }, 100)
+  
+  // Listen for invoice data updates from Users page
+  window.addEventListener('invoice-data-updated', async () => {
+    // Reload user data to check invoice data completion
+    try {
+      const { authService } = await import('../services/authService')
+      const userData = await authService.getMe()
+      if (authStore.state.user) {
+        Object.assign(authStore.state.user, {
+          tax_number: userData.tax_number,
+          bank_account: userData.bank_account,
+          eu_tax_number: userData.eu_tax_number
+        })
+        localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
+      }
+      check2FARequirement()
+    } catch (err) {
+      console.error('Failed to reload user data:', err)
+    }
+  })
 })
+
+// Watch for invoice data changes
+watch(() => authStore.state.user?.tax_number, () => {
+  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+    check2FARequirement()
+  }
+})
+
+watch(() => authStore.state.user?.bank_account, () => {
+  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+    check2FARequirement()
+  }
+})
+
+watch(() => authStore.state.user?.eu_tax_number, () => {
+  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+    check2FARequirement()
+  }
+})
+
 </script>
 
 <style scoped>

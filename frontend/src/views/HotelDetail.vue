@@ -92,6 +92,55 @@
                     <span class="rooms-count">{{ plan.room_count }} {{ plan.room_count === 1 ? 'Room' : 'Rooms' }}</span>
                   </div>
                   <div v-for="room in plan.rooms" :key="room.room_id" class="room-detail">
+                    <!-- Room Image Gallery -->
+                    <div v-if="getRoomImages(room).length > 0" class="room-gallery">
+                      <div class="room-gallery-main" @click.stop="openFullscreenGallery(room)">
+                        <img 
+                          :src="getRoomImages(room)[getRoomImageIndex(room.room_id)]" 
+                          :alt="room.name"
+                          @error="handleRoomImageError"
+                          class="room-gallery-main-image"
+                        />
+                        <button 
+                          v-if="getRoomImages(room).length > 1"
+                          @click.stop="previousRoomImage(room.room_id)"
+                          class="gallery-nav-btn gallery-prev"
+                          :disabled="getRoomImageIndex(room.room_id) === 0"
+                        >
+                          ‹
+                        </button>
+                        <button 
+                          v-if="getRoomImages(room).length > 1"
+                          @click.stop="nextRoomImage(room.room_id)"
+                          class="gallery-nav-btn gallery-next"
+                          :disabled="getRoomImageIndex(room.room_id) === getRoomImages(room).length - 1"
+                        >
+                          ›
+                        </button>
+                        <div v-if="getRoomImages(room).length > 1" class="gallery-indicator">
+                          {{ getRoomImageIndex(room.room_id) + 1 }} / {{ getRoomImages(room).length }}
+                        </div>
+                        <div class="gallery-zoom-hint">
+                          <span class="zoom-icon">🔍</span> Click to view fullscreen
+                        </div>
+                      </div>
+                      <!-- Thumbnail Gallery -->
+                      <div v-if="getRoomImages(room).length > 1" class="room-gallery-thumbnails">
+                        <div
+                          v-for="(img, imgIdx) in getRoomImages(room)"
+                          :key="imgIdx"
+                          class="gallery-thumbnail"
+                          :class="{ 'active': getRoomImageIndex(room.room_id) === imgIdx }"
+                          @click.stop="setRoomImageIndex(room.room_id, imgIdx)"
+                        >
+                          <img 
+                            :src="img" 
+                            :alt="`${room.name} - Image ${imgIdx + 1}`"
+                            @error="handleRoomImageError"
+                          />
+                        </div>
+                      </div>
+                    </div>
                     <div class="room-info">
                       <h4 class="room-name">{{ room.name }}</h4>
                       <div class="room-specs">
@@ -282,10 +331,67 @@
     </div>
   </div>
   </div>
+
+  <!-- Fullscreen Image Carousel Modal -->
+  <Transition name="fullscreen-modal">
+    <div v-if="fullscreenGallery.open" class="fullscreen-gallery-overlay" @click.self="closeFullscreenGallery">
+      <div class="fullscreen-gallery-container">
+        <button class="fullscreen-close-btn" @click="closeFullscreenGallery" title="Close (ESC)">
+          ×
+        </button>
+        <div class="fullscreen-gallery-content">
+          <img 
+            :src="fullscreenGalleryCurrentImage" 
+            :alt="fullscreenGallery.roomName"
+            class="fullscreen-gallery-image"
+            @error="handleRoomImageError"
+          />
+          <button 
+            v-if="fullscreenGallery.images.length > 1"
+            @click.stop="previousFullscreenImage"
+            class="fullscreen-nav-btn fullscreen-prev"
+            :disabled="fullscreenGallery.currentIndex === 0"
+          >
+            ‹
+          </button>
+          <button 
+            v-if="fullscreenGallery.images.length > 1"
+            @click.stop="nextFullscreenImage"
+            class="fullscreen-nav-btn fullscreen-next"
+            :disabled="fullscreenGallery.currentIndex === fullscreenGallery.images.length - 1"
+          >
+            ›
+          </button>
+          <div v-if="fullscreenGallery.images.length > 1" class="fullscreen-gallery-info">
+            <div class="fullscreen-image-counter">
+              {{ fullscreenGallery.currentIndex + 1 }} / {{ fullscreenGallery.images.length }}
+            </div>
+            <div class="fullscreen-room-name">{{ fullscreenGallery.roomName }}</div>
+          </div>
+        </div>
+        <!-- Fullscreen Thumbnails -->
+        <div v-if="fullscreenGallery.images.length > 1" class="fullscreen-thumbnails">
+          <div
+            v-for="(img, idx) in fullscreenGallery.images"
+            :key="idx"
+            class="fullscreen-thumbnail"
+            :class="{ 'active': fullscreenGallery.currentIndex === idx }"
+            @click.stop="setFullscreenImageIndex(idx)"
+          >
+            <img 
+              :src="img" 
+              :alt="`Image ${idx + 1}`"
+              @error="handleRoomImageError"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { hotelService } from '../services/hotelService'
 import { bookingService } from '../services/bookingService'
@@ -340,6 +446,30 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // Keyboard navigation for fullscreen gallery
+  window.addEventListener('keydown', handleKeyPress)
+})
+
+// Keyboard navigation handler (defined outside onMounted so it can be referenced in onUnmounted)
+const handleKeyPress = (e) => {
+  if (!fullscreenGallery.value.open) return
+  
+  if (e.key === 'Escape') {
+    closeFullscreenGallery()
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    previousFullscreenImage()
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    nextFullscreenImage()
+  }
+}
+
+onUnmounted(() => {
+  // Cleanup: restore body scroll and remove event listeners
+  document.body.style.overflow = ''
+  window.removeEventListener('keydown', handleKeyPress)
 })
 
 const loadServices = async (hotelId) => {
@@ -355,16 +485,190 @@ const loadServices = async (hotelId) => {
 }
 
 const getHotelImage = () => {
-  // Try to get image from hotel rooms
-  if (hotel.value && hotel.value.rooms && hotel.value.rooms.length > 0) {
-    // In a real implementation, fetch room images
-    return imageFallback
+  if (!hotel.value) return imageFallback
+  
+  // First priority: hotel cover_image
+  if (hotel.value.cover_image) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    const url = hotel.value.cover_image.startsWith('/storage/') 
+      ? `${baseUrl}${hotel.value.cover_image}`
+      : hotel.value.cover_image
+    return url
   }
+  
+  // Second priority: first room's first image
+  if (hotel.value.rooms && hotel.value.rooms.length > 0) {
+    for (const room of hotel.value.rooms) {
+      if (room.images && room.images.length > 0) {
+        const imageUrl = room.images[0].url
+        if (imageUrl) {
+          const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+          return imageUrl.startsWith('/storage/') 
+            ? `${baseUrl}${imageUrl}`
+            : imageUrl
+        }
+      }
+    }
+  }
+  
   return imageFallback
 }
 
 const handleImageError = (event) => {
   event.target.src = imageFallback
+}
+
+// Track current image index for each room gallery
+const roomImageIndices = ref({})
+
+// Fullscreen gallery state
+const fullscreenGallery = ref({
+  open: false,
+  images: [],
+  currentIndex: 0,
+  roomId: null,
+  roomName: ''
+})
+
+const fullscreenGalleryCurrentImage = computed(() => {
+  if (!fullscreenGallery.value.open || fullscreenGallery.value.images.length === 0) return null
+  return fullscreenGallery.value.images[fullscreenGallery.value.currentIndex]
+})
+
+const getRoomImages = (room) => {
+  const images = []
+  
+  // Get images from room if available (from search results)
+  if (room.images && Array.isArray(room.images) && room.images.length > 0) {
+    room.images.forEach(img => {
+      const imageUrl = typeof img === 'string' ? img : img.url
+      if (imageUrl) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        const fullUrl = imageUrl.startsWith('/storage/') 
+          ? `${baseUrl}${imageUrl}`
+          : imageUrl
+        images.push(fullUrl)
+      }
+    })
+  }
+  
+  // Try to find room in hotel.rooms for additional images
+  if (hotel.value && hotel.value.rooms) {
+    const hotelRoom = hotel.value.rooms.find(r => r.id === room.room_id || r.id === room.id)
+    if (hotelRoom && hotelRoom.images && Array.isArray(hotelRoom.images) && hotelRoom.images.length > 0) {
+      hotelRoom.images.forEach(img => {
+        const imageUrl = typeof img === 'string' ? img : img.url
+        if (imageUrl) {
+          const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+          const fullUrl = imageUrl.startsWith('/storage/') 
+            ? `${baseUrl}${imageUrl}`
+            : imageUrl
+          // Avoid duplicates
+          if (!images.includes(fullUrl)) {
+            images.push(fullUrl)
+          }
+        }
+      })
+    }
+  }
+  
+  return images
+}
+
+const getRoomImage = (room) => {
+  const images = getRoomImages(room)
+  return images.length > 0 ? images[0] : null
+}
+
+const getRoomImageIndex = (roomId) => {
+  return roomImageIndices.value[roomId] || 0
+}
+
+const setRoomImageIndex = (roomId, index) => {
+  roomImageIndices.value[roomId] = index
+}
+
+const previousRoomImage = (roomId) => {
+  const currentIndex = getRoomImageIndex(roomId)
+  if (currentIndex > 0) {
+    setRoomImageIndex(roomId, currentIndex - 1)
+  }
+}
+
+const nextRoomImage = (roomId) => {
+  // Find the room to get its images
+  let roomImages = []
+  if (searchResultsData.value && searchResultsData.value.hotel && searchResultsData.value.hotel.plans) {
+    for (const plan of searchResultsData.value.hotel.plans) {
+      const room = plan.rooms.find(r => (r.room_id === roomId) || (r.id === roomId))
+      if (room) {
+        roomImages = getRoomImages(room)
+        break
+      }
+    }
+  }
+  
+  const currentIndex = getRoomImageIndex(roomId)
+  if (currentIndex < roomImages.length - 1) {
+    setRoomImageIndex(roomId, currentIndex + 1)
+  }
+}
+
+const handleRoomImageError = (event) => {
+  event.target.style.display = 'none'
+}
+
+const openFullscreenGallery = (room) => {
+  const images = getRoomImages(room)
+  if (images.length === 0) return
+  
+  const roomId = room.room_id || room.id
+  const currentIndex = getRoomImageIndex(roomId)
+  
+  fullscreenGallery.value = {
+    open: true,
+    images: images,
+    currentIndex: currentIndex,
+    roomId: roomId,
+    roomName: room.name || 'Room'
+  }
+  
+  // Prevent body scroll when modal is open
+  document.body.style.overflow = 'hidden'
+}
+
+const closeFullscreenGallery = () => {
+  fullscreenGallery.value.open = false
+  // Restore body scroll
+  document.body.style.overflow = ''
+}
+
+const previousFullscreenImage = () => {
+  if (fullscreenGallery.value.currentIndex > 0) {
+    fullscreenGallery.value.currentIndex--
+    // Also update the room gallery index
+    if (fullscreenGallery.value.roomId) {
+      setRoomImageIndex(fullscreenGallery.value.roomId, fullscreenGallery.value.currentIndex)
+    }
+  }
+}
+
+const nextFullscreenImage = () => {
+  if (fullscreenGallery.value.currentIndex < fullscreenGallery.value.images.length - 1) {
+    fullscreenGallery.value.currentIndex++
+    // Also update the room gallery index
+    if (fullscreenGallery.value.roomId) {
+      setRoomImageIndex(fullscreenGallery.value.roomId, fullscreenGallery.value.currentIndex)
+    }
+  }
+}
+
+const setFullscreenImageIndex = (index) => {
+  fullscreenGallery.value.currentIndex = index
+  // Also update the room gallery index
+  if (fullscreenGallery.value.roomId) {
+    setRoomImageIndex(fullscreenGallery.value.roomId, index)
+  }
 }
 
 const formatDate = (dateString) => {
@@ -783,10 +1087,417 @@ const getGrandTotal = () => {
 }
 
 .room-detail {
-  padding: 1rem;
+  padding: 1.5rem;
   background: #f8f9fa;
   border-radius: 12px;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.room-gallery {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room-gallery-main {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e0e0e0;
+  border: 2px solid #e0e0e0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.room-gallery-main:hover {
+  transform: scale(1.01);
+}
+
+.room-gallery-main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.room-gallery-main:hover .room-gallery-main-image {
+  transform: scale(1.05);
+}
+
+.gallery-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gallery-nav-btn:hover:not(:disabled) {
+  background: white;
+  border-color: #667eea;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.gallery-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gallery-prev {
+  left: 1rem;
+}
+
+.gallery-next {
+  right: 1rem;
+}
+
+.gallery-indicator {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 10;
+}
+
+.room-gallery-thumbnails {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(102, 126, 234, 0.4) rgba(0, 0, 0, 0.1);
+}
+
+.room-gallery-thumbnails::-webkit-scrollbar {
+  height: 6px;
+}
+
+.room-gallery-thumbnails::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.room-gallery-thumbnails::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 3px;
+}
+
+.room-gallery-thumbnails::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.6);
+}
+
+.gallery-thumbnail {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #e0e0e0;
+}
+
+.gallery-thumbnail:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  transform: scale(1.05);
+}
+
+.gallery-thumbnail.active {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.gallery-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-info {
+  flex: 1;
+}
+
+.gallery-zoom-hint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.room-gallery-main:hover .gallery-zoom-hint {
+  opacity: 1;
+}
+
+.zoom-icon {
+  font-size: 1rem;
+}
+
+/* Fullscreen Gallery Modal */
+.fullscreen-gallery-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.fullscreen-gallery-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.fullscreen-close-btn {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 2rem;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10001;
+  line-height: 1;
+}
+
+.fullscreen-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.fullscreen-gallery-content {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 95vw;
+  max-height: 95vh;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.fullscreen-gallery-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease;
+  /* Maintain aspect ratio and show full resolution */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.fullscreen-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10001;
+  backdrop-filter: blur(10px);
+}
+
+.fullscreen-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.fullscreen-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fullscreen-prev {
+  left: 2rem;
+}
+
+.fullscreen-next {
+  right: 2rem;
+}
+
+.fullscreen-gallery-info {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1rem 2rem;
+  border-radius: 30px;
+  color: white;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  z-index: 10001;
+}
+
+.fullscreen-image-counter {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.fullscreen-room-name {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.fullscreen-thumbnails {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  z-index: 10001;
+}
+
+.fullscreen-thumbnails::-webkit-scrollbar {
+  height: 6px;
+}
+
+.fullscreen-thumbnails::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fullscreen-thumbnails::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.fullscreen-thumbnails::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.fullscreen-thumbnail {
+  flex-shrink: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.6;
+}
+
+.fullscreen-thumbnail:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.fullscreen-thumbnail.active {
+  border-color: white;
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.fullscreen-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Fullscreen Modal Transitions */
+.fullscreen-modal-enter-active,
+.fullscreen-modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fullscreen-modal-enter-active .fullscreen-gallery-container,
+.fullscreen-modal-leave-active .fullscreen-gallery-container {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.fullscreen-modal-enter-from,
+.fullscreen-modal-leave-to {
+  opacity: 0;
+}
+
+.fullscreen-modal-enter-from .fullscreen-gallery-container,
+.fullscreen-modal-leave-to .fullscreen-gallery-container {
+  transform: scale(0.95);
+  opacity: 0;
 }
 
 .room-name {
@@ -1274,6 +1985,73 @@ const getGrandTotal = () => {
 @media (max-width: 768px) {
   .hotel-image-gallery {
     height: 300px;
+  }
+
+  .room-gallery-main {
+    height: 300px;
+  }
+
+  .gallery-nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .gallery-prev {
+    left: 0.5rem;
+  }
+
+  .gallery-next {
+    right: 0.5rem;
+  }
+
+  .gallery-thumbnail {
+    width: 60px;
+    height: 60px;
+  }
+
+  .fullscreen-gallery-content {
+    height: calc(100% - 100px);
+    padding: 1rem;
+    max-width: 100vw;
+    max-height: 90vh;
+  }
+
+  .fullscreen-gallery-image {
+    max-width: 95vw;
+    max-height: 85vh;
+  }
+
+  .fullscreen-nav-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
+  }
+
+  .fullscreen-prev {
+    left: 0.5rem;
+  }
+
+  .fullscreen-next {
+    right: 0.5rem;
+  }
+
+  .fullscreen-close-btn {
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+
+  .fullscreen-thumbnail {
+    width: 70px;
+    height: 70px;
+  }
+
+  .fullscreen-gallery-info {
+    bottom: 1rem;
+    padding: 0.75rem 1.5rem;
   }
 
   .hotel-name {

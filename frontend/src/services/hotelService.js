@@ -30,33 +30,32 @@ export const hotelService = {
   },
 
   async getRecommendedHotels() {
-    // Get all hotels and fetch their rooms with images
+    // Get all hotels (now includes cover_image and rooms with images)
     const hotels = await this.getHotels()
     const hotelsWithDetails = await Promise.all(
       hotels.slice(0, 6).map(async (hotel) => {
         try {
           const rooms = await this.getRoomsByHotelId(hotel.id)
-          // Get first image from first room
+          
+          // Priority: hotel cover_image > first room's first image
           let coverImage = null
-          if (rooms && rooms.length > 0) {
+          
+          // First check hotel cover_image
+          if (hotel.cover_image) {
+            const baseUrl = API_BASE_URL.replace('/api', '')
+            coverImage = hotel.cover_image.startsWith('/storage/')
+              ? `${baseUrl}${hotel.cover_image}`
+              : hotel.cover_image
+          } else if (rooms && rooms.length > 0) {
+            // Fallback to first room's first image
             const firstRoom = rooms[0]
-            if (firstRoom.id) {
-              try {
-                const imagesResponse = await api.get(`/rooms/${firstRoom.id}/images`)
-                if (imagesResponse.data && imagesResponse.data.length > 0) {
-                  let imageUrl = imagesResponse.data[0].url
-                  // Handle relative URLs
-                  if (imageUrl && imageUrl.startsWith('/storage/')) {
-                    // Extract base URL (remove /api)
-                    const baseUrl = API_BASE_URL.replace('/api', '')
-                    imageUrl = `${baseUrl}${imageUrl}`
-                  }
-                  coverImage = imageUrl
-                }
-              } catch (e) {
-                // Image fetch failed, use fallback
-                console.warn('Failed to fetch images for room:', firstRoom.id, e)
+            if (firstRoom.images && firstRoom.images.length > 0) {
+              let imageUrl = firstRoom.images[0].url
+              if (imageUrl && imageUrl.startsWith('/storage/')) {
+                const baseUrl = API_BASE_URL.replace('/api', '')
+                imageUrl = `${baseUrl}${imageUrl}`
               }
+              coverImage = imageUrl
             }
           }
           

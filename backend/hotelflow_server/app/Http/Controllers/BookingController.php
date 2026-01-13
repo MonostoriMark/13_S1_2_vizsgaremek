@@ -70,69 +70,105 @@ public function store(Request $request)
             'totalPrice' => 0,
         ]);
 
+        // OPTIMIZATION: Batch load all rooms at once to avoid N+1 queries
+        $requestedRoomIds = collect($request->rooms)->pluck('id')->toArray();
+        $rooms = Room::whereIn('id', $requestedRoomIds)
+            ->where('hotels_id', $request->hotelId)
+            ->get()
+            ->keyBy('id');
+
+        // Validate all rooms exist and belong to the hotel
+        if ($rooms->count() !== count($requestedRoomIds)) {
+            DB::rollBack();
+            $missingIds = array_diff($requestedRoomIds, $rooms->pluck('id')->toArray());
+            return response()->json([
+                'error' => 'Egy vagy több szoba nem található vagy nem tartozik a kiválasztott hotelhez',
+                'missing_room_ids' => array_values($missingIds)
+            ], 400);
+        }
+
+        // OPTIMIZATION: Batch check room availability for all rooms at once
+        $nights = \Carbon\Carbon::parse($request->startDate)->diffInDays($request->endDate);
+        $overlappingRooms = DB::table('bookingsRelation')
+            ->join('bookings', 'bookingsRelation.booking_id', '=', 'bookings.id')
+            ->whereIn('bookingsRelation.rooms_id', $requestedRoomIds)
+            ->whereIn('bookings.status', ['pending', 'confirmed'])
+            ->where('bookings.startDate', '<', $request->endDate)
+            ->where('bookings.endDate', '>', $request->startDate)
+            ->distinct()
+            ->pluck('bookingsRelation.rooms_id')
+            ->toArray();
+
+        if (!empty($overlappingRooms)) {
+            DB::rollBack();
+            $unavailableRoomNames = $rooms->whereIn('id', $overlappingRooms)->pluck('name')->toArray();
+            return response()->json([
+                'error' => 'Egy vagy több szoba nem elérhető a megadott időszakban',
+                'unavailable_rooms' => $unavailableRoomNames
+            ], 400);
+        }
+
+        // Calculate total price and prepare room IDs
         $totalPrice = 0;
         $roomIds = [];
 
-        // -------------------------
-        // Szobák hozzáadása + ár számítása + ellenőrzések
-        // -------------------------
         foreach ($request->rooms as $roomData) {
-            $room = Room::find($roomData['id']);
-
-            // 1. Ellenőrzés: szoba a hotelhez tartozik?
-            if ($room->hotels_id != $request->hotelId) {
+            $room = $rooms->get($roomData['id']);
+            
+            if (!$room) {
                 DB::rollBack();
-                return response()->json(['error' => "A(z) {$room->name} szoba nem tartozik a kiválasztott hotelhez"], 400);
-            }
-
-            // 2. Ellenőrzés: szoba szabad-e a megadott időszakban?
-            $overlappingBooking = $room->bookings()
-                ->where('status', 'confirmed')
-                ->where(function($query) use ($request) {
-                    $query->whereBetween('startDate', [$request->startDate, $request->endDate])
-                          ->orWhereBetween('endDate', [$request->startDate, $request->endDate])
-                          ->orWhere(function($q) use ($request) {
-                              $q->where('startDate', '<=', $request->startDate)
-                                ->where('endDate', '>=', $request->endDate);
-                          });
-                })
-                ->exists();
-
-            if ($overlappingBooking) {
-                DB::rollBack();
-                return response()->json(['error' => "A(z) {$room->name} szoba nem elérhető a megadott időszakban"], 400);
+                return response()->json(['error' => "Szoba nem található: ID {$roomData['id']}"], 400);
             }
 
             $roomIds[] = $room->id;
 
-            $guestsCount = $roomData['guests'];
-            $roomPrice = $room->basePrice + ($room->pricePerNight * $guestsCount);
+            // Calculate room price: pricePerNight * nights
+            // basePrice is added once per room if it exists
+            $roomPrice = ($room->basePrice ?? 0) + ($room->pricePerNight * $nights);
             $totalPrice += $roomPrice;
         }
 
         $booking->rooms()->sync($roomIds);
 
         // -------------------------
-        // RFID kulcsok hozzárendelése
+        // RFID kulcsok hozzárendelése (optimized batch assignment)
+        // -------------------------
+        
+        // OPTIMIZATION: Check if enough RFID keys are available before starting assignment
+        $availableRfidKeysCount = RFIDKey::where('hotels_id', $request->hotelId)
+            ->where(function($query) {
+                $query->where('isUsed', false)
+                      ->orWhere('isUsed', 0);
+            })
+            ->count();
 
-        // --------- IDE JÖN AZ ÚJ RFID KÓD ---------
-        foreach ($roomIds as $roomId) {
-            // Check for available RFID key
-            // Try both boolean false and integer 0 to handle database type differences
-            $rfidKey = RFIDKey::where('hotels_id', $request->hotelId)
-                            ->where(function($query) {
-                                $query->where('isUsed', false)
-                                      ->orWhere('isUsed', 0);
-                            })
-                            ->first();
+        if ($availableRfidKeysCount < count($roomIds)) {
+            DB::rollBack();
+            return response()->json([
+                'error' => "Nincs elég elérhető RFID kulcs a hotelhez. Szükséges: " . count($roomIds) . ", Elérhető: {$availableRfidKeysCount}. Kérjük, vegye fel a kapcsolatot a szállodával."
+            ], 400);
+        }
 
-            if (!$rfidKey) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => "Nincs elérhető RFID kulcs a hotelhez. Kérjük, vegye fel a kapcsolatot a szállodával."
-                ], 400);
-            }
+        // OPTIMIZATION: Batch load available RFID keys
+        $availableRfidKeys = RFIDKey::where('hotels_id', $request->hotelId)
+            ->where(function($query) {
+                $query->where('isUsed', false)
+                      ->orWhere('isUsed', 0);
+            })
+            ->take(count($roomIds))
+            ->get();
 
+        if ($availableRfidKeys->count() < count($roomIds)) {
+            DB::rollBack();
+            return response()->json([
+                'error' => "Nincs elég elérhető RFID kulcs a hotelhez. Kérjük, vegye fel a kapcsolatot a szállodával."
+            ], 400);
+        }
+
+        // Assign RFID keys to rooms
+        foreach ($roomIds as $index => $roomId) {
+            $rfidKey = $availableRfidKeys->get($index);
+            
             RFIDConnection::create([
                 'rfidKeys_id' => $rfidKey->rfidKey,
                 'rooms_id' => $roomId
@@ -146,9 +182,22 @@ public function store(Request $request)
         // -------------------------
         // Szolgáltatások hozzáadása + ár számítása
         // -------------------------
-        if ($request->has('services')) {
-            $booking->services()->sync($request->services);
-            $servicesPrice = \App\Models\Service::whereIn('id', $request->services)->sum('price');
+        if ($request->has('services') && !empty($request->services)) {
+            // OPTIMIZATION: Validate services belong to the hotel before syncing
+            $validServices = Service::whereIn('id', $request->services)
+                ->where('hotels_id', $request->hotelId)
+                ->pluck('id')
+                ->toArray();
+
+            if (count($validServices) !== count($request->services)) {
+                DB::rollBack();
+                return response()->json([
+                    'error' => 'Egy vagy több szolgáltatás nem tartozik a kiválasztott hotelhez'
+                ], 400);
+            }
+
+            $booking->services()->sync($validServices);
+            $servicesPrice = Service::whereIn('id', $validServices)->sum('price');
             $totalPrice += $servicesPrice;
         }
 
@@ -220,9 +269,23 @@ public function store(Request $request)
     }
 
     // -------------------------
-    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
+    // Allow adding guests even after booking is confirmed
+    // Only block if booking is cancelled or completed
     // -------------------------
-    if ($booking->users_id !== auth()->id()) {
+    if ($booking->status === 'cancelled' || $booking->status === 'finished') {
+        return response()->json(['error' => 'Nem lehet vendéget hozzáadni törölt vagy befejezett foglaláshoz'], 400);
+    }
+
+    // -------------------------
+    // Jogosultság ellenőrzés
+    // Allow if user is the booking owner OR hotel admin for this booking
+    // -------------------------
+    $user = auth()->user();
+    $booking->load('hotel');
+    $isBookingOwner = $booking->users_id === $user->id;
+    $isHotelAdmin = $user->role === 'hotel' && $booking->hotel->user_id === $user->id;
+    
+    if (!$isBookingOwner && !$isHotelAdmin) {
         return response()->json(['error' => 'Nincs jogosultságod'], 403);
     }
 
@@ -388,6 +451,54 @@ function updateStatus(Request $request, $id)
 
     return response()->json(['message' => 'Booking status updated successfully'], 200);
 }
+
+    /**
+     * Update booking details (hotel admin only)
+     */
+    public function update(Request $request, $id)
+    {
+        $booking = Booking::with('hotel')->find($id);
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found'], 404);
+        }
+
+        // Check if user is hotel admin for this booking
+        if ($booking->hotel->user_id !== auth()->id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'startDate' => 'sometimes|date',
+            'endDate' => 'sometimes|date|after_or_equal:startDate',
+            'totalPrice' => 'sometimes|numeric|min:0',
+        ]);
+
+        if ($request->has('startDate')) {
+            $booking->startDate = $request->startDate;
+        }
+        if ($request->has('endDate')) {
+            $booking->endDate = $request->endDate;
+        }
+        if ($request->has('totalPrice')) {
+            $booking->totalPrice = $request->totalPrice;
+            
+            // Update invoice if exists
+            $invoice = Invoice::where('booking_id', $booking->id)->first();
+            if ($invoice && $invoice->status === 'draft') {
+                $invoice->subtotal = $request->totalPrice;
+                $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
+                $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
+                $invoice->save();
+            }
+        }
+
+        $booking->save();
+
+        return response()->json([
+            'message' => 'Booking updated successfully',
+            'booking' => $booking->fresh(['user', 'rooms', 'services', 'guests'])
+        ], 200);
+    }
 
 public function getBookingsByHotelId($hotelId)
 {

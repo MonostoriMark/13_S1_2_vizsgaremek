@@ -286,10 +286,18 @@ const handleEdit = async (room) => {
     images: []
   }
 
-  // Load room images
+    // Load room images
   try {
     const images = await adminService.getRoomImages(room.id)
-    form.value.images = images.map(img => ({ id: img.id, url: img.url }))
+    // Convert image URLs to full URLs for display
+    form.value.images = images.map(img => {
+      let imageUrl = img.url
+      if (imageUrl && imageUrl.startsWith('/storage/')) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        imageUrl = `${baseUrl}${imageUrl}`
+      }
+      return { id: img.id, url: imageUrl }
+    })
   } catch (err) {
     console.error('Failed to load room images:', err)
   }
@@ -383,9 +391,15 @@ const handleImageUpload = async (imageObj) => {
     // Upload image and link to room
     const result = await adminService.uploadImage(imageObj.file, [roomId])
     if (result && result.image) {
+      // Convert relative URL to full URL for display
+      let imageUrl = result.image.url
+      if (imageUrl && imageUrl.startsWith('/storage/')) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        imageUrl = `${baseUrl}${imageUrl}`
+      }
       imageObj.id = result.image.id
-      imageObj.url = result.image.url
-      imageObj.preview = result.image.url
+      imageObj.url = imageUrl
+      imageObj.preview = imageUrl
       imageObj.progress = 100
       imageObj.uploading = false
       showToast('Image uploaded successfully', 'success')
