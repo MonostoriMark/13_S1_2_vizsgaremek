@@ -70,6 +70,11 @@
             {{ error }}
           </div>
 
+          <div v-if="successMessage" class="success-message">
+            <span class="success-icon">✓</span>
+            <div class="success-text">{{ successMessage }}</div>
+          </div>
+
           <form @submit.prevent="handleRegister" class="register-form">
             <div class="form-group">
               <label for="name">Full Name</label>
@@ -184,70 +189,6 @@
               </div>
             </Transition>
 
-          <!-- Hotel-specific fields with smooth transition -->
-          <Transition name="slide-fade">
-            <div v-if="userType === 'hotel'" class="hotel-fields">
-              <div class="form-group">
-                <label for="hotelName">Hotel Name</label>
-                <div class="input-wrapper">
-                  <span class="input-icon">🏨</span>
-                  <input
-                    id="hotelName"
-                    v-model="hotelName"
-                    type="text"
-                    required
-                    placeholder="Enter hotel name"
-                    class="glass-input"
-                  />
-                  <div class="input-glow"></div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="location">Location</label>
-                <div class="input-wrapper">
-                  <span class="input-icon">📍</span>
-                  <input
-                    id="location"
-                    v-model="location"
-                    type="text"
-                    required
-                    placeholder="City, Country"
-                    class="glass-input"
-                  />
-                  <div class="input-glow"></div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="type">Hotel Type</label>
-                <div class="input-wrapper">
-                  <span class="input-icon">🏨</span>
-                  <select id="type" v-model="type" required class="glass-input glass-select">
-                    <option value="hotel">Hotel</option>
-                    <option value="apartment">Apartment</option>
-                    <option value="villa">Villa</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <div class="input-glow"></div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="starRating">Star Rating (optional)</label>
-                <div class="input-wrapper">
-                  <span class="input-icon">⭐</span>
-                  <select id="starRating" v-model.number="starRating" class="glass-input glass-select">
-                    <option :value="null">None</option>
-                    <option value="1">1 Star</option>
-                    <option value="2">2 Stars</option>
-                    <option value="3">3 Stars</option>
-                    <option value="4">4 Stars</option>
-                    <option value="5">5 Stars</option>
-                  </select>
-                  <div class="input-glow"></div>
-                </div>
-              </div>
-            </div>
-          </Transition>
-
             <button type="submit" class="btn-register" :disabled="loading">
               <span v-if="loading" class="loading-spinner"></span>
               <span v-else>{{ loading ? 'Registering...' : 'REGISTER' }}</span>
@@ -265,11 +206,35 @@
         </div>
       </div>
     </div>
+    
+    <!-- Slideshow Section -->
+    <div class="register-slideshow">
+      <div class="slideshow-container">
+        <div 
+          v-for="(image, index) in slideshowImages" 
+          :key="index"
+          class="slide"
+          :class="{ active: currentSlide === index }"
+        >
+          <img :src="image" :alt="`Hotel ${index + 1}`" />
+        </div>
+        <!-- Navigation dots -->
+        <div class="slideshow-dots">
+          <span 
+            v-for="(image, index) in slideshowImages" 
+            :key="index"
+            class="dot"
+            :class="{ active: currentSlide === index }"
+            @click="currentSlide = index"
+          ></span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -286,7 +251,32 @@ const location = ref('')
 const type = ref('hotel')
 const starRating = ref(null)
 const error = ref('')
+const successMessage = ref('')
 const loading = ref(false)
+
+// Slideshow
+const slideshowImages = [
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop'
+]
+
+const currentSlide = ref(0)
+let slideshowInterval = null
+
+onMounted(() => {
+  // Auto-advance slideshow every 5 seconds
+  slideshowInterval = setInterval(() => {
+    currentSlide.value = (currentSlide.value + 1) % slideshowImages.length
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval)
+  }
+})
 
 const selectRole = (role) => {
   userType.value = role
@@ -333,26 +323,19 @@ const handleRegister = async () => {
   }
 
   if (result.success) {
-    if (result.requiresVerification) {
-      // Show success message but don't redirect - user needs to verify email
-      error.value = ''
-      // Show info message instead
-      if (window.showToast) {
-        window.showToast(result.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.', 'info')
-      }
-      // Redirect to login after a delay
-      setTimeout(() => {
-        router.push('/login')
-      }, 3000)
-    } else {
-      if (authStore.state.user.role === 'user') {
-        router.push('/bookings')
-      } else if (authStore.state.user.role === 'hotel') {
-        router.push('/admin/bookings')
-      } else {
-        router.push('/search')
-      }
+    // Always require email verification - never auto-login
+    error.value = ''
+    // Show success message
+    if (window.showToast) {
+      window.showToast(result.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.', 'success')
     }
+    // Show success message in the form
+    successMessage.value = result.message || 'Regisztráció sikeres! Kérjük, ellenőrizd az e-mail fiókodat és kattints a megerősítő linkre a bejelentkezés előtt.'
+    
+    // Redirect to login after a delay
+    setTimeout(() => {
+      router.push('/login')
+    }, 5000)
   } else {
     error.value = result.message || 'Registration failed'
   }
@@ -379,6 +362,7 @@ const handleRegister = async () => {
   right: 0;
   bottom: 0;
   overflow-y: auto;
+  gap: 2rem;
 }
 
 /* Home Button */
@@ -423,7 +407,7 @@ const handleRegister = async () => {
 
 /* Minimal Card */
 .register-card {
-  width: 100%;
+  flex: 1;
   max-width: 480px;
   background: white;
   border-radius: 16px;
@@ -431,6 +415,82 @@ const handleRegister = async () => {
   padding: 2.5rem 2rem;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+/* Slideshow Section */
+.register-slideshow {
+  flex: 1;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.slideshow-container {
+  position: relative;
+  width: 100%;
+  max-height: 600px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.slide {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.slide.active {
+  display: block;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.slide img {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slideshow-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dot.active {
+  background: white;
+  width: 24px;
+  border-radius: 5px;
 }
 
 .card-content {
@@ -861,6 +921,29 @@ const handleRegister = async () => {
 }
 
 /* Error Message */
+.success-message {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: #155724;
+}
+
+.success-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.success-text {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .error-message {
   background: #fee2e2;
   color: #dc2626;
@@ -881,6 +964,7 @@ const handleRegister = async () => {
 /* Responsive Design */
 @media (max-width: 768px) {
   .register-page {
+    flex-direction: column;
     padding: 1rem;
   }
 
@@ -888,6 +972,21 @@ const handleRegister = async () => {
     padding: 2rem 1.5rem;
     max-height: 95vh;
     max-width: 100%;
+    order: 1;
+  }
+
+  .register-slideshow {
+    max-width: 100%;
+    padding: 1rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 300px;
+  }
+
+  .slide img {
+    max-height: 300px;
   }
 
   .welcome-header h1 {
@@ -911,6 +1010,7 @@ const handleRegister = async () => {
 
 @media (max-width: 480px) {
   .register-page {
+    flex-direction: column;
     padding: 1rem;
   }
 
@@ -918,6 +1018,21 @@ const handleRegister = async () => {
     padding: 1.5rem 1.25rem;
     max-height: 95vh;
     max-width: 100%;
+    order: 1;
+  }
+
+  .register-slideshow {
+    max-width: 100%;
+    padding: 0.5rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 250px;
+  }
+
+  .slide img {
+    max-height: 250px;
   }
 
   .welcome-header h1 {

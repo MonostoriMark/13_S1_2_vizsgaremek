@@ -9,10 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingConfirmationMail;
+use App\Mail\NewBookingNotificationMail;
+use App\Mail\BookingRequestNotificationMail;
+use App\Models\Invoice;
 use App\Models\Guest;
 use App\Models\RFIDKey;
 use App\Models\RFIDConnection;
 use App\Models\RFIDAssignment;
+use App\Models\Hotel;
 
 class BookingController extends Controller
 {
@@ -157,13 +161,37 @@ public function store(Request $request)
         DB::commit();
 
         // -------------------------
-        // Mail küldés
+        // Mail küldés - Vendég értesítés (foglalási kérés elküldve)
         // -------------------------
         try {
+            // Reload booking with relationships for email
+            $booking->load(['hotel.user', 'user', 'rooms', 'services']);
+            
+            // Send initial notification (without QR code)
             Mail::to($booking->user->email)
-                ->send(new BookingConfirmationMail($booking));
+                ->send(new BookingRequestNotificationMail($booking));
         } catch (\Exception $mailEx) {
-            \Log::error('Mail küldési hiba: ' . $mailEx->getMessage());
+            \Log::error('Mail küldési hiba (vendég értesítés): ' . $mailEx->getMessage());
+        }
+
+        // -------------------------
+        // Értesítés küldése a szálloda adminisztrátorának
+        // -------------------------
+        try {
+            // Reload booking with hotel and user relationships
+            $booking->load(['hotel.user', 'user']);
+            
+            if ($booking->hotel && $booking->hotel->user) {
+                // Get frontend URL from config
+                $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                $bookingsUrl = $frontendUrl . '/admin/bookings';
+                
+                // Send notification email to hotel admin
+                Mail::to($booking->hotel->user->email)
+                    ->send(new NewBookingNotificationMail($booking, $bookingsUrl));
+            }
+        } catch (\Exception $notificationEx) {
+            \Log::error('Értesítés küldési hiba (szálloda admin): ' . $notificationEx->getMessage());
         }
 
         return response()->json(['bookingId' => $booking->id, 'totalPrice' => $totalPrice], 201);
@@ -293,6 +321,52 @@ function updateStatus(Request $request, $id)
     $booking->status = $request->status;
     $booking->touch();
     $booking->save();
+
+    // -------------------------
+    // Send QR code confirmation email when booking is confirmed
+    // -------------------------
+    if ($request->status === 'confirmed' && $oldStatus !== 'confirmed') {
+        try {
+            // Reload booking with all relationships for email
+            $booking->load(['hotel', 'user', 'rooms.hotel', 'services']);
+            
+            // Send confirmation email with QR code to the guest
+            Mail::to($booking->user->email)
+                ->send(new BookingConfirmationMail($booking));
+
+            // -------------------------
+            // Generate invoice preview (draft)
+            // -------------------------
+            try {
+                $invoice = Invoice::where('booking_id', $booking->id)->first();
+                
+                if (!$invoice) {
+                    // Create draft invoice
+                    $subtotal = $booking->totalPrice;
+                    $taxRate = 27;
+                    $taxAmount = round($subtotal * ($taxRate / 100), 2);
+                    $totalAmount = $subtotal + $taxAmount;
+                    $invoiceNumber = 'SZ' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) . '/' . date('Y');
+                    
+                    $invoice = Invoice::create([
+                        'booking_id' => $booking->id,
+                        'invoice_number' => $invoiceNumber,
+                        'status' => 'draft',
+                        'subtotal' => $subtotal,
+                        'tax_amount' => $taxAmount,
+                        'total_amount' => $totalAmount,
+                        'tax_rate' => $taxRate,
+                        'issue_date' => now()->toDateString(),
+                        'due_date' => now()->addDays(8)->toDateString(),
+                    ]);
+                }
+            } catch (\Exception $invoiceEx) {
+                \Log::error('Számla előnézet generálási hiba: ' . $invoiceEx->getMessage());
+            }
+        } catch (\Exception $mailEx) {
+            \Log::error('QR kód email küldési hiba: ' . $mailEx->getMessage());
+        }
+    }
 
     // Automatically release RFID keys when booking is completed or cancelled
     if (in_array($request->status, ['completed', 'cancelled'])) {

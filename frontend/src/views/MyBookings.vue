@@ -181,6 +181,24 @@
             </div>
           </div>
 
+          <!-- Invoice Section (Guest) -->
+          <div v-if="booking.status === 'confirmed' && booking.invoice && booking.invoice.status !== 'draft'" class="invoice-section">
+            <h4 class="section-title">Invoice</h4>
+            <div class="invoice-info">
+              <div class="invoice-status">
+                <span class="invoice-number">{{ booking.invoice.invoice_number }}</span>
+                <span class="invoice-amount">{{ booking.invoice.total_amount }} Ft</span>
+              </div>
+              <button
+                @click="downloadInvoice(booking.invoice.id, booking.id)"
+                class="btn-download-invoice"
+                :disabled="invoiceLoading === booking.id"
+              >
+                {{ invoiceLoading === booking.id ? 'Downloading...' : '📥 Download Invoice' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Booking Actions -->
           <div class="booking-actions">
             <button
@@ -261,6 +279,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { bookingService } from '../services/bookingService'
 import { guestService } from '../services/guestService'
+import { invoiceService } from '../services/invoiceService'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -268,6 +287,7 @@ const bookings = ref([])
 const loading = ref(true)
 const error = ref('')
 const deleting = ref(null)
+const invoiceLoading = ref(null)
 const showGuestModal = ref(false)
 const currentBookingId = ref(null)
 const editingGuest = ref(null)
@@ -299,12 +319,25 @@ const loadBookings = async () => {
 
   try {
     const data = await bookingService.getBookingsByUserId(authStore.state.user.id)
-    bookings.value = data.bookings || []
+    const bookingsList = data.bookings || []
     
-    // Ensure guests array exists for each booking
-    bookings.value = bookings.value.map(booking => ({
-      ...booking,
-      guests: booking.guests || []
+    // Load invoice data for confirmed bookings
+    bookings.value = await Promise.all(bookingsList.map(async (booking) => {
+      let invoice = null
+      if (booking.status === 'confirmed') {
+        try {
+          const invoiceData = await invoiceService.getInvoiceByBooking(booking.id)
+          invoice = invoiceData?.invoice || null
+        } catch (err) {
+          console.error('Failed to load invoice:', err)
+        }
+      }
+      
+      return {
+        ...booking,
+        guests: booking.guests || [],
+        invoice: invoice
+      }
     }))
   } catch (err) {
     error.value = err.response?.data?.message || 'Failed to load bookings'
@@ -480,6 +513,25 @@ const getCurrentGuestCount = (booking) => {
 
 const isAtCapacity = (booking) => {
   return getCurrentGuestCount(booking) >= getMaxCapacity(booking)
+}
+
+const downloadInvoice = async (invoiceId, bookingId) => {
+  invoiceLoading.value = bookingId
+  try {
+    const blob = await invoiceService.downloadInvoice(invoiceId)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `invoice_${invoiceId}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Failed to download invoice'
+  } finally {
+    invoiceLoading.value = null
+  }
 }
 </script>
 
@@ -1250,13 +1302,67 @@ const isAtCapacity = (booking) => {
     flex-direction: column;
     align-items: stretch;
     gap: 1rem;
-  }
-
-  .btn-add-guest {
+  }  .btn-add-guest {
     width: 100%;
   }  .modal-content {
     width: 95%;
     padding: 1.5rem;
   }
+}
+
+/* Invoice Section */
+.invoice-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.invoice-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.invoice-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.invoice-number {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.invoice-amount {
+  font-size: 1rem;
+  color: #27ae60;
+  font-weight: 700;
+}
+
+.btn-download-invoice {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-download-invoice:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-download-invoice:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

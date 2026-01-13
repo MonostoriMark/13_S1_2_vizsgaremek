@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Hotel;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class SearchController extends Controller
@@ -50,13 +51,24 @@ class SearchController extends Controller
         foreach ($hotels as $hotel) {
 
             // Elérhető szobák a foglalások alapján
-            $rooms = Room::where('hotels_id', $hotel->id)
-                ->whereDoesntHave('bookings', function ($q) use ($startDate, $endDate) {
-                    $q->whereIn('status', ['pending', 'confirmed'])
-                      ->where('startDate', '<', $endDate)
-                      ->where('endDate',   '>', $startDate);
-                })
-                ->with('tags') // ROOM TAGS
+            // Use direct query to avoid relationship caching issues and ensure fresh data
+            $bookedRoomIds = DB::table('bookingsRelation')
+                ->join('bookings', 'bookingsRelation.booking_id', '=', 'bookings.id')
+                ->whereIn('bookings.status', ['pending', 'confirmed'])
+                ->where('bookings.startDate', '<', $endDate)
+                ->where('bookings.endDate', '>', $startDate)
+                ->distinct()
+                ->pluck('bookingsRelation.rooms_id')
+                ->toArray();
+
+            // Query rooms - exclude booked ones if any exist
+            $roomsQuery = Room::where('hotels_id', $hotel->id);
+            
+            if (!empty($bookedRoomIds)) {
+                $roomsQuery->whereNotIn('id', $bookedRoomIds);
+            }
+            
+            $rooms = $roomsQuery->with('tags') // ROOM TAGS
                 ->get();
 
             if ($rooms->isEmpty()) {

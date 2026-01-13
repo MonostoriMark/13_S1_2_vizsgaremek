@@ -65,7 +65,7 @@
               </div>
 
               <div class="forgot-password">
-                <a href="#" class="forgot-link">Forgot your password?</a>
+                <router-link to="/forgot-password" class="forgot-link">Forgot your password?</router-link>
               </div>
 
               <button type="submit" class="btn-login" :disabled="loading">
@@ -80,11 +80,35 @@
             </form>
           </div>
         </div>
+    
+    <!-- Slideshow Section -->
+    <div class="login-slideshow">
+      <div class="slideshow-container">
+        <div 
+          v-for="(image, index) in slideshowImages" 
+          :key="index"
+          class="slide"
+          :class="{ active: currentSlide === index }"
+        >
+          <img :src="image" :alt="`Hotel ${index + 1}`" />
+        </div>
+        <!-- Navigation dots -->
+        <div class="slideshow-dots">
+          <span 
+            v-for="(image, index) in slideshowImages" 
+            :key="index"
+            class="dot"
+            :class="{ active: currentSlide === index }"
+            @click="currentSlide = index"
+          ></span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -96,6 +120,30 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const resendingEmail = ref(false)
+
+// Slideshow
+const slideshowImages = [
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop'
+]
+
+const currentSlide = ref(0)
+let slideshowInterval = null
+
+onMounted(() => {
+  // Auto-advance slideshow every 5 seconds
+  slideshowInterval = setInterval(() => {
+    currentSlide.value = (currentSlide.value + 1) % slideshowImages.length
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval)
+  }
+})
 
 const handleLogin = async () => {
   error.value = ''
@@ -162,6 +210,7 @@ const resendVerificationEmail = async () => {
   right: 0;
   bottom: 0;
   overflow-y: auto;
+  gap: 2rem;
 }
 
 /* Home Button */
@@ -204,9 +253,85 @@ const resendVerificationEmail = async () => {
   }
 }
 
+/* Slideshow Section */
+.login-slideshow {
+  flex: 1;
+  max-width: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.slideshow-container {
+  position: relative;
+  width: 100%;
+  max-height: 600px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.slide {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.slide.active {
+  display: block;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.slide img {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slideshow-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dot.active {
+  background: white;
+  width: 24px;
+  border-radius: 5px;
+}
+
 /* Minimal Card */
 .login-card {
-  width: 100%;
+  flex: 1;
   max-width: 420px;
   background: white;
   border-radius: 16px;
@@ -529,12 +654,28 @@ const resendVerificationEmail = async () => {
 /* Responsive Design */
 @media (max-width: 768px) {
   .login-page {
+    flex-direction: column;
     padding: 1rem;
+  }
+
+  .login-slideshow {
+    max-width: 100%;
+    padding: 1rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 300px;
+  }
+
+  .slide img {
+    max-height: 300px;
   }
 
   .login-card {
     padding: 2rem 1.5rem;
     max-width: 100%;
+    order: 1;
   }
 
   .welcome-header h1 {
@@ -544,12 +685,28 @@ const resendVerificationEmail = async () => {
 
 @media (max-width: 480px) {
   .login-page {
+    flex-direction: column;
     padding: 1rem;
+  }
+
+  .login-slideshow {
+    max-width: 100%;
+    padding: 0.5rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 250px;
+  }
+
+  .slide img {
+    max-height: 250px;
   }
 
   .login-card {
     padding: 1.5rem 1.25rem;
     max-width: 100%;
+    order: 1;
   }
 
   .welcome-header h1 {

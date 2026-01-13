@@ -21,6 +21,24 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/forgot-password',
+      name: 'ForgotPassword',
+      component: () => import('../views/ForgotPassword.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/reset-password/:token?',
+      name: 'ResetPassword',
+      component: () => import('../views/ResetPassword.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/verify-email/:token',
+      name: 'VerifyEmail',
+      component: () => import('../views/VerifyEmail.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/search',
       name: 'Search',
       component: () => import('../views/Search.vue'),
@@ -84,6 +102,12 @@ const router = createRouter({
       path: '/admin/rfid-keys',
       name: 'AdminRFIDKeys',
       component: () => import('../views/admin/RFIDKeys.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
+      path: '/admin/users',
+      name: 'AdminUsers',
+      component: () => import('../views/admin/Users.vue'),
       meta: { requiresAuth: true, role: 'hotel' }
     }
   ]

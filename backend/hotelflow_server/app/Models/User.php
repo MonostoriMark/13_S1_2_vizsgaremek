@@ -18,6 +18,9 @@ class User extends Authenticatable
         'isVerified',
         'email_verification_token',
         'email_verified_at',
+        'tax_number',
+        'bank_account',
+        'eu_tax_number',
     ];
 
     protected $hidden = [

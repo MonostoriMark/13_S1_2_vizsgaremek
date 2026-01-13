@@ -80,12 +80,16 @@ const menuItems = [
   { path: '/admin/rooms', label: 'Rooms', icon: '🛏️' },
   { path: '/admin/services', label: 'Services', icon: '✨' },
   { path: '/admin/tags', label: 'Tags', icon: '🏷️' },
-  { path: '/admin/rfid-keys', label: 'RFID Keys', icon: '🔑' }
+  { path: '/admin/rfid-keys', label: 'RFID Keys', icon: '🔑' },
+  { path: '/admin/users', label: 'My Profile', icon: '👤' }
 ]
 
 const pageTitle = computed(() => {
   if (route.path === '/admin/bookings') {
     return 'Bookings'
+  }
+  if (route.path === '/admin/users') {
+    return 'My Profile'
   }
   const item = menuItems.find(i => i.path === route.path)
   return item ? item.label : 'Admin Panel'

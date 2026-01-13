@@ -52,6 +52,12 @@ class FullDemoSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'user',
             ]);
+            User::create([
+                'name' => 'Admin',
+                'email' => 'optikartofficial@gmail.com',
+                'password' => bcrypt('Gum55NDx'),
+                'role' => 'super_admin',
+            ]);
 
             $user = User::create([
                 'name' => 'Hotel Admin',

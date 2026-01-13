@@ -127,7 +127,7 @@ const isAdminRoute = computed(() => {
 })
 
 const isAuthRoute = computed(() => {
-  return route.path === '/login' || route.path === '/register'
+  return route.path === '/login' || route.path === '/register' || route.path === '/profile'
 })
 
 // Watch for admin route navigation and show loading

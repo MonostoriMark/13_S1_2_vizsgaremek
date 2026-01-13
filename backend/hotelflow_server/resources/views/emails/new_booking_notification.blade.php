@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foglalás megerősítve</title>
+    <title>Új foglalás érkezett</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -32,11 +32,6 @@
             color: #667eea;
             font-size: 1.75rem;
             margin: 0 0 10px 0;
-        }
-        h2 {
-            color: #1f2937;
-            font-size: 1.25rem;
-            margin: 20px 0 10px 0;
         }
         .content {
             margin-bottom: 30px;
@@ -72,35 +67,24 @@
         .detail-value {
             color: #1f2937;
         }
-        .qr-container {
+        .button-container {
             text-align: center;
             margin: 30px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
         }
-        .qr-container img {
-            max-width: 300px;
-            height: auto;
+        .view-button {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .qr-instruction {
-            margin-top: 15px;
             font-weight: 600;
-            color: #1f2937;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s ease;
         }
-        .success-box {
-            background: #d1fae5;
-            border-left: 4px solid #10b981;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        .success-box p {
-            margin: 0;
-            color: #065f46;
-            font-weight: 600;
+        .view-button:hover {
+            transform: translateY(-2px);
         }
         .footer {
             margin-top: 30px;
@@ -110,13 +94,20 @@
             color: #9ca3af;
             font-size: 0.875rem;
         }
-        ul {
-            margin: 10px 0;
-            padding-left: 20px;
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
         }
-        li {
-            margin-bottom: 8px;
-            color: #4b5563;
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-confirmed {
+            background: #d1fae5;
+            color: #065f46;
         }
     </style>
 </head>
@@ -128,13 +119,9 @@
         </div>
 
         <div class="content">
-            <h2>Kedves {{ $booking->user->name }}!</h2>
+            <p><strong>Kedves {{ $booking->hotel->user->name }}!</strong></p>
 
-            <div class="success-box">
-                <p>✓ Foglalásod megerősítve!</p>
-            </div>
-
-            <p>Örömmel értesítünk, hogy a foglalásodat megerősítették a <strong>{{ $booking->hotel->name ?? $booking->rooms->first()->hotel->name ?? 'szállodában' }}</strong>!</p>
+            <p>Új foglalás érkezett a <strong>{{ $booking->hotel->name }}</strong> szállodádhoz!</p>
 
             <div class="booking-details">
                 <h3>Foglalás részletei</h3>
@@ -145,8 +132,13 @@
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Szálloda:</span>
-                    <span class="detail-value">{{ $booking->hotel->name ?? $booking->rooms->first()->hotel->name ?? 'N/A' }}</span>
+                    <span class="detail-label">Vendég neve:</span>
+                    <span class="detail-value">{{ $booking->user->name }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Vendég e-mail:</span>
+                    <span class="detail-value">{{ $booking->user->email }}</span>
                 </div>
                 
                 <div class="detail-row">
@@ -159,49 +151,39 @@
                     <span class="detail-value">{{ \Carbon\Carbon::parse($booking->endDate)->format('Y-m-d') }}</span>
                 </div>
                 
-                @if($booking->rooms && $booking->rooms->count() > 0)
                 <div class="detail-row">
-                    <span class="detail-label">Foglalt szobák:</span>
-                    <span class="detail-value"></span>
+                    <span class="detail-label">Összeg:</span>
+                    <span class="detail-value"><strong>{{ number_format($booking->totalPrice, 0, ',', ' ') }} Ft</strong></span>
                 </div>
-                @endif
+                
+                <div class="detail-row">
+                    <span class="detail-label">Státusz:</span>
+                    <span class="detail-value">
+                        <span class="status-badge status-{{ $booking->status }}">
+                            @if($booking->status === 'pending')
+                                Függőben
+                            @elseif($booking->status === 'confirmed')
+                                Megerősítve
+                            @else
+                                {{ $booking->status }}
+                            @endif
+                        </span>
+                    </span>
+                </div>
             </div>
 
-            @if($booking->rooms && $booking->rooms->count() > 0)
-            <p><strong>Foglalt szobák:</strong></p>
-            <ul>
-                @foreach($booking->rooms as $room)
-                    <li>{{ $room->name }} @if($room->capacity) ({{ $room->capacity }} fős) @endif</li>
-                @endforeach
-            </ul>
-            @endif
+            <p>Kérjük, hogy ellenőrizd a foglalás részleteit és válaszolj a kérésre a rendszerben.</p>
 
-            @if($booking->services && $booking->services->count() > 0)
-            <p><strong>Szolgáltatások:</strong></p>
-            <ul>
-                @foreach($booking->services as $service)
-                    <li>{{ $service->name }} @if($service->price) – {{ number_format($service->price, 0, ',', ' ') }} Ft @endif</li>
-                @endforeach
-            </ul>
-            @endif
-
-            <div class="qr-container">
-                <p class="qr-instruction">Check-in QR kód</p>
-                <p style="font-size: 0.875rem; color: #6b7280; margin-top: 10px;">
-                    Az alábbi QR-kódot mutasd fel a check-in során:
-                </p>
-                <img src="{{ $message->embed($qrPath) }}" alt="QR Code" />
-                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 15px;">
-                    Check-in token: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">{{ $booking->checkInToken }}</code>
-                </p>
+            <div class="button-container">
+                <a href="{{ $bookingsUrl }}" class="view-button" style="color: #ffffff;">
+                    Foglalások megtekintése
+                </a>
             </div>
 
-            <p><strong>Fontos információk:</strong></p>
-            <ul>
-                <li>Kérjük, hogy érkezéskor mutasd fel ezt a QR kódot a recepción</li>
-                <li>A QR kód csak erre a foglalásra érvényes</li>
-                <li>Ha bármilyen kérdésed van, vedd fel a kapcsolatot a szállodával</li>
-            </ul>
+            <p style="font-size: 0.875rem; color: #6b7280;">
+                Ha a gomb nem működik, másold be az alábbi linket a böngésződ címsorába:<br>
+                <span style="word-break: break-all; color: #667eea;">{{ $bookingsUrl }}</span>
+            </p>
         </div>
 
         <div class="footer">

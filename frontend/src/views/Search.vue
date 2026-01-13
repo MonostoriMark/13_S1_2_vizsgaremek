@@ -9,7 +9,7 @@
     <!-- Clean Search Section -->
     <div class="search-container">
       <div class="search-header">
-        <h1>Find Your Perfect Stay</h1>
+        <h1 style="margin-top: 50px;">Find Your Perfect Stay</h1>
         <p>Discover amazing hotels, apartments, and villas</p>
       </div>
 
@@ -1358,9 +1358,7 @@ onUnmounted(() => {
   .filters-row {
     grid-template-columns: 1fr;
   }
-}
-
-@media (max-width: 480px) {
+}@media (max-width: 480px) {
   .hotel-image-container {
     height: 200px;
   }  .section-title {

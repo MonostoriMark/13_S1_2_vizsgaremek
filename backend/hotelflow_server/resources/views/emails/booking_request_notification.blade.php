@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foglalás megerősítve</title>
+    <title>Foglalási kérés elküldve</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -32,11 +32,6 @@
             color: #667eea;
             font-size: 1.75rem;
             margin: 0 0 10px 0;
-        }
-        h2 {
-            color: #1f2937;
-            font-size: 1.25rem;
-            margin: 20px 0 10px 0;
         }
         .content {
             margin-bottom: 30px;
@@ -72,35 +67,17 @@
         .detail-value {
             color: #1f2937;
         }
-        .qr-container {
-            text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
-        }
-        .qr-container img {
-            max-width: 300px;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .qr-instruction {
-            margin-top: 15px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-        .success-box {
-            background: #d1fae5;
-            border-left: 4px solid #10b981;
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
             border-radius: 8px;
             padding: 15px;
             margin: 20px 0;
         }
-        .success-box p {
+        .info-box p {
             margin: 0;
-            color: #065f46;
-            font-weight: 600;
+            color: #1e40af;
+            font-size: 0.9rem;
         }
         .footer {
             margin-top: 30px;
@@ -110,13 +87,14 @@
             color: #9ca3af;
             font-size: 0.875rem;
         }
-        ul {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        li {
-            margin-bottom: 8px;
-            color: #4b5563;
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: #fef3c7;
+            color: #92400e;
         }
     </style>
 </head>
@@ -128,13 +106,11 @@
         </div>
 
         <div class="content">
-            <h2>Kedves {{ $booking->user->name }}!</h2>
+            <p><strong>Kedves {{ $booking->user->name }}!</strong></p>
 
-            <div class="success-box">
-                <p>✓ Foglalásod megerősítve!</p>
-            </div>
+            <p>Köszönjük a foglalási kérésedet!</p>
 
-            <p>Örömmel értesítünk, hogy a foglalásodat megerősítették a <strong>{{ $booking->hotel->name ?? $booking->rooms->first()->hotel->name ?? 'szállodában' }}</strong>!</p>
+            <p>A foglalási kérésedet elküldtük a <strong>{{ $booking->hotel->name }}</strong> szállodának. A szálloda adminisztrátora hamarosan értesítést kap és megtudja, hogy foglalást kértél.</p>
 
             <div class="booking-details">
                 <h3>Foglalás részletei</h3>
@@ -146,7 +122,7 @@
                 
                 <div class="detail-row">
                     <span class="detail-label">Szálloda:</span>
-                    <span class="detail-value">{{ $booking->hotel->name ?? $booking->rooms->first()->hotel->name ?? 'N/A' }}</span>
+                    <span class="detail-value">{{ $booking->hotel->name }}</span>
                 </div>
                 
                 <div class="detail-row">
@@ -159,49 +135,30 @@
                     <span class="detail-value">{{ \Carbon\Carbon::parse($booking->endDate)->format('Y-m-d') }}</span>
                 </div>
                 
-                @if($booking->rooms && $booking->rooms->count() > 0)
                 <div class="detail-row">
-                    <span class="detail-label">Foglalt szobák:</span>
-                    <span class="detail-value"></span>
+                    <span class="detail-label">Összeg:</span>
+                    <span class="detail-value"><strong>{{ number_format($booking->totalPrice, 0, ',', ' ') }} Ft</strong></span>
                 </div>
-                @endif
+                
+                <div class="detail-row">
+                    <span class="detail-label">Státusz:</span>
+                    <span class="detail-value">
+                        <span class="status-badge">Függőben</span>
+                    </span>
+                </div>
             </div>
 
-            @if($booking->rooms && $booking->rooms->count() > 0)
-            <p><strong>Foglalt szobák:</strong></p>
-            <ul>
-                @foreach($booking->rooms as $room)
-                    <li>{{ $room->name }} @if($room->capacity) ({{ $room->capacity }} fős) @endif</li>
-                @endforeach
-            </ul>
-            @endif
-
-            @if($booking->services && $booking->services->count() > 0)
-            <p><strong>Szolgáltatások:</strong></p>
-            <ul>
-                @foreach($booking->services as $service)
-                    <li>{{ $service->name }} @if($service->price) – {{ number_format($service->price, 0, ',', ' ') }} Ft @endif</li>
-                @endforeach
-            </ul>
-            @endif
-
-            <div class="qr-container">
-                <p class="qr-instruction">Check-in QR kód</p>
-                <p style="font-size: 0.875rem; color: #6b7280; margin-top: 10px;">
-                    Az alábbi QR-kódot mutasd fel a check-in során:
-                </p>
-                <img src="{{ $message->embed($qrPath) }}" alt="QR Code" />
-                <p style="font-size: 0.8rem; color: #6b7280; margin-top: 15px;">
-                    Check-in token: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">{{ $booking->checkInToken }}</code>
-                </p>
+            <div class="info-box">
+                <p><strong>Mi történik most?</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px; color: #1e40af;">
+                    <li>A szálloda adminisztrátora értesítést kap a foglalási kérésedről</li>
+                    <li>Átnézi a foglalás részleteit és megerősíti vagy elutasítja</li>
+                    <li>Ha a foglalást megerősítik, akkor e-mailben küldjük neked a check-in QR kódot és az összes szükséges információt</li>
+                    <li>Addig is kérjük, hogy türelemmel várj a válaszra</li>
+                </ul>
             </div>
 
-            <p><strong>Fontos információk:</strong></p>
-            <ul>
-                <li>Kérjük, hogy érkezéskor mutasd fel ezt a QR kódot a recepción</li>
-                <li>A QR kód csak erre a foglalásra érvényes</li>
-                <li>Ha bármilyen kérdésed van, vedd fel a kapcsolatot a szállodával</li>
-            </ul>
+            <p>Amint a szálloda válaszol a foglalási kérésedre, azonnal értesítünk!</p>
         </div>
 
         <div class="footer">

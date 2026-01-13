@@ -190,5 +190,11 @@ export const adminService = {
   async getImageById(id) {
     const response = await api.get(`/images/${id}`)
     return response.data
+  },
+
+  // Admin profile update (including invoice fields)
+  async updateAdminProfile(data) {
+    const response = await api.put('/auth/admin/profile', data)
+    return response.data
   }
 }

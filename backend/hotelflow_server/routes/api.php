@@ -16,6 +16,7 @@ use App\Http\Controllers\RoomTagController;
 use App\Http\Controllers\ServiceTagController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\RFIDKeyController;
+use App\Http\Controllers\InvoiceController;
 
 use Illuminate\Support\Facades\Http;
 
@@ -32,11 +33,15 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/auth/verify-email/{token}', [AuthController::class, 'verifyEmail']);
 Route::post('/auth/resend-verification', [AuthController::class, 'resendVerificationEmail']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 //Route::get('/auth/test', [AuthController::class, 'testAuth'])->middleware('auth:sanctum');
 Route::get('/auth/user/{id}', [AuthController::class, 'getUserById'])->middleware('auth:sanctum');
 Route::get('/auth/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
 Route::put('/auth/updateuser/{id}', [AuthController::class, 'updateUser'])->middleware('auth:sanctum');
 Route::delete('/auth/deleteuser/{id}', [AuthController::class, 'deleteUser'])->middleware('auth:sanctum');
+// Admin endpoint to update their own user data (including invoice fields)
+Route::put('/auth/admin/profile', [AuthController::class, 'updateUserAdmin'])->middleware('auth:sanctum', 'role:hotel');
 
 //HOTEL VÉGPONTOK
 Route::get('/hotels', [HotelController::class, 'getHotels']);
@@ -80,6 +85,15 @@ Route::get('/bookings/user/{userId}', [BookingController::class, 'getBookingsByU
 Route::get('/bookings/hotel/{hotelId}', [BookingController::class, 'getBookingsByHotelId'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/bookings/delete/{id}', [BookingController::class, 'deleteBooking'])->middleware('auth:sanctum');
 Route::put('/bookings/update-status/{id}', [BookingController::class, 'updateStatus']);//->middleware('auth:sanctum');
+
+//INVOICE VÉGPONTOK
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/invoices/booking/{bookingId}/preview', [InvoiceController::class, 'generatePreview']);
+    Route::get('/invoices/booking/{bookingId}', [InvoiceController::class, 'getByBooking']);
+    Route::post('/invoices/{invoiceId}/approve', [InvoiceController::class, 'approve']);
+    Route::post('/invoices/{invoiceId}/send', [InvoiceController::class, 'send']);
+    Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download']);
+});
 
 //GUEST VÉGPONTOK
 Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGuests'])->middleware('auth:sanctum');

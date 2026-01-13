@@ -19,6 +19,10 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'users_id');
     }
 
+    public function hotel() {
+        return $this->belongsTo(Hotel::class, 'hotels_id');
+    }
+
     public function rooms() {
         return $this->belongsToMany(Room::class, 'bookingsRelation', 'booking_id', 'rooms_id');
     }
@@ -37,5 +41,9 @@ class Booking extends Model
 
     public function activeRfidAssignments() {
         return $this->hasMany(RFIDAssignment::class)->whereNull('released_at');
+    }
+
+    public function invoice() {
+        return $this->hasOne(Invoice::class, 'booking_id');
     }
 }

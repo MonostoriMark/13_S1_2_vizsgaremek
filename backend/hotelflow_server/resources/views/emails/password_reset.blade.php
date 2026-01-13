@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-mail cím megerősítése</title>
+    <title>Jelszó visszaállítás</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -44,7 +44,7 @@
             text-align: center;
             margin: 30px 0;
         }
-        .verify-button {
+        .reset-button {
             display: inline-block;
             padding: 14px 32px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -56,7 +56,7 @@
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
             transition: transform 0.2s ease;
         }
-        .verify-button:hover {
+        .reset-button:hover {
             transform: translateY(-2px);
         }
         .footer {
@@ -76,6 +76,15 @@
             color: #6b7280;
             word-break: break-all;
         }
+        .warning {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: #92400e;
+        }
     </style>
 </head>
 <body>
@@ -88,25 +97,30 @@
         <div class="content">
             <p><strong>Kedves {{ $user->name }}!</strong></p>
 
-            <p>Köszönjük, hogy regisztráltál a HotelFlow rendszerbe!</p>
+            <p>Jelszó visszaállítási kérést kaptunk a HotelFlow fiókodhoz.</p>
 
-            <p>Az e-mail címed megerősítéséhez kérjük, hogy kattints az alábbi gombra:</p>
+            <p>Ha te kérted a jelszó visszaállítását, kérjük, hogy kattints az alábbi gombra:</p>
 
             <div class="button-container">
-                <a href="{{ $verificationUrl }}" class="verify-button" style="color: #ffffff;">
-                    E-mail cím megerősítése
+                <a href="{{ $resetUrl }}" class="reset-button" style="color: #ffffff;">
+                    Jelszó visszaállítása
                 </a>
             </div>
 
             <p>Ha a gomb nem működik, másold be az alábbi linket a böngésződ címsorába:</p>
 
             <div class="alternative-link">
-                {{ $verificationUrl }}
+                {{ $resetUrl }}
             </div>
 
-            <p><strong>Fontos:</strong> Ez a link 24 órán belül érvényes. Ha nem erősítetted meg az e-mail címedet, nem fogsz tudni bejelentkezni a fiókodba.</p>
-
-            <p>Ha nem te regisztráltál ezzel az e-mail címmel, kérjük, hagyd figyelmen kívül ezt az üzenetet.</p>
+            <div class="warning">
+                <p><strong>Fontos:</strong></p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Ez a link 60 percig érvényes.</li>
+                    <li>Ha nem te kérted a jelszó visszaállítását, hagyd figyelmen kívül ezt az üzenetet.</li>
+                    <li>A jelszavad nem változik meg, amíg nem kattintasz a fenti linkre és nem állítod be az új jelszavadat.</li>
+                </ul>
+            </div>
         </div>
 
         <div class="footer">

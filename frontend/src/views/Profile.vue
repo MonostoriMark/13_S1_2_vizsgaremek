@@ -1,7 +1,17 @@
 <template>
   <div class="profile-page">
-    <div class="profile-container">
+    <!-- Home Button -->
+    <router-link to="/" class="home-button">
+      <span class="home-icon">🏠</span>
+      <span class="home-text">Home</span>
+    </router-link>
+    
+    <!-- Profile Card -->
+    <div class="profile-container" >
       <div class="profile-header">
+        <div class="travel-icon-wrapper">
+          <div class="travel-icon">👤</div>
+        </div>
         <h1>My Profile</h1>
         <p class="profile-subtitle">Manage your account information</p>
       </div>
@@ -90,11 +100,13 @@
         </form>
       </div>
     </div>
+    
+   
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
@@ -111,6 +123,17 @@ const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
 const successMessage = ref('')
+
+// Slideshow
+const slideshowImages = [
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop'
+]
+
+const currentSlide = ref(0)
+let slideshowInterval = null
 
 const formData = ref({
   name: '',
@@ -133,6 +156,17 @@ onMounted(() => {
       password: '',
       confirmPassword: ''
     }
+  }
+
+  // Auto-advance slideshow every 5 seconds
+  slideshowInterval = setInterval(() => {
+    currentSlide.value = (currentSlide.value + 1) % slideshowImages.length
+  }, 5000)
+})
+
+onUnmounted(() => {
+  if (slideshowInterval) {
+    clearInterval(slideshowInterval)
   }
 })
 
@@ -198,82 +232,153 @@ const handleCancel = () => {
 
 <style scoped>
 .profile-page {
-  min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+}
+
+/* Home Button */
+.home-button {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  color: #667eea;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.home-button:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #764ba2;
+}
+
+.home-icon {
+  font-size: 1.2rem;
+}
+
+.home-text {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .home-text {
+    display: inline;
+  }
 }
 
 .profile-container {
-  max-width: 700px;
-  width: 100%;
+  flex: 1;
+  max-width: 550px;
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 .profile-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2.5rem 2rem;
+  padding: 1.75rem 1.5rem 1rem;
   text-align: center;
+  background: white;
+}
+
+.travel-icon-wrapper {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.travel-icon {
+  font-size: 2rem;
 }
 
 .profile-header h1 {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  color: #1f2937;
+  margin: 0.5rem 0;
 }
 
 .profile-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
 }
 
 .profile-form-container {
-  padding: 2.5rem 2rem;
+  padding: 0 1.5rem 1.75rem;
 }
 
 .form-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .section-title {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #1f2937;
   margin-bottom: 0.75rem;
 }
 
 .section-description {
-  color: #7f8c8d;
-  font-size: 0.9rem;
+  color: #6b7280;
+  font-size: 0.875rem;
   margin-bottom: 1.5rem;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .form-group label {
   display: block;
   font-weight: 600;
-  color: #2c3e50;
+  color: #374151;
   margin-bottom: 0.5rem;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
 }
 
 .form-input {
   width: 100%;
-  padding: 0.875rem 1.25rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  background: #f9fafb;
+  color: #1f2937;
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
 }
 
 .form-input:focus {
@@ -285,46 +390,45 @@ const handleCancel = () => {
 
 .form-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
   border-top: 2px solid #e8f4f8;
 }
 
 .btn-cancel {
-  padding: 0.875rem 2rem;
+  padding: 0.75rem 1.5rem;
   background: white;
   color: #667eea;
-  border: 2px solid #667eea;
-  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .btn-cancel:hover {
-  background: #f8f9ff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
 }
 
 .btn-submit {
-  padding: 0.875rem 2rem;
+  padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s ease;
 }
 
 .btn-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
@@ -357,44 +461,145 @@ const handleCancel = () => {
 }
 
 .error-message {
-  background: #fee;
-  color: #c33;
-  padding: 1rem 1.5rem;
-  border-radius: 10px;
-  margin: 1.5rem 2rem;
-  border-left: 4px solid #c33;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  margin: 0 2rem 1.5rem;
+  border: 1px solid #fecaca;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
 .success-message {
-  background: #efe;
-  color: #3c3;
-  padding: 1rem 1.5rem;
-  border-radius: 10px;
-  margin: 1.5rem 2rem;
-  border-left: 4px solid #3c3;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  margin: 0 2rem 1.5rem;
+  border: 1px solid #a7f3d0;
+  font-size: 0.875rem;
   font-weight: 500;
+}
+
+/* Slideshow Section */
+.profile-slideshow {
+  flex: 1;
+  max-width: 450px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.slideshow-container {
+  position: relative;
+  width: 100%;
+  max-height: 500px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.slide {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.slide.active {
+  display: block;
+  animation: fadeIn 1s ease-in-out;
+}
+
+.slide img {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slideshow-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dot.active {
+  background: white;
+  width: 24px;
+  border-radius: 5px;
 }
 
 @media (max-width: 768px) {
   .profile-page {
+    flex-direction: column;
     padding: 1rem;
   }
 
+  .home-button {
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
   .profile-container {
-    border-radius: 16px;
+    max-width: 100%;
+    order: 1;
   }
 
   .profile-header {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.5rem 1rem;
   }
 
   .profile-header h1 {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
 
   .profile-form-container {
-    padding: 2rem 1.5rem;
+    padding: 0 1.25rem 1.5rem;
+  }
+
+  .profile-slideshow {
+    max-width: 100%;
+    padding: 1rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 300px;
+  }
+
+  .slide img {
+    max-height: 300px;
   }
 
   .form-actions {
@@ -404,6 +609,51 @@ const handleCancel = () => {
   .btn-cancel,
   .btn-submit {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-page {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .home-button {
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .profile-container {
+    max-width: 100%;
+    order: 1;
+  }
+
+  .profile-header {
+    padding: 1.5rem 1.25rem 0.75rem;
+  }
+
+  .profile-header h1 {
+    font-size: 1.375rem;
+  }
+
+  .profile-form-container {
+    padding: 0 1.25rem 1.5rem;
+  }
+
+  .profile-slideshow {
+    max-width: 100%;
+    padding: 0.5rem;
+    order: 2;
+  }
+
+  .slideshow-container {
+    max-height: 250px;
+  }
+
+  .slide img {
+    max-height: 250px;
   }
 }
 </style>

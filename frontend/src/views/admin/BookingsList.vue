@@ -19,6 +19,9 @@
 
     <!-- Error State -->
     <div v-if="error" class="error-message">{{ error }}</div>
+    
+    <!-- Success Message -->
+    <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
     <!-- Hotel Info Card -->
     <div v-if="hotel && !hotelLoading" class="hotel-info-card">
@@ -151,6 +154,55 @@
             </div>
           </div>
 
+          <!-- Invoice Section (Admin) -->
+          <div v-if="booking.status === 'confirmed'" class="invoice-section">
+            <h4 class="section-title">Invoice</h4>
+            <div v-if="booking.invoice" class="invoice-info">
+              <div class="invoice-status">
+                <span class="invoice-status-badge" :class="`invoice-${booking.invoice.status}`">
+                  {{ formatInvoiceStatus(booking.invoice.status) }}
+                </span>
+                <span class="invoice-number">{{ booking.invoice.invoice_number }}</span>
+              </div>
+              <div class="invoice-actions">
+                <button
+                  v-if="booking.invoice.status === 'draft'"
+                  @click="previewInvoice(booking.id)"
+                  class="btn-invoice-preview"
+                  :disabled="invoiceLoading === booking.id"
+                >
+                  📄 Preview
+                </button>
+                <button
+                  v-if="booking.invoice.status === 'draft'"
+                  @click="approveInvoice(booking.invoice.id, booking.id)"
+                  class="btn-invoice-approve"
+                  :disabled="invoiceLoading === booking.id"
+                >
+                  ✓ Approve
+                </button>
+                <button
+                  v-if="booking.invoice.status === 'approved'"
+                  @click="sendInvoice(booking.invoice.id, booking.id)"
+                  class="btn-invoice-send"
+                  :disabled="invoiceLoading === booking.id"
+                >
+                  📧 Send to Guest
+                </button>
+                <button
+                  v-if="booking.invoice.status === 'sent'"
+                  class="btn-invoice-sent"
+                  disabled
+                >
+                  ✅ Sent
+                </button>
+              </div>
+            </div>
+            <div v-else class="no-invoice">
+              <p>Invoice will be generated after booking confirmation</p>
+            </div>
+          </div>
+
           <!-- Booking Actions (Admin) -->
           <div class="booking-actions">
             <div v-if="booking.status === 'pending'" class="pending-actions">
@@ -189,6 +241,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { hotelService } from '../../services/hotelService'
 import { bookingService } from '../../services/bookingService'
+import { invoiceService } from '../../services/invoiceService'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
@@ -198,6 +251,8 @@ const loading = ref(true)
 const hotelLoading = ref(true)
 const error = ref('')
 const updating = ref(null)
+const invoiceLoading = ref(null)
+const successMessage = ref('')
 
 const confirmedCount = computed(() => {
   return bookings.value.filter(b => b.status === 'confirmed').length
@@ -247,7 +302,8 @@ const loadBookings = async () => {
     
     if (data && data.bookings && Array.isArray(data.bookings)) {
       // The new endpoint returns bookings with all relationships already loaded
-      bookings.value = data.bookings.map(booking => {
+      // Load invoice data for confirmed bookings
+      bookings.value = await Promise.all(data.bookings.map(async (booking) => {
         // Rooms are already loaded via the relationship
         const rooms = booking.rooms ? booking.rooms.map(room => ({
           id: room.id,
@@ -255,13 +311,25 @@ const loadBookings = async () => {
           capacity: room.capacity || 'N/A'
         })) : []
         
+        // Load invoice data
+        let invoice = null
+        if (booking.status === 'confirmed') {
+          try {
+            const invoiceData = await invoiceService.getInvoiceByBooking(booking.id)
+            invoice = invoiceData?.invoice || null
+          } catch (err) {
+            console.error('Failed to load invoice:', err)
+          }
+        }
+        
         return {
           ...booking,
           rooms: rooms,
           user: booking.user || null,
-          guests: booking.guests || []
+          guests: booking.guests || [],
+          invoice: invoice
         }
-      })
+      }))
     } else {
       bookings.value = []
     }
@@ -310,10 +378,76 @@ const updateBookingStatus = async (bookingId, status) => {
   try {
     await bookingService.updateBookingStatus(bookingId, status)
     await loadBookings()
+    if (status === 'confirmed') {
+      successMessage.value = 'Booking confirmed! Invoice preview is now available.'
+      setTimeout(() => { successMessage.value = '' }, 5000)
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Failed to update booking status'
   } finally {
     updating.value = null
+  }
+}
+
+const formatInvoiceStatus = (status) => {
+  const statusMap = {
+    'draft': 'Draft',
+    'approved': 'Approved',
+    'sent': 'Sent'
+  }
+  return statusMap[status] || status
+}
+
+const previewInvoice = async (bookingId) => {
+  invoiceLoading.value = bookingId
+  try {
+    const blob = await invoiceService.generatePreview(bookingId)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.target = '_blank'
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Failed to generate invoice preview'
+  } finally {
+    invoiceLoading.value = null
+  }
+}
+
+const approveInvoice = async (invoiceId, bookingId) => {
+  if (!confirm('Are you sure you want to approve this invoice? It will be finalized and cannot be edited.')) {
+    return
+  }
+  
+  invoiceLoading.value = bookingId
+  try {
+    await invoiceService.approveInvoice(invoiceId)
+    successMessage.value = 'Invoice approved successfully!'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Failed to approve invoice'
+  } finally {
+    invoiceLoading.value = null
+  }
+}
+
+const sendInvoice = async (invoiceId, bookingId) => {
+  if (!confirm('Send this invoice to the guest via email?')) {
+    return
+  }
+  
+  invoiceLoading.value = bookingId
+  try {
+    await invoiceService.sendInvoice(invoiceId)
+    successMessage.value = 'Invoice sent to guest successfully!'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Failed to send invoice'
+  } finally {
+    invoiceLoading.value = null
   }
 }
 </script>
@@ -409,6 +543,139 @@ const updateBookingStatus = async (bookingId, status) => {
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Success Message */
+.success-message {
+  background: #d4edda;
+  color: #155724;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  border: 1px solid #c3e6cb;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Invoice Section */
+.invoice-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.invoice-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.invoice-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.invoice-status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.invoice-draft {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.invoice-approved {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.invoice-sent {
+  background: #d4edda;
+  color: #155724;
+}
+
+.invoice-number {
+  font-size: 0.9rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.invoice-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-invoice-preview,
+.btn-invoice-approve,
+.btn-invoice-send,
+.btn-invoice-sent {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-invoice-preview {
+  background: #667eea;
+  color: white;
+}
+
+.btn-invoice-preview:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-invoice-approve {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-invoice-approve:hover:not(:disabled) {
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+}
+
+.btn-invoice-send {
+  background: #3498db;
+  color: white;
+}
+
+.btn-invoice-send:hover:not(:disabled) {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.btn-invoice-sent {
+  background: #95a5a6;
+  color: white;
+  cursor: not-allowed;
+}
+
+.btn-invoice-preview:disabled,
+.btn-invoice-approve:disabled,
+.btn-invoice-send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.no-invoice {
+  padding: 1rem;
+  text-align: center;
+  color: #7f8c8d;
+  font-size: 0.9rem;
 }
 
 /* Hotel Info Card */

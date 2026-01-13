@@ -48,23 +48,15 @@ export const useAuthStore = () => {
   const registerUser = async (name, email, password) => {
     try {
       const data = await authService.registerUser(name, email, password)
-      state.token = data.token
-      state.user = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        isVerified: data.isVerified || false
-      }
-      state.isAuthenticated = true
       
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('auth_user', JSON.stringify(state.user))
+      // DO NOT authenticate user - they must verify email first
+      // Do not set token, user, or isAuthenticated
+      // Do not store in localStorage
       
       return { 
         success: true,
         message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
-        requiresVerification: !data.isVerified
+        requiresVerification: true // Always require verification
       }
     } catch (error) {
       return {
@@ -77,23 +69,15 @@ export const useAuthStore = () => {
   const registerHotel = async (name, email, password, hotelName, location, type, starRating) => {
     try {
       const data = await authService.registerHotel(name, email, password, hotelName, location, type, starRating)
-      state.token = data.token
-      state.user = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        isVerified: data.isVerified || false
-      }
-      state.isAuthenticated = true
       
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('auth_user', JSON.stringify(state.user))
+      // DO NOT authenticate user - they must verify email first
+      // Do not set token, user, or isAuthenticated
+      // Do not store in localStorage
       
       return { 
         success: true,
         message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
-        requiresVerification: !data.isVerified
+        requiresVerification: true // Always require verification
       }
     } catch (error) {
       return {
