@@ -57,6 +57,7 @@ class FullDemoSeeder extends Seeder
                 'email' => 'optikartofficial@gmail.com',
                 'password' => bcrypt('Gum55NDx'),
                 'role' => 'super_admin',
+                'isVerified' => true,
             ]);
 
             $user = User::create([

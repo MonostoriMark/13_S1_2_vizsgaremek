@@ -1048,9 +1048,7 @@ const handleRegister = async () => {
     max-width: 100%;
     min-height: 100px;
     padding: 1rem;
-  }
-
-  .role-icon {
+  }  .role-icon {
     font-size: 2.25rem;
   }
 }

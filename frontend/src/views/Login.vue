@@ -80,6 +80,13 @@
             </form>
           </div>
         </div>
+
+      <!-- 2FA Setup Prompt -->
+      <TwoFactorPrompt 
+        :visible="show2FAPrompt"
+        @enable="handleEnable2FA"
+        @skip="handleSkip2FA"
+      />
     
     <!-- Slideshow Section -->
     <div class="login-slideshow">
@@ -111,6 +118,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import TwoFactorPrompt from '../components/TwoFactorPrompt.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -120,6 +128,7 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const resendingEmail = ref(false)
+const show2FAPrompt = ref(false)
 
 // Slideshow
 const slideshowImages = [
@@ -152,13 +161,53 @@ const handleLogin = async () => {
   const result = await authStore.login(email.value, password.value)
 
   if (result.success) {
-    if (authStore.state.user.role === 'user') {
+    // For hotel admins: force 2FA setup, don't allow skipping
+    if (authStore.state.user.role === 'hotel' && !authStore.state.user.two_factor_enabled) {
+      // Redirect directly to profile to enable 2FA
+      router.push('/admin/users')
+      loading.value = false
+      return
+    }
+    
+    // Show 2FA prompt if user doesn't have it enabled (except super_admin and hotel)
+    if (result.show_2fa_prompt && !authStore.state.user.two_factor_enabled && authStore.state.user.role !== 'hotel') {
+      show2FAPrompt.value = true
+      // Don't navigate yet - wait for user to enable or skip
+      loading.value = false
+      return
+    }
+
+    // Navigate based on role
+    if (authStore.state.user.role === 'super_admin') {
+      router.push('/super-admin/dashboard')
+    } else if (authStore.state.user.role === 'user') {
       router.push('/bookings')
     } else if (authStore.state.user.role === 'hotel') {
       router.push('/admin/bookings')
     } else {
       router.push('/search')
     }
+  } else if (result.requires_2fa_setup) {
+    // Redirect to 2FA setup
+    router.push({
+      path: '/two-factor-auth',
+      query: {
+        setup: 'true',
+        qr_code: result.qr_code,
+        secret: result.two_factor_secret,
+        email: email.value,
+        password: password.value
+      }
+    })
+  } else if (result.requires_2fa) {
+    // Redirect to 2FA verification
+    router.push({
+      path: '/two-factor-auth',
+      query: {
+        email: email.value,
+        password: password.value
+      }
+    })
   } else {
     error.value = result.message || 'Login failed'
     // If email not verified, show resend option
@@ -188,6 +237,36 @@ const resendVerificationEmail = async () => {
     error.value = err.response?.data?.message || 'Hiba történt az e-mail küldése során'
   } finally {
     resendingEmail.value = false
+  }
+}
+
+const handleEnable2FA = () => {
+  show2FAPrompt.value = false
+  // Navigate based on role, then they can enable 2FA in profile
+  if (authStore.state.user.role === 'user') {
+    router.push('/bookings')
+  } else if (authStore.state.user.role === 'hotel') {
+    router.push('/admin/bookings')
+  } else {
+    router.push('/search')
+  }
+  // Show a toast message to remind them to enable 2FA in profile
+  if (window.showToast) {
+    window.showToast('You can enable 2FA in your profile settings for added security', 'info')
+  }
+}
+
+const handleSkip2FA = () => {
+  show2FAPrompt.value = false
+  // Navigate based on role
+  if (authStore.state.user.role === 'super_admin') {
+    router.push('/super-admin/dashboard')
+  } else if (authStore.state.user.role === 'user') {
+    router.push('/bookings')
+  } else if (authStore.state.user.role === 'hotel') {
+    router.push('/admin/bookings')
+  } else {
+    router.push('/search')
   }
 }
 </script>
@@ -707,9 +786,7 @@ const resendVerificationEmail = async () => {
     padding: 1.5rem 1.25rem;
     max-width: 100%;
     order: 1;
-  }
-
-  .welcome-header h1 {
+  }  .welcome-header h1 {
     font-size: 1.375rem;
   }
 }

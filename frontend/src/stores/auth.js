@@ -13,28 +13,58 @@ const storedUser = localStorage.getItem('auth_user')
 
 if (storedToken && storedUser) {
   state.token = storedToken
-  state.user = JSON.parse(storedUser)
+  const user = JSON.parse(storedUser)
+  state.user = {
+    ...user,
+    two_factor_enabled: user.two_factor_enabled || false
+  }
   state.isAuthenticated = true
 }
 
 export const useAuthStore = () => {
-  const login = async (email, password) => {
+  const login = async (email, password, twoFactorCode = null) => {
     try {
-      const data = await authService.login(email, password)
+      const data = await authService.login(email, password, twoFactorCode)
+      
+      // Check if 2FA is required
+      if (data.requires_2fa) {
+        return {
+          success: false,
+          requires_2fa: true,
+          message: data.message || 'Two-factor authentication code required'
+        }
+      }
+
+      // Check if 2FA setup is required (first time)
+      if (data.requires_2fa_setup) {
+        return {
+          success: false,
+          requires_2fa_setup: true,
+          two_factor_secret: data.two_factor_secret,
+          qr_code: data.qr_code,
+          message: data.message || 'Please set up two-factor authentication'
+        }
+      }
+
+      // Normal login success
       state.token = data.token
       state.user = {
         id: data.id,
         name: data.name,
         email: data.email,
         role: data.role,
-        isVerified: data.isVerified !== undefined ? data.isVerified : true
+        isVerified: data.isVerified !== undefined ? data.isVerified : true,
+        two_factor_enabled: data.two_factor_enabled || false
       }
       state.isAuthenticated = true
       
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('auth_user', JSON.stringify(state.user))
       
-      return { success: true }
+      return { 
+        success: true,
+        show_2fa_prompt: data.show_2fa_prompt || false
+      }
     } catch (error) {
       const responseData = error.response?.data || {}
       return {

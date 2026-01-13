@@ -1,6 +1,11 @@
 <template>
   <div class="admin-layout">
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+    <Admin2FABlocker
+      :visible="show2FABlocker"
+      @enable="handleEnable2FA"
+    />
+    
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed, 'blocked': show2FABlocker }">
       <div class="sidebar-header">
         <div class="user-profile-sidebar">
           <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
@@ -23,6 +28,7 @@
           :to="item.path"
           class="nav-item"
           :title="item.label"
+          @click="handleNavClick($event, item.path)"
         >
           <span class="nav-icon">{{ item.icon }}</span>
           <span v-if="!sidebarCollapsed" class="nav-label">{{ item.label }}</span>
@@ -33,11 +39,12 @@
           to="/admin/bookings"
           class="nav-item bookings-nav-item"
           :title="sidebarCollapsed ? 'Bookings' : ''"
+          @click="handleNavClick($event, '/admin/bookings')"
         >
           <span class="nav-icon">📅</span>
           <span v-if="!sidebarCollapsed" class="nav-label">Bookings</span>
         </router-link>
-        <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? 'Logout' : ''">
+        <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? 'Logout' : ''" :disabled="show2FABlocker">
           <span class="nav-icon">🚪</span>
           <span v-if="!sidebarCollapsed">Logout</span>
         </button>
@@ -57,7 +64,7 @@
         </div>
       </header>
 
-      <div class="content-area">
+      <div class="content-area" :class="{ 'blocked': show2FABlocker }">
         <slot></slot>
       </div>
     </div>
@@ -65,14 +72,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import Admin2FABlocker from '../components/Admin2FABlocker.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const sidebarCollapsed = ref(false)
+const show2FABlocker = ref(false)
 
 const menuItems = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
@@ -114,11 +123,74 @@ const handleLogout = async () => {
   router.push('/login')
 }
 
-onMounted(() => {
+const handleEnable2FA = () => {
+  // Navigate to profile to enable 2FA
+  // The profile page will auto-open the 2FA setup modal
+  router.push('/admin/users')
+  show2FABlocker.value = false
+}
+
+const handleNavClick = (event, path) => {
+  // Block navigation if 2FA is not enabled (except profile page)
+  if (show2FABlocker.value && path !== '/admin/users') {
+    event.preventDefault()
+    event.stopPropagation()
+    return false
+  }
+}
+
+const check2FARequirement = async () => {
+  // Check if user is hotel admin and doesn't have 2FA enabled
+  if (authStore.state.user?.role === 'hotel' && !authStore.state.user?.two_factor_enabled) {
+    // Allow access to profile page to enable 2FA
+    if (route.path === '/admin/users') {
+      show2FABlocker.value = false
+      return
+    }
+    // Block all other admin pages
+    show2FABlocker.value = true
+    // Redirect to profile if trying to access other pages
+    if (route.path !== '/admin/users') {
+      router.push('/admin/users')
+    }
+  } else {
+    show2FABlocker.value = false
+  }
+}
+
+// Watch for route changes
+watch(() => route.path, () => {
+  check2FARequirement()
+})
+
+// Watch for user 2FA status changes
+watch(() => authStore.state.user?.two_factor_enabled, () => {
+  check2FARequirement()
+})
+
+onMounted(async () => {
   // Check if user is authenticated and has hotel role
   if (!authStore.state.isAuthenticated || authStore.state.user?.role !== 'hotel') {
     router.push('/login')
+    return
   }
+  
+  // Load fresh user data to check 2FA status
+  try {
+    const { authService } = await import('../services/authService')
+    const userData = await authService.getMe()
+    if (authStore.state.user) {
+      authStore.state.user.two_factor_enabled = userData.two_factor_enabled || false
+      localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
+    }
+  } catch (err) {
+    console.error('Failed to load user data:', err)
+  }
+  
+  // Check 2FA requirement after a short delay to ensure route is ready
+  setTimeout(() => {
+    check2FARequirement()
+  }, 100)
 })
 </script>
 
@@ -140,7 +212,7 @@ onMounted(() => {
   color: #2c3e50;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, filter 0.3s;
   box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
   position: fixed;
   top: 0;
@@ -151,6 +223,12 @@ onMounted(() => {
   border: none;
   outline: none;
   border-right: none;
+}
+
+.sidebar.blocked {
+  filter: blur(3px);
+  pointer-events: none;
+  user-select: none;
 }
 
 .sidebar.collapsed {
@@ -465,6 +543,13 @@ onMounted(() => {
   overflow-y: auto;
   max-width: 100%;
   background: white;
+  transition: filter 0.3s;
+}
+
+.content-area.blocked {
+  filter: blur(5px);
+  pointer-events: none;
+  user-select: none;
 }
 
 @media (max-width: 768px) {

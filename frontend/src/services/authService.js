@@ -1,8 +1,12 @@
 import api from './api'
 
 export const authService = {
-  async login(email, password) {
-    const response = await api.post('/auth/login', { email, password })
+  async login(email, password, twoFactorCode = null) {
+    const payload = { email, password }
+    if (twoFactorCode) {
+      payload.two_factor_code = twoFactorCode
+    }
+    const response = await api.post('/auth/login', payload)
     return response.data
   },
 
@@ -50,6 +54,31 @@ export const authService = {
 
   async resetPassword(token, password) {
     const response = await api.post('/auth/reset-password', { token, password })
+    return response.data
+  },
+
+  async verify2FA(code) {
+    const response = await api.post('/auth/verify-2fa', { code })
+    return response.data
+  },
+
+  async enable2FA() {
+    const response = await api.post('/auth/2fa/enable')
+    return response.data
+  },
+
+  async verifyAndEnable2FA(code) {
+    const response = await api.post('/auth/2fa/verify-enable', { code })
+    return response.data
+  },
+
+  async disable2FA(password) {
+    const response = await api.post('/auth/2fa/disable', { password })
+    return response.data
+  },
+
+  async deleteAccount(userId, password) {
+    const response = await api.post(`/auth/deleteuser/${userId}`, { password })
     return response.data
   }
 }

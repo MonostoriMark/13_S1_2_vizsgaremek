@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Models\Hotel;
 use App\Mail\EmailVerificationMail;
 use App\Mail\PasswordResetMail;
+use App\Helpers\TOTP;
+use Endroid\QrCode\Builder\Builder;
 
 class AuthController extends Controller
 {
@@ -60,6 +62,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'two_factor_code' => ['nullable', 'string', 'size:6'],
         ]);
 
         // Felhasználó keresése
@@ -71,12 +74,70 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Check if email is verified
-        if (!$user->isVerified) {
+        // Check if email is verified (except for super_admin)
+        if (!$user->isVerified && $user->role !== 'super_admin') {
             return response()->json([
                 'message' => 'Kérjük, erősítsd meg az e-mail címedet a bejelentkezés előtt. Ellenőrizd az e-mail fiókodat.',
                 'email_verified' => false
             ], 403);
+        }
+
+        // Super admin requires 2FA (mandatory)
+        if ($user->role === 'super_admin') {
+            if (!$user->two_factor_enabled) {
+                // First time setup - generate secret
+                $secret = TOTP::generateSecret();
+                $user->two_factor_secret = $secret;
+                $user->two_factor_enabled = true;
+                $user->save();
+
+                $qrCodeUrl = TOTP::getQRCodeUrl($user->email, $secret);
+                
+                // Generate QR code image using Builder
+                $qrResult = Builder::create()
+                    ->data($qrCodeUrl)
+                    ->size(300)
+                    ->build();
+                $qrCodeBase64 = base64_encode($qrResult->getString());
+
+                return response()->json([
+                    'requires_2fa_setup' => true,
+                    'two_factor_secret' => $secret,
+                    'qr_code' => 'data:image/png;base64,' . $qrCodeBase64,
+                    'message' => 'Please scan the QR code with your authenticator app and enter the code to complete setup.'
+                ], 200);
+            }
+
+            // 2FA is enabled, verify code
+            if (!isset($validated['two_factor_code'])) {
+                return response()->json([
+                    'requires_2fa' => true,
+                    'message' => 'Two-factor authentication code required'
+                ], 200);
+            }
+
+            if (!TOTP::verify($user->two_factor_secret, $validated['two_factor_code'])) {
+                return response()->json([
+                    'message' => 'Invalid two-factor authentication code'
+                ], 401);
+            }
+        }
+
+        // For regular users and hotel admins: 2FA is optional
+        // If 2FA is enabled, verify the code
+        if ($user->two_factor_enabled && $user->role !== 'super_admin') {
+            if (!isset($validated['two_factor_code'])) {
+                return response()->json([
+                    'requires_2fa' => true,
+                    'message' => 'Two-factor authentication code required'
+                ], 200);
+            }
+
+            if (!TOTP::verify($user->two_factor_secret, $validated['two_factor_code'])) {
+                return response()->json([
+                    'message' => 'Invalid two-factor authentication code'
+                ], 401);
+            }
         }
 
         // Új token generálása
@@ -87,8 +148,10 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'created_at' => $user->created_at, // már magyar idő
-            'token' => $token
+            'two_factor_enabled' => $user->two_factor_enabled ?? false,
+            'created_at' => $user->created_at,
+            'token' => $token,
+            'show_2fa_prompt' => !$user->two_factor_enabled && $user->role !== 'super_admin'
         ], 200);
     }
         public function logout(Request $request){
@@ -172,6 +235,7 @@ class AuthController extends Controller
                             'tax_number' => $user->tax_number,
                             'bank_account' => $user->bank_account,
                             'eu_tax_number' => $user->eu_tax_number,
+                            'two_factor_enabled' => $user->two_factor_enabled ?? false,
                             'created_at' => $user->created_at
                         ], 200);
                     }
@@ -214,23 +278,43 @@ class AuthController extends Controller
                             'name' => $user->name,
                             'email' => $user->email,
                             'role' => $user->role,
+                            'two_factor_enabled' => $user->two_factor_enabled ?? false,
                             'created_at' => $user->created_at
                         ], 200);
                     }
                 
-                public function deleteUser($id){
+                public function deleteUser(Request $request, $id){
                     $user = User::find($id);
-                     // -------------------------
-    // Ellenőrizzük, hogy a foglalás a bejelentkezett userhez tartozik-e
-    // -------------------------
-                    if ($user->id !== auth()->id()) {
-                        return response()->json(['error' => 'Nincs jogosultságod'], 403);
-                    }
+                    
+                    // Check if user exists
                     if(!$user){
                         return response()->json(['message' => 'User not found'], 404);
                     }
+                    
+                    // Check if user is trying to delete themselves
+                    if ($user->id !== auth()->id()) {
+                        return response()->json(['error' => 'Nincs jogosultságod'], 403);
+                    }
+                    
+                    // Prevent super admin from deleting themselves
+                    if ($user->role === 'super_admin') {
+                        return response()->json(['error' => 'Super admin accounts cannot be deleted'], 403);
+                    }
+                    
+                    // Verify password before deletion
+                    $validated = $request->validate([
+                        'password' => ['required', 'string'],
+                    ]);
+                    
+                    if (!Hash::check($validated['password'], $user->password)) {
+                        return response()->json([
+                            'message' => 'Invalid password'
+                        ], 401);
+                    }
+                    
+                    // Delete user (cascade will handle related data)
                     $user->delete();
-                    return response()->json(['message' => 'User deleted'], 200);
+                    return response()->json(['message' => 'Account deleted successfully'], 200);
                 }
 
                 // Admin endpoint to update their own user data (including invoice fields)
@@ -290,8 +374,139 @@ class AuthController extends Controller
                         'tax_number' => $user->tax_number,
                         'bank_account' => $user->bank_account,
                         'eu_tax_number' => $user->eu_tax_number,
+                        'two_factor_enabled' => $user->two_factor_enabled ?? false,
                         'created_at' => $user->created_at,
                         'updated_at' => $user->updated_at
+                    ], 200);
+                }
+
+                // Enable 2FA for any user
+                public function enable2FA(Request $request)
+                {
+                    $user = auth()->user();
+                    if (!$user) {
+                        return response()->json(['error' => 'Unauthorized'], 401);
+                    }
+
+                    // Generate secret if not exists
+                    if (!$user->two_factor_secret) {
+                        $secret = TOTP::generateSecret();
+                        $user->two_factor_secret = $secret;
+                        $user->save();
+                    } else {
+                        $secret = $user->two_factor_secret;
+                    }
+
+                    $qrCodeUrl = TOTP::getQRCodeUrl($user->email, $secret);
+                    
+                    // Generate QR code image
+                    $qrResult = Builder::create()
+                        ->data($qrCodeUrl)
+                        ->size(300)
+                        ->build();
+                    $qrCodeBase64 = base64_encode($qrResult->getString());
+
+                    return response()->json([
+                        'two_factor_secret' => $secret,
+                        'qr_code' => 'data:image/png;base64,' . $qrCodeBase64,
+                        'message' => 'Scan the QR code with your authenticator app'
+                    ], 200);
+                }
+
+                // Verify and enable 2FA
+                public function verifyAndEnable2FA(Request $request)
+                {
+                    $validated = $request->validate([
+                        'code' => ['required', 'string', 'size:6'],
+                    ]);
+
+                    $user = auth()->user();
+                    if (!$user) {
+                        return response()->json(['error' => 'Unauthorized'], 401);
+                    }
+
+                    if (!$user->two_factor_secret) {
+                        return response()->json(['error' => '2FA secret not found. Please enable 2FA first.'], 400);
+                    }
+
+                    if (!TOTP::verify($user->two_factor_secret, $validated['code'])) {
+                        return response()->json([
+                            'message' => 'Invalid code'
+                        ], 401);
+                    }
+
+                    // Enable 2FA
+                    $user->two_factor_enabled = true;
+                    $user->save();
+
+                    return response()->json([
+                        'message' => '2FA enabled successfully',
+                        'two_factor_enabled' => true
+                    ], 200);
+                }
+
+                // Disable 2FA
+                public function disable2FA(Request $request)
+                {
+                    $user = auth()->user();
+                    if (!$user) {
+                        return response()->json(['error' => 'Unauthorized'], 401);
+                    }
+
+                    // Super admin and hotel admins cannot disable 2FA
+                    if ($user->role === 'super_admin') {
+                        return response()->json(['error' => 'Super admin must have 2FA enabled'], 403);
+                    }
+
+                    if ($user->role === 'hotel') {
+                        return response()->json(['error' => 'Hotel administrators must have 2FA enabled'], 403);
+                    }
+
+                    $validated = $request->validate([
+                        'password' => ['required', 'string'],
+                    ]);
+
+                    // Verify password before disabling
+                    if (!Hash::check($validated['password'], $user->password)) {
+                        return response()->json([
+                            'message' => 'Invalid password'
+                        ], 401);
+                    }
+
+                    $user->two_factor_enabled = false;
+                    $user->two_factor_secret = null;
+                    $user->save();
+
+                    return response()->json([
+                        'message' => '2FA disabled successfully',
+                        'two_factor_enabled' => false
+                    ], 200);
+                }
+
+                // Verify 2FA code (for super admin setup)
+                public function verify2FA(Request $request)
+                {
+                    $validated = $request->validate([
+                        'code' => ['required', 'string', 'size:6'],
+                    ]);
+
+                    $user = auth()->user();
+                    if (!$user) {
+                        return response()->json(['error' => 'Unauthorized'], 401);
+                    }
+
+                    if (!$user->two_factor_secret) {
+                        return response()->json(['error' => '2FA not set up'], 400);
+                    }
+
+                    if (!TOTP::verify($user->two_factor_secret, $validated['code'])) {
+                        return response()->json([
+                            'message' => 'Invalid code'
+                        ], 401);
+                    }
+
+                    return response()->json([
+                        'message' => '2FA verified successfully'
                     ], 200);
                 }
 

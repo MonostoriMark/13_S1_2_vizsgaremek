@@ -103,7 +103,7 @@
       </div>
     </Transition>
 
-    <main class="main-content" :class="{ 'full-screen': isAuthRoute }">
+    <main class="main-content" :class="{ 'full-screen': isAuthRoute || route.path.startsWith('/super-admin') }">
       <router-view />
     </main>
     <Toast />
@@ -123,11 +123,11 @@ const mobileMenuOpen = ref(false)
 const adminLoading = ref(false)
 
 const isAdminRoute = computed(() => {
-  return route.path.startsWith('/admin')
+  return route.path.startsWith('/admin') || route.path.startsWith('/super-admin')
 })
 
 const isAuthRoute = computed(() => {
-  return route.path === '/login' || route.path === '/register' || route.path === '/profile'
+  return route.path === '/login' || route.path === '/register' || route.path === '/profile' || route.path.startsWith('/two-factor-auth')
 })
 
 // Watch for admin route navigation and show loading

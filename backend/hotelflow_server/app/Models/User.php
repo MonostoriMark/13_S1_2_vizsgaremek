@@ -21,6 +21,8 @@ class User extends Authenticatable
         'tax_number',
         'bank_account',
         'eu_tax_number',
+        'two_factor_secret',
+        'two_factor_enabled',
     ];
 
     protected $hidden = [

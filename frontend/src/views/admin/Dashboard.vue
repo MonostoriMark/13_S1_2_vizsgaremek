@@ -1,5 +1,12 @@
 <template>
   <AdminLayout>
+    <AdminWelcomePrompt
+      :visible="showWelcomePrompt"
+      message="Welcome to your hotel management dashboard! Here you can manage your hotels, rooms, services, and view all your bookings."
+      dismiss-text="Let's get started!"
+      @dismiss="handleDismissWelcome"
+    />
+    
     <div class="dashboard">
       <div class="stats-grid">
         <div class="stat-card">
@@ -78,12 +85,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
+import AdminWelcomePrompt from '../../components/AdminWelcomePrompt.vue'
 import { adminService } from '../../services/adminService'
 import { bookingService } from '../../services/bookingService'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 const loading = ref(true)
+const showWelcomePrompt = ref(false)
 const stats = ref({
   hotels: 0,
   rooms: 0,
@@ -91,6 +100,12 @@ const stats = ref({
   bookings: 0
 })
 const recentActivity = ref([])
+
+const handleDismissWelcome = () => {
+  showWelcomePrompt.value = false
+  // Store in localStorage that user has seen the welcome
+  localStorage.setItem('admin_welcome_seen', 'true')
+}
 
 const loadDashboardData = async () => {
   loading.value = true
@@ -156,6 +171,15 @@ const formatTime = (date) => {
 
 onMounted(() => {
   loadDashboardData()
+  
+  // Show welcome prompt if user hasn't seen it before
+  const welcomeSeen = localStorage.getItem('admin_welcome_seen')
+  if (!welcomeSeen) {
+    // Show after a short delay for better UX
+    setTimeout(() => {
+      showWelcomePrompt.value = true
+    }, 500)
+  }
 })
 </script>
 
