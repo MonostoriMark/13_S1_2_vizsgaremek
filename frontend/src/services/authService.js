@@ -36,6 +36,11 @@ export const authService = {
   async updateUser(userId, userData) {
     const response = await api.put(`/auth/updateuser/${userId}`, userData)
     return response.data
+  },
+
+  async resendVerificationEmail(email) {
+    const response = await api.post('/auth/resend-verification', { email })
+    return response.data
   }
 }
 

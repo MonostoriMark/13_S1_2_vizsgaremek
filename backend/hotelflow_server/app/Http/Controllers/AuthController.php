@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Hotel;
+use App\Mail\EmailVerificationMail;
 
 class AuthController extends Controller
 {
@@ -19,15 +22,22 @@ class AuthController extends Controller
             
         ]);
 
+        // Generate verification token
+        $verificationToken = Str::random(64);
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'user',
+            'isVerified' => false,
+            'email_verification_token' => $verificationToken,
             'created_at' => now()
-            
-]);
+        ]);
 
+        // Send verification email
+        $verificationUrl = config('app.url') . '/api/auth/verify-email/' . $verificationToken;
+        Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
         $token = $user->createToken('api_token')->plainTextToken;
 
@@ -36,8 +46,10 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
+            'isVerified' => false,
             'created_at' => $user->created_at,
-            'token' => $token
+            'token' => $token,
+            'message' => 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.'
         ], 201);
     }
 
@@ -56,6 +68,14 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Invalid credentials'
             ], 401);
+        }
+
+        // Check if email is verified
+        if (!$user->isVerified) {
+            return response()->json([
+                'message' => 'Kérjük, erősítsd meg az e-mail címedet a bejelentkezés előtt. Ellenőrizd az e-mail fiókodat.',
+                'email_verified' => false
+            ], 403);
         }
 
         // Új token generálása
@@ -196,5 +216,68 @@ class AuthController extends Controller
                     }
                     $user->delete();
                     return response()->json(['message' => 'User deleted'], 200);
+                }
+
+                // Email verification endpoint
+                public function verifyEmail($token)
+                {
+                    $user = User::where('email_verification_token', $token)->first();
+
+                    if (!$user) {
+                        return response()->json([
+                            'message' => 'Érvénytelen vagy lejárt megerősítési link.'
+                        ], 404);
+                    }
+
+                    if ($user->isVerified) {
+                        return response()->json([
+                            'message' => 'Az e-mail cím már megerősítve van.'
+                        ], 400);
+                    }
+
+                    // Verify the user
+                    $user->isVerified = true;
+                    $user->email_verified_at = now();
+                    $user->email_verification_token = null;
+                    $user->save();
+
+                    return response()->json([
+                        'message' => 'E-mail cím sikeresen megerősítve! Most már bejelentkezhetsz.'
+                    ], 200);
+                }
+
+                // Resend verification email
+                public function resendVerificationEmail(Request $request)
+                {
+                    $validated = $request->validate([
+                        'email' => ['required', 'string', 'email'],
+                    ]);
+
+                    $user = User::where('email', $validated['email'])->first();
+
+                    if (!$user) {
+                        return response()->json([
+                            'message' => 'Felhasználó nem található ezzel az e-mail címmel.'
+                        ], 404);
+                    }
+
+                    if ($user->isVerified) {
+                        return response()->json([
+                            'message' => 'Az e-mail cím már megerősítve van.'
+                        ], 400);
+                    }
+
+                    // Generate new verification token
+                    $verificationToken = Str::random(64);
+                    $user->email_verification_token = $verificationToken;
+                    $user->save();
+
+                    // Send verification email
+                    $verificationUrl = config('app.url') . '/api/auth/verify-email/' . $verificationToken;
+                    Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
+
+                    return response()->json([
+                        'message' => 'Megerősítő e-mail újraküldve. Kérjük, ellenőrizd az e-mail fiókodat.'
+                    ], 200);
                 }
 }

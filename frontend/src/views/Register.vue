@@ -333,12 +333,25 @@ const handleRegister = async () => {
   }
 
   if (result.success) {
-    if (authStore.state.user.role === 'user') {
-      router.push('/bookings')
-    } else if (authStore.state.user.role === 'hotel') {
-      router.push('/admin/bookings')
+    if (result.requiresVerification) {
+      // Show success message but don't redirect - user needs to verify email
+      error.value = ''
+      // Show info message instead
+      if (window.showToast) {
+        window.showToast(result.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.', 'info')
+      }
+      // Redirect to login after a delay
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
     } else {
-      router.push('/search')
+      if (authStore.state.user.role === 'user') {
+        router.push('/bookings')
+      } else if (authStore.state.user.role === 'hotel') {
+        router.push('/admin/bookings')
+      } else {
+        router.push('/search')
+      }
     }
   } else {
     error.value = result.message || 'Registration failed'

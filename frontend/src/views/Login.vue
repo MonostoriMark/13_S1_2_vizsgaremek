@@ -20,7 +20,15 @@
 
             <div v-if="error" class="error-message">
               <span class="error-icon">⚠️</span>
-              {{ error }}
+              <div class="error-text">{{ error }}</div>
+              <button 
+                v-if="error.includes('erősítsd meg') || error.includes('megerősít') || error.includes('E-mail')" 
+                @click="resendVerificationEmail"
+                class="btn-resend-verification"
+                :disabled="resendingEmail"
+              >
+                {{ resendingEmail ? 'Küldés...' : 'E-mail újraküldése' }}
+              </button>
             </div>
 
             <form @submit.prevent="handleLogin" class="login-form">
@@ -87,6 +95,7 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const resendingEmail = ref(false)
 
 const handleLogin = async () => {
   error.value = ''
@@ -104,9 +113,34 @@ const handleLogin = async () => {
     }
   } else {
     error.value = result.message || 'Login failed'
+    // If email not verified, show resend option
+    if (result.email_verified === false || result.message?.includes('erősítsd meg')) {
+      // Error message already includes instructions, resend button will show automatically
+    }
   }
 
   loading.value = false
+}
+
+const resendVerificationEmail = async () => {
+  if (!email.value) {
+    error.value = 'Kérjük, add meg az e-mail címedet'
+    return
+  }
+  
+  resendingEmail.value = true
+  try {
+    const { authService } = await import('../services/authService')
+    await authService.resendVerificationEmail(email.value)
+    if (window.showToast) {
+      window.showToast('Megerősítő e-mail elküldve! Kérjük, ellenőrizd az e-mail fiókodat.', 'success')
+    }
+    error.value = 'Megerősítő e-mail elküldve! Kérjük, ellenőrizd az e-mail fiókodat.'
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Hiba történt az e-mail küldése során'
+  } finally {
+    resendingEmail.value = false
+  }
 }
 </script>
 
@@ -432,12 +466,64 @@ const handleLogin = async () => {
   font-size: 0.875rem;
   border: 1px solid #fecaca;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.error-icon {
+.error-message .error-icon {
   font-size: 1.1rem;
+  align-self: flex-start;
+}
+
+.error-text {
+  flex: 1;
+}
+
+.btn-resend-verification {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.btn-resend-verification:hover:not(:disabled) {
+  background: #764ba2;
+  transform: translateY(-1px);
+}
+
+.btn-resend-verification:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-resend-verification {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-resend-verification:hover:not(:disabled) {
+  background: #764ba2;
+  transform: translateY(-1px);
+}
+
+.btn-resend-verification:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Responsive Design */

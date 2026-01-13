@@ -26,7 +26,8 @@ export const useAuthStore = () => {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role
+        role: data.role,
+        isVerified: data.isVerified !== undefined ? data.isVerified : true
       }
       state.isAuthenticated = true
       
@@ -35,9 +36,11 @@ export const useAuthStore = () => {
       
       return { success: true }
     } catch (error) {
+      const responseData = error.response?.data || {}
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message: responseData.message || 'Login failed',
+        email_verified: responseData.email_verified !== false
       }
     }
   }
@@ -50,14 +53,19 @@ export const useAuthStore = () => {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role
+        role: data.role,
+        isVerified: data.isVerified || false
       }
       state.isAuthenticated = true
       
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('auth_user', JSON.stringify(state.user))
       
-      return { success: true }
+      return { 
+        success: true,
+        message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
+        requiresVerification: !data.isVerified
+      }
     } catch (error) {
       return {
         success: false,
@@ -74,14 +82,19 @@ export const useAuthStore = () => {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role
+        role: data.role,
+        isVerified: data.isVerified || false
       }
       state.isAuthenticated = true
       
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('auth_user', JSON.stringify(state.user))
       
-      return { success: true }
+      return { 
+        success: true,
+        message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
+        requiresVerification: !data.isVerified
+      }
     } catch (error) {
       return {
         success: false,
