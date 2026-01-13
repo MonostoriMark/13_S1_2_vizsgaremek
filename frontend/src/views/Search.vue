@@ -1,21 +1,20 @@
 <template>
-  <div class="search-page" style="width: 100%; overflow-x: hidden;">
-    <!-- Hero with background image and search form -->
-    <section class="search-hero" :class="{ 'is-sticky': isSticky }">
-      <div class="hero-background">
-        <div class="hero-image"></div>
-        <div class="hero-overlay"></div>
+  <div class="search-page">
+    <!-- Home Button -->
+    <router-link to="/" class="home-button" v-if="!isAuthenticated">
+      <span class="home-icon">🏠</span>
+      <span class="home-text">Home</span>
+    </router-link>
+    
+    <!-- Clean Search Section -->
+    <div class="search-container">
+      <div class="search-header">
+        <h1>Find Your Perfect Stay</h1>
+        <p>Discover amazing hotels, apartments, and villas</p>
       </div>
-      <div class="hero-content">
-        <!-- Overlay Text on Left -->
-        <div class="hero-text">
-          <h1>A piece of paradise just for you</h1>
-          <p>Book entire houses, villas, hotels, and more</p>
-          <button class="btn-discover" @click="scrollToSearch">Discover vacation rentals</button>
-        </div>
 
-        <!-- Main Search Bar with Yellow Border -->
-        <div class="hero-search-wrapper">
+      <!-- Main Search Bar -->
+      <div class="search-card">
           <form @submit.prevent="handleSearch" class="search-form-booking">
             <div class="form-row-booking">
               <div class="form-group-booking location-input-wrapper">
@@ -136,11 +135,9 @@
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Content Area -->
-    <div class="search-content">
+      <!-- Content Area -->
+      <div class="search-content">
       <!-- Loading State -->
       <div v-if="loading && !hasSearched" class="loading-container">
         <div class="loading-spinner"></div>
@@ -309,6 +306,7 @@
           </div>
         </div>
       </div>
+      </div>
     </div>
   </div>
 </template>
@@ -323,6 +321,7 @@ import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const isAuthenticated = computed(() => authStore.state.isAuthenticated)
 
 const searchParams = ref({
   city: '',
@@ -622,131 +621,97 @@ onUnmounted(() => {
 <style scoped>
 .search-page {
   min-height: 100vh;
-  background: #f3f6fb;
-  width: 100%;
-  overflow-x: hidden;
-}
-
-/* Hero Section */
-.search-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 0;
-  box-shadow: none;
-  margin: 0;
-  margin-top: 0;
-  padding: 0;
+  height: 100vh;
   width: 100vw;
-  min-height: 75vh;
-  left: 50%;
-  right: 50%;
-  margin-left: -50vw;
-  margin-right: -50vw;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 0;
+  margin: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-.hero-background {
+/* Home Button */
+.home-button {
   position: absolute;
-  inset: 0;
+  top: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: white;
+  color: #667eea;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  z-index: 100;
 }
 
-.hero-image {
-  position: absolute;
-  inset: 0;
-  background-image: url('https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1920&q=80');
-  background-size: cover;
-  background-position: center;
-  transform-origin: center;
-  animation: heroZoom 20s ease-in-out infinite;
+.home-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: #764ba2;
 }
 
-@keyframes heroZoom {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+.home-icon {
+  font-size: 1.1rem;
 }
 
-.hero-overlay {
-  position: absolute;
-  inset: 0;
-  /* Subtle dark overlay for text readability */
-  background: rgba(0, 0, 0, 0.3);
+.home-text {
+  display: none;
 }
 
-.hero-content {
-  position: relative;
-  max-width: 1400px;
+@media (min-width: 480px) {
+  .home-text {
+    display: inline;
+  }
+}
+
+/* Search Container */
+.search-container {
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: 4rem 2rem 2rem 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-  min-height: 75vh;
-  justify-content: space-between;
-  box-sizing: border-box;
+  padding: 2rem;
+  padding-top: 5rem;
 }
 
-.hero-text {
-  max-width: 600px;
-  color: white;
-  margin-top: 0;
-  padding-left: 2rem;
-  width: auto;
+.search-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
 }
 
-.hero-text h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  line-height: 1.2;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+.search-header h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
 }
 
-.hero-text p {
-  font-size: 1.25rem;
-  opacity: 0.95;
-  margin-bottom: 1.5rem;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
-}
-
-.btn-discover {
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
+.search-header p {
   font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  width: fit-content;
+  color: #6b7280;
 }
 
-.btn-discover:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
-}
-
-.hero-search-wrapper {
-  /* Booking.com style: White search bar with yellow border - With margin and border radius */
+/* Search Card */
+.search-card {
   background: white;
-  border: 4px solid #FFB700;
-  border-radius: 12px;
-  padding: 1.5rem 2rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  margin-top: auto;
-  margin-left: 2rem;
-  margin-right: 2rem;
-  width: calc(100% - 4rem);
-  max-width: calc(100% - 4rem);
-  box-sizing: border-box;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
-.search-hero.is-sticky .hero-search-wrapper {
-  position: sticky;
-  top: 70px;
-  z-index: 20;
+.search-form-booking {
+  width: 100%;
 }
 
 .search-form-booking {
@@ -761,13 +726,14 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   width: 100%;
+  border: 1px solid #e5e7eb;
 }
 
 .form-group-booking {
   position: relative;
   display: flex;
   align-items: center;
-  background: white;
+  background: #f9fafb;
   border-right: 1px solid #e5e7eb;
   padding: 0 1rem;
 }
@@ -826,9 +792,9 @@ onUnmounted(() => {
 
 .booking-input {
   flex: 1;
-  padding: 1rem 0;
+  padding: 0.875rem 0;
   border: none;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #1f2937;
   background: transparent;
   outline: none;
@@ -891,7 +857,7 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-/* Filters row - Booking.com style */
+/* Filters row */
 .filters-row-booking {
   display: grid;
   grid-template-columns: 180px 260px minmax(0, 1fr);
@@ -899,6 +865,14 @@ onUnmounted(() => {
   margin-top: 1.5rem;
   border-top: 1px solid #e5e7eb;
   padding-top: 1.5rem;
+}
+
+/* Content Area */
+.search-content {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 2rem 2rem 2rem;
 }
 
 .filter-group-booking {
@@ -1303,11 +1277,33 @@ onUnmounted(() => {
 /* Results Section */
 .results-section,
 .recommended-section {
-  margin-top: 2rem;
+  margin-top: 3rem;
+}
+
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
 }
 
 /* Responsive Design */
 @media (max-width: 1200px) {
+  .search-container {
+    padding: 1.5rem;
+    padding-top: 4rem;
+  }
+
+  .search-content {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+  }
+
   .filters-row {
     grid-template-columns: 1fr 1fr;
   }

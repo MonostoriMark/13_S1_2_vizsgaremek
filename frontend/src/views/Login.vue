@@ -66,22 +66,6 @@
                 <div class="button-glow"></div>
               </button>
 
-              <div class="divider">
-                <span>OR</span>
-              </div>
-
-              <div class="social-login">
-                <button type="button" class="social-btn google">
-                  <span class="social-icon">G</span>
-                </button>
-                <button type="button" class="social-btn facebook">
-                  <span class="social-icon">f</span>
-                </button>
-                <button type="button" class="social-btn apple">
-                  <span class="social-icon">🍎</span>
-                </button>
-              </div>
-
               <p class="register-link">
                 Don't have account? <router-link to="/register">Register Now</router-link>
               </p>
