@@ -299,7 +299,7 @@
             </div>
             <div v-else class="action-buttons">
               <button
-                @click="createBooking"
+                @click="openPaymentInvoiceModal"
                 class="btn-confirm-booking"
                 :disabled="bookingLoading || selectedPlanIndex === null"
               >
@@ -310,6 +310,121 @@
               </button>
             </div>
           </div>
+
+          <!-- Payment & Invoice Details Modal (pre-submit) -->
+          <Transition name="modal">
+            <div v-if="showPaymentInvoiceModal" class="modal-overlay pay-invoice-overlay" @click.self="closePaymentInvoiceModal">
+              <div class="modal-content pay-invoice-modal glass-card">
+                <div class="modal-header">
+                  <h2>💳 Payment & Invoice Details</h2>
+                  <button @click="closePaymentInvoiceModal" class="btn-close-modal">×</button>
+                </div>
+
+                <div class="pay-invoice-body">
+                  <div class="pill-tabs">
+                    <button
+                      type="button"
+                      class="pill"
+                      :class="{ active: invoiceForm.customer_type === 'private' }"
+                      @click="invoiceForm.customer_type = 'private'"
+                    >
+                      Private
+                    </button>
+                    <button
+                      type="button"
+                      class="pill"
+                      :class="{ active: invoiceForm.customer_type === 'business' }"
+                      @click="invoiceForm.customer_type = 'business'"
+                    >
+                      Business
+                    </button>
+                  </div>
+
+                  <div class="grid-2">
+                    <div class="card">
+                      <h3 class="card-title">Payment method</h3>
+                      <div class="radio-row">
+                        <label class="radio-card">
+                          <input type="radio" value="bank_transfer" v-model="paymentMethod" />
+                          <div class="radio-card-content">
+                            <div class="radio-title">Bank transfer</div>
+                            <div class="radio-sub">Pay after invoice is sent</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="card">
+                      <h3 class="card-title">Invoice preview</h3>
+                      <div class="preview">
+                        <div class="preview-row"><span>Customer</span><strong>{{ invoiceForm.full_name || '—' }}</strong></div>
+                        <div class="preview-row" v-if="invoiceForm.customer_type === 'business'"><span>Company</span><strong>{{ invoiceForm.company_name || '—' }}</strong></div>
+                        <div class="preview-row"><span>Email</span><strong>{{ invoiceForm.email || '—' }}</strong></div>
+                        <div class="preview-row"><span>Address</span><strong>{{ invoiceAddressPreview }}</strong></div>
+                        <div class="preview-row"><span>Total</span><strong>{{ getGrandTotal() }} €</strong></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <h3 class="card-title">Billing details</h3>
+                    <div class="form-grid">
+                      <div class="form-field">
+                        <label>Full name *</label>
+                        <input v-model="invoiceForm.full_name" type="text" class="input" placeholder="John Doe" />
+                      </div>
+                      <div class="form-field">
+                        <label>Email *</label>
+                        <input v-model="invoiceForm.email" type="email" class="input" placeholder="john@example.com" />
+                      </div>
+
+                      <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
+                        <label>Company name *</label>
+                        <input v-model="invoiceForm.company_name" type="text" class="input" placeholder="ACME Ltd." />
+                      </div>
+                      <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
+                        <label>Tax number</label>
+                        <input v-model="invoiceForm.tax_number" type="text" class="input" placeholder="Optional" />
+                      </div>
+
+                      <div class="form-field">
+                        <label>Country</label>
+                        <input v-model="invoiceForm.country" type="text" class="input" placeholder="Hungary" />
+                      </div>
+                      <div class="form-field">
+                        <label>City</label>
+                        <input v-model="invoiceForm.city" type="text" class="input" placeholder="Budapest" />
+                      </div>
+                      <div class="form-field">
+                        <label>Postal code</label>
+                        <input v-model="invoiceForm.postal_code" type="text" class="input" placeholder="1111" />
+                      </div>
+                      <div class="form-field">
+                        <label>Address line</label>
+                        <input v-model="invoiceForm.address_line" type="text" class="input" placeholder="Street 1." />
+                      </div>
+                      <div class="form-field full">
+                        <label>Note to hotel (optional)</label>
+                        <textarea v-model="invoiceForm.note" class="textarea" rows="3" placeholder="Optional note to appear on invoice / request"></textarea>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="modal-actions">
+                  <button type="button" class="btn-back" @click="closePaymentInvoiceModal">Cancel</button>
+                  <button
+                    type="button"
+                    class="btn-confirm-booking"
+                    :disabled="bookingLoading || !canSubmitBookingWithInvoice"
+                    @click="createBooking"
+                  >
+                    {{ bookingLoading ? 'Creating booking...' : 'Send booking request' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
 
           <!-- Messages -->
           <div v-if="bookingError" class="error-message">{{ bookingError }}</div>
@@ -413,8 +528,49 @@ const servicesLoading = ref(false)
 const bookingLoading = ref(false)
 const bookingError = ref('')
 const bookingSuccess = ref(false)
+const showPaymentInvoiceModal = ref(false)
+const paymentMethod = ref('bank_transfer')
+const invoiceForm = ref({
+  customer_type: 'private',
+  full_name: '',
+  email: '',
+  company_name: '',
+  tax_number: '',
+  country: '',
+  city: '',
+  postal_code: '',
+  address_line: '',
+  note: ''
+})
 
 const isAuthenticated = computed(() => authStore.state.isAuthenticated)
+
+const invoiceAddressPreview = computed(() => {
+  const parts = [
+    invoiceForm.value.address_line,
+    [invoiceForm.value.postal_code, invoiceForm.value.city].filter(Boolean).join(' '),
+    invoiceForm.value.country
+  ].filter(Boolean)
+  return parts.length ? parts.join(', ') : '—'
+})
+
+const canSubmitBookingWithInvoice = computed(() => {
+  if (!invoiceForm.value.full_name || !invoiceForm.value.email) return false
+  if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name) return false
+  return true
+})
+
+const openPaymentInvoiceModal = () => {
+  if (!isAuthenticated.value || selectedPlanIndex.value === null) return
+  // prefill from logged-in user
+  invoiceForm.value.full_name = invoiceForm.value.full_name || (authStore.state.user?.name || '')
+  invoiceForm.value.email = invoiceForm.value.email || (authStore.state.user?.email || '')
+  showPaymentInvoiceModal.value = true
+}
+
+const closePaymentInvoiceModal = () => {
+  showPaymentInvoiceModal.value = false
+}
 
 // Image fallback
 const imageFallback = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80'
@@ -746,11 +902,16 @@ const createBooking = async () => {
       bookingData.services = selectedServices.value
     }
 
+    // Include payment method + invoice details (captured from modal)
+    bookingData.payment_method = paymentMethod.value
+    bookingData.invoice_details = { ...invoiceForm.value }
+
     await bookingService.createBooking(bookingData)
 
     // Clear search results
     sessionStorage.removeItem('searchResults')
     bookingSuccess.value = true
+    showPaymentInvoiceModal.value = false
 
     // Redirect after 2 seconds
     setTimeout(() => {
@@ -2082,5 +2243,246 @@ const getGrandTotal = () => {
   .services-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Payment & Invoice modal (modern) */
+.pay-invoice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(14px);
+}
+
+.pay-invoice-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.16) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.glass-card {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(102, 126, 234, 0.22);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.25),
+    0 0 40px rgba(102, 126, 234, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(18px);
+}
+
+.pay-invoice-modal {
+  max-width: 980px;
+  width: 92%;
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pay-invoice-modal .modal-header {
+  padding: 2rem 2.5rem 1.5rem;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pay-invoice-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pay-invoice-modal .btn-close-modal {
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #667eea;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pay-invoice-modal .btn-close-modal:hover {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: scale(1.1);
+}
+
+.pay-invoice-modal .modal-actions {
+  padding: 1.5rem 2.5rem 2.5rem;
+  border-top: 1px solid rgba(102, 126, 234, 0.12);
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.pay-invoice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 2rem 2.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pill-tabs {
+  display: inline-flex;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  padding: 0.35rem;
+  border-radius: 999px;
+  align-self: flex-start;
+  border: 1px solid #e5e7eb;
+}
+
+.pill {
+  border: none;
+  background: transparent;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill.active {
+  background: white;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  color: #111827;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(102, 126, 234, 0.12);
+  border-radius: 16px;
+  padding: 1.75rem;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.radio-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.75);
+  border: 2px solid rgba(102, 126, 234, 0.16);
+  border-radius: 14px;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.radio-card:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 10px 24px rgba(102,126,234,0.12);
+}
+
+.radio-card input {
+  transform: scale(1.15);
+}
+
+.radio-title {
+  font-weight: 800;
+  color: #111827;
+}
+
+.radio-sub {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.preview {
+  background: rgba(255, 255, 255, 0.75);
+  border: 2px solid rgba(102, 126, 234, 0.16);
+  border-radius: 14px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+  font-size: 0.95rem;
+}
+.preview-row:last-child { border-bottom: none; }
+.preview-row span { color: #6b7280; }
+.preview-row strong { color: #111827; text-align: right; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+
+.form-field.full {
+  grid-column: 1 / -1;
+}
+
+.form-field label {
+  display: block;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.input, .textarea {
+  width: 100%;
+  border: 2px solid rgba(102, 126, 234, 0.14);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.input:focus, .textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+}
+
+@media (max-width: 900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
 }
 </style>

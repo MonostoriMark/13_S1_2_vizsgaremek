@@ -21,6 +21,11 @@ export const bookingService = {
     return response.data
   },
 
+  async confirmPayment(bookingId) {
+    const response = await api.post(`/bookings/${bookingId}/confirm-payment`)
+    return response.data
+  },
+
   // For hotel admins - get bookings for their hotel
   // This endpoint returns ALL bookings (pending, confirmed, cancelled, finished)
   async getBookingsByHotelId(hotelId) {

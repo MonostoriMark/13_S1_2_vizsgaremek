@@ -11,12 +11,15 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\BookingConfirmationMail;
 use App\Mail\NewBookingNotificationMail;
 use App\Mail\BookingRequestNotificationMail;
+use App\Mail\BookingConfirmedPendingPaymentMail;
 use App\Models\Invoice;
 use App\Models\Guest;
 use App\Models\RFIDKey;
 use App\Models\RFIDConnection;
 use App\Models\RFIDAssignment;
 use App\Models\Hotel;
+use App\Models\BookingPayment;
+use App\Models\BookingInvoiceDetail;
 
 class BookingController extends Controller
 {
@@ -31,7 +34,21 @@ public function store(Request $request)
         'rooms.*.id' => 'required|exists:rooms,id',
         'rooms.*.guests' => 'required|integer|min:1',
         'services' => 'array',
-        'services.*' => 'exists:services,id'
+        'services.*' => 'exists:services,id',
+
+        // Payment + invoice details (captured before sending booking request)
+        'payment_method' => 'sometimes|in:bank_transfer',
+        'invoice_details' => 'sometimes|array',
+        'invoice_details.customer_type' => 'sometimes|in:private,business',
+        'invoice_details.full_name' => 'sometimes|string|max:255',
+        'invoice_details.email' => 'sometimes|email|max:255',
+        'invoice_details.company_name' => 'nullable|string|max:255',
+        'invoice_details.tax_number' => 'nullable|string|max:255',
+        'invoice_details.country' => 'nullable|string|max:255',
+        'invoice_details.city' => 'nullable|string|max:255',
+        'invoice_details.postal_code' => 'nullable|string|max:50',
+        'invoice_details.address_line' => 'nullable|string|max:255',
+        'invoice_details.note' => 'nullable|string|max:2000',
     ]);
 
     if ($request->userId !== auth()->id()) {
@@ -131,29 +148,52 @@ public function store(Request $request)
         $booking->rooms()->sync($roomIds);
 
         // -------------------------
-        // RFID kulcsok hozzárendelése (optimized batch assignment)
+        // Store payment method (pending) + invoice details snapshot
         // -------------------------
-        
-        // OPTIMIZATION: Check if enough RFID keys are available before starting assignment
-        $availableRfidKeysCount = RFIDKey::where('hotels_id', $request->hotelId)
-            ->where(function($query) {
-                $query->where('isUsed', false)
-                      ->orWhere('isUsed', 0);
-            })
-            ->count();
+        $paymentMethod = $request->input('payment_method', 'bank_transfer');
+        BookingPayment::firstOrCreate(
+            ['booking_id' => $booking->id],
+            ['method' => $paymentMethod, 'status' => 'pending']
+        );
 
-        if ($availableRfidKeysCount < count($roomIds)) {
-            DB::rollBack();
-            return response()->json([
-                'error' => "Nincs elég elérhető RFID kulcs a hotelhez. Szükséges: " . count($roomIds) . ", Elérhető: {$availableRfidKeysCount}. Kérjük, vegye fel a kapcsolatot a szállodával."
-            ], 400);
+        $details = $request->input('invoice_details');
+        if (is_array($details)) {
+            BookingInvoiceDetail::updateOrCreate(
+                ['booking_id' => $booking->id],
+                [
+                    'customer_type' => $details['customer_type'] ?? 'private',
+                    'full_name' => $details['full_name'] ?? ($booking->user->name ?? 'N/A'),
+                    'email' => $details['email'] ?? ($booking->user->email ?? 'N/A'),
+                    'company_name' => $details['company_name'] ?? null,
+                    'tax_number' => $details['tax_number'] ?? null,
+                    'country' => $details['country'] ?? null,
+                    'city' => $details['city'] ?? null,
+                    'postal_code' => $details['postal_code'] ?? null,
+                    'address_line' => $details['address_line'] ?? null,
+                    'note' => $details['note'] ?? null,
+                ]
+            );
         }
 
-        // OPTIMIZATION: Batch load available RFID keys
+        // -------------------------
+        // RFID kulcsok lefoglalása a foglalás időtartamára (date-range aware)
+        // -------------------------
+        //
+        // IMPORTANT:
+        // - We reserve keys for the booking date range (reserved_from/reserved_to)
+        // - Availability is determined by overlap with other non-released assignments
+        // - This supports far-future bookings (e.g. January holiday season)
+
+        $requestedStart = \Carbon\Carbon::parse($request->startDate)->toDateString();
+        $requestedEnd = \Carbon\Carbon::parse($request->endDate)->toDateString();
+
         $availableRfidKeys = RFIDKey::where('hotels_id', $request->hotelId)
-            ->where(function($query) {
-                $query->where('isUsed', false)
-                      ->orWhere('isUsed', 0);
+            ->whereDoesntHave('assignments', function ($q) use ($requestedStart, $requestedEnd) {
+                $q->whereNull('released_at')
+                    ->whereNotNull('reserved_from')
+                    ->whereNotNull('reserved_to')
+                    ->where('reserved_from', '<', $requestedEnd)
+                    ->where('reserved_to', '>', $requestedStart);
             })
             ->take(count($roomIds))
             ->get();
@@ -161,21 +201,22 @@ public function store(Request $request)
         if ($availableRfidKeys->count() < count($roomIds)) {
             DB::rollBack();
             return response()->json([
-                'error' => "Nincs elég elérhető RFID kulcs a hotelhez. Kérjük, vegye fel a kapcsolatot a szállodával."
+                'error' => "Nincs elég elérhető RFID kulcs a hotelhez a megadott időszakban. Szükséges: " . count($roomIds) . ", Elérhető: {$availableRfidKeys->count()}."
             ], 400);
         }
 
-        // Assign RFID keys to rooms
         foreach ($roomIds as $index => $roomId) {
             $rfidKey = $availableRfidKeys->get($index);
-            
-            RFIDConnection::create([
-                'rfidKeys_id' => $rfidKey->rfidKey,
-                'rooms_id' => $roomId
-            ]);
 
-            $rfidKey->isUsed = true;
-            $rfidKey->save();
+            RFIDAssignment::create([
+                'rfid_key_id' => $rfidKey->id,
+                'booking_id' => $booking->id,
+                'room_id' => $roomId,
+                'reserved_from' => $requestedStart,
+                'reserved_to' => $requestedEnd,
+                'assigned_at' => now(),
+                'released_at' => null,
+            ]);
         }
 
 
@@ -232,7 +273,7 @@ public function store(Request $request)
             
             if ($booking->hotel && $booking->hotel->user) {
                 // Get frontend URL from config
-                $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                $frontendUrl = config('app.frontend_url');
                 $bookingsUrl = $frontendUrl . '/admin/bookings';
                 
                 // Send notification email to hotel admin
@@ -308,9 +349,7 @@ public function deleteBooking($id)
 {
     $booking = Booking::find($id);
     $rooms = $booking->rooms;
-        // RFID kulcsok felszabadítása
-   
-    if (!$booking) {
+        if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
 
@@ -318,12 +357,23 @@ public function deleteBooking($id)
     if ($booking->users_id !== auth()->id()) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
-     foreach ($rooms as $room) {
+    // Release reserved RFID keys (new reservation-based system)
+    $assignments = RFIDAssignment::where('booking_id', $booking->id)
+        ->whereNull('released_at')
+        ->get();
+
+    foreach ($assignments as $assignment) {
+        $assignment->released_at = now();
+        $assignment->save();
+    }
+
+    // Backward-compat: release legacy room<->key connections if any exist
+    foreach ($rooms as $room) {
         $rfidConnection = RFIDConnection::where('rooms_id', $room->id)->first();
         if ($rfidConnection) {
             $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
             if ($rfidKey) {
-                $rfidKey->isUsed = false; // Use false instead of 0 for consistency
+                $rfidKey->isUsed = false; // legacy cleanup only
                 $rfidKey->save();
             }
             $rfidConnection->delete();
@@ -386,16 +436,25 @@ function updateStatus(Request $request, $id)
     $booking->save();
 
     // -------------------------
-    // Send QR code confirmation email when booking is confirmed
+    // Booking confirmation email (PAYMENT GATED)
+    // - When hotel confirms a booking, DO NOT send check-in QR yet
+    // - Create/ensure payment record exists (pending)
+    // - Notify guest: invoice will be sent shortly, QR comes after payment confirmation
     // -------------------------
     if ($request->status === 'confirmed' && $oldStatus !== 'confirmed') {
         try {
             // Reload booking with all relationships for email
             $booking->load(['hotel', 'user', 'rooms.hotel', 'services']);
             
-            // Send confirmation email with QR code to the guest
+            // Ensure payment status exists and is pending
+            BookingPayment::firstOrCreate(
+                ['booking_id' => $booking->id],
+                ['method' => 'bank_transfer', 'status' => 'pending']
+            );
+
+            // Notify guest (no QR yet)
             Mail::to($booking->user->email)
-                ->send(new BookingConfirmationMail($booking));
+                ->send(new BookingConfirmedPendingPaymentMail($booking));
 
             // -------------------------
             // Generate invoice preview (draft)
@@ -433,6 +492,7 @@ function updateStatus(Request $request, $id)
 
     // Automatically release RFID keys when booking is completed or cancelled
     if (in_array($request->status, ['completed', 'cancelled'])) {
+        // Reservation-based system: mark all assignments as released
         $assignments = RFIDAssignment::where('booking_id', $booking->id)
             ->whereNull('released_at')
             ->get();
@@ -440,11 +500,19 @@ function updateStatus(Request $request, $id)
         foreach ($assignments as $assignment) {
             $assignment->released_at = now();
             $assignment->save();
+        }
 
-            $rfidKey = RFIDKey::find($assignment->rfid_key_id);
-            if ($rfidKey) {
-                $rfidKey->isUsed = false;
-                $rfidKey->save();
+        // Backward-compat: release keys from legacy RFIDConnection system if any exist
+        $booking->load('rooms');
+        foreach ($booking->rooms as $room) {
+            $rfidConnection = RFIDConnection::where('rooms_id', $room->id)->first();
+            if ($rfidConnection) {
+                $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
+                if ($rfidKey) {
+                    $rfidKey->isUsed = false; // legacy cleanup only
+                    $rfidKey->save();
+                }
+                $rfidConnection->delete();
             }
         }
     }
@@ -457,7 +525,7 @@ function updateStatus(Request $request, $id)
      */
     public function update(Request $request, $id)
     {
-        $booking = Booking::with('hotel')->find($id);
+        $booking = Booking::with(['hotel', 'rooms', 'services'])->find($id);
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
         }
@@ -471,33 +539,94 @@ function updateStatus(Request $request, $id)
             'startDate' => 'sometimes|date',
             'endDate' => 'sometimes|date|after_or_equal:startDate',
             'totalPrice' => 'sometimes|numeric|min:0',
+            'status' => 'sometimes|in:pending,confirmed,cancelled,completed',
+            'rooms' => 'sometimes|array',
+            'rooms.*' => 'exists:rooms,id',
+            'services' => 'sometimes|array',
+            'services.*' => 'exists:services,id',
         ]);
 
-        if ($request->has('startDate')) {
-            $booking->startDate = $request->startDate;
-        }
-        if ($request->has('endDate')) {
-            $booking->endDate = $request->endDate;
-        }
-        if ($request->has('totalPrice')) {
-            $booking->totalPrice = $request->totalPrice;
-            
-            // Update invoice if exists
-            $invoice = Invoice::where('booking_id', $booking->id)->first();
-            if ($invoice && $invoice->status === 'draft') {
-                $invoice->subtotal = $request->totalPrice;
-                $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
-                $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
-                $invoice->save();
+        DB::beginTransaction();
+        try {
+            // Update dates
+            if ($request->has('startDate')) {
+                $booking->startDate = $request->startDate;
             }
+            if ($request->has('endDate')) {
+                $booking->endDate = $request->endDate;
+            }
+
+            // Update status if provided
+            if ($request->has('status')) {
+                $booking->status = $request->status;
+            }
+
+            // Update rooms if provided
+            if ($request->has('rooms')) {
+                // Validate all rooms belong to the hotel
+                $roomIds = $request->rooms;
+                $validRooms = Room::whereIn('id', $roomIds)
+                    ->where('hotels_id', $booking->hotels_id)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (count($validRooms) !== count($roomIds)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => 'One or more rooms do not belong to this hotel'
+                    ], 400);
+                }
+
+                $booking->rooms()->sync($validRooms);
+            }
+
+            // Update services if provided
+            if ($request->has('services')) {
+                // Validate all services belong to the hotel
+                $serviceIds = $request->services;
+                $validServices = Service::whereIn('id', $serviceIds)
+                    ->where('hotels_id', $booking->hotels_id)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (count($validServices) !== count($serviceIds)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'error' => 'One or more services do not belong to this hotel'
+                    ], 400);
+                }
+
+                $booking->services()->sync($validServices);
+            }
+
+            // Update total price (manual override)
+            if ($request->has('totalPrice')) {
+                $booking->totalPrice = $request->totalPrice;
+                
+                // Update invoice if exists and is draft
+                $invoice = Invoice::where('booking_id', $booking->id)->first();
+                if ($invoice && $invoice->status === 'draft') {
+                    $invoice->subtotal = $request->totalPrice;
+                    $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
+                    $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
+                    $invoice->save();
+                }
+            }
+
+            $booking->save();
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Booking updated successfully',
+                'booking' => $booking->fresh(['user', 'rooms', 'services', 'guests', 'payment'])
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Failed to update booking',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $booking->save();
-
-        return response()->json([
-            'message' => 'Booking updated successfully',
-            'booking' => $booking->fresh(['user', 'rooms', 'services', 'guests'])
-        ], 200);
     }
 
 public function getBookingsByHotelId($hotelId)
@@ -524,10 +653,60 @@ public function getBookingsByHotelId($hotelId)
 
     // Get all bookings for this hotel (including pending, confirmed, cancelled, finished)
     $bookings = Booking::where('hotels_id', $hotelId)
-        ->with(['user', 'rooms', 'guests', 'services'])
+        ->with(['user', 'rooms', 'guests', 'services', 'payment'])
         ->orderBy('createdAt', 'desc')
         ->get();
 
     return response()->json(['bookings' => $bookings], 200);
+}
+
+public function confirmPayment($id)
+{
+    $user = auth()->user();
+    if (!$user || $user->role !== 'hotel') {
+        return response()->json(['message' => 'Unauthorized - Hotel admin access required'], 403);
+    }
+
+    $booking = Booking::with(['hotel', 'user', 'rooms.hotel', 'services', 'payment'])->find($id);
+    if (!$booking) {
+        return response()->json(['message' => 'Booking not found'], 404);
+    }
+
+    // Verify booking belongs to this hotel admin
+    $hotel = Hotel::where('id', $booking->hotels_id)->where('user_id', $user->id)->first();
+    if (!$hotel) {
+        return response()->json(['message' => 'Hotel not found or unauthorized'], 404);
+    }
+
+    if ($booking->status !== 'confirmed') {
+        return response()->json(['error' => 'Payment can only be confirmed for confirmed bookings'], 400);
+    }
+
+    $payment = BookingPayment::firstOrCreate(
+        ['booking_id' => $booking->id],
+        ['method' => 'bank_transfer', 'status' => 'pending']
+    );
+
+    if ($payment->status === 'paid') {
+        return response()->json(['message' => 'Payment already confirmed'], 200);
+    }
+
+    $payment->status = 'paid';
+    $payment->confirmed_at = now();
+    $payment->confirmed_by_user_id = $user->id;
+    $payment->save();
+
+    // Now send the QR code email used for check-in
+    try {
+        Mail::to($booking->user->email)->send(new BookingConfirmationMail($booking));
+    } catch (\Exception $mailEx) {
+        \Log::error('QR kód email küldési hiba (payment confirmed): ' . $mailEx->getMessage());
+        return response()->json(['error' => 'Payment confirmed, but failed to send QR email'], 500);
+    }
+
+    return response()->json([
+        'message' => 'Payment confirmed and QR code sent to guest',
+        'payment' => $payment
+    ], 200);
 }
 }

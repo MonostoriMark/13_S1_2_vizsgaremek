@@ -296,14 +296,34 @@
                     @endif
                 </div>
                 <div class="party-content">
-                    <p><strong>{{ $booking->user->name ?? 'N/A' }}</strong></p>
-                    @if($booking->user->address)
+                    @php
+                        $custName = $invoiceDetails->full_name ?? ($booking->user->name ?? 'N/A');
+                        $custEmail = $invoiceDetails->email ?? ($booking->user->email ?? null);
+                        $custType = $invoiceDetails->customer_type ?? 'private';
+                    @endphp
+                    <p><strong>{{ $custName }}</strong></p>
+                    @if(($custType === 'business') && ($invoiceDetails->company_name ?? null))
+                    <p>{{ $invoiceDetails->company_name }}</p>
+                    @endif
+                    @if($invoiceDetails && ($invoiceDetails->address_line || $invoiceDetails->postal_code || $invoiceDetails->city || $invoiceDetails->country))
+                    <p>
+                        {{ $invoiceDetails->address_line ?? '' }}
+                        @if($invoiceDetails->postal_code || $invoiceDetails->city)
+                            <br>{{ trim(($invoiceDetails->postal_code ?? '') . ' ' . ($invoiceDetails->city ?? '')) }}
+                        @endif
+                        @if($invoiceDetails->country)
+                            <br>{{ $invoiceDetails->country }}
+                        @endif
+                    </p>
+                    @elseif($booking->user->address)
                     <p>{{ $booking->user->address }}</p>
                     @endif
-                    @if($booking->user->email)
-                    <p>{{ $booking->user->email }}</p>
+                    @if($custEmail)
+                    <p>{{ $custEmail }}</p>
                     @endif
-                    @if($booking->user->tax_number)
+                    @if($invoiceDetails && $invoiceDetails->tax_number)
+                    <p>Adószám / Tax number: {{ $invoiceDetails->tax_number }}</p>
+                    @elseif($booking->user->tax_number)
                     <p>Adószám / Tax number: {{ $booking->user->tax_number }}</p>
                     @endif
                     @if($booking->user->eu_tax_number)
@@ -322,7 +342,16 @@
                 <div class="payment-date-header">Fizetési határidő</div>
             </div>
             <div class="payment-dates-content">
-                <div class="payment-date-content">átutalás / transfer</div>
+                <div class="payment-date-content">
+                    @php
+                        $method = $payment->method ?? 'bank_transfer';
+                    @endphp
+                    @if($method === 'bank_transfer')
+                        átutalás / transfer
+                    @else
+                        {{ $method }}
+                    @endif
+                </div>
                 <div class="payment-date-content">{{ \Carbon\Carbon::parse($invoice->issue_date)->format('Y.m.d.') }}</div>
                 <div class="payment-date-content">{{ \Carbon\Carbon::parse($booking->endDate)->format('Y.m.d.') }}</div>
                 <div class="payment-date-content">{{ \Carbon\Carbon::parse($invoice->due_date)->format('Y.m.d.') }}</div>

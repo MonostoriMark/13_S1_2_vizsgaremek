@@ -46,4 +46,14 @@ class Booking extends Model
     public function invoice() {
         return $this->hasOne(Invoice::class, 'booking_id');
     }
+
+    public function payment()
+    {
+        return $this->hasOne(BookingPayment::class, 'booking_id');
+    }
+
+    public function invoiceDetails()
+    {
+        return $this->hasOne(BookingInvoiceDetail::class, 'booking_id');
+    }
 }

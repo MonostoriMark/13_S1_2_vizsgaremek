@@ -12,11 +12,15 @@ class RFIDAssignment extends Model
         'rfid_key_id',
         'booking_id',
         'room_id',
+        'reserved_from',
+        'reserved_to',
         'assigned_at',
         'released_at'
     ];
 
     protected $casts = [
+        'reserved_from' => 'date',
+        'reserved_to' => 'date',
         'assigned_at' => 'datetime',
         'released_at' => 'datetime'
     ];

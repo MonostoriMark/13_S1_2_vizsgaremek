@@ -40,7 +40,7 @@ class AuthController extends Controller
         ]);
 
         // Send verification email
-        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+        $frontendUrl = config('app.frontend_url');
         $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
         Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
@@ -210,7 +210,7 @@ class AuthController extends Controller
             ]);
 
             // Send verification email
-            $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+            $frontendUrl = config('app.frontend_url');
             $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
             Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
@@ -565,7 +565,8 @@ class AuthController extends Controller
                     $user->save();
 
                     // Send verification email
-                    $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                    $frontendUrl = config('app.frontend_url');
+                    $frontendUrl = config('app.frontend_url');
                     $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
                     Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
@@ -611,7 +612,7 @@ class AuthController extends Controller
 
                     // Send password reset email
                     // Get frontend URL from config or use a default
-                    $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                    $frontendUrl = config('app.frontend_url');
                     $resetUrl = $frontendUrl . '/reset-password/' . $resetToken;
                     
                     Mail::to($user->email)->send(new PasswordResetMail($user, $resetUrl));

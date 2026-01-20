@@ -118,6 +118,32 @@
             </div>
           </div>
 
+          <!-- Payment Section (Admin) -->
+          <div v-if="booking.status === 'confirmed'" class="invoice-section">
+            <h4 class="section-title">Payment</h4>
+            <div class="invoice-info">
+              <div class="invoice-status">
+                <span
+                  class="invoice-status-badge"
+                  :class="`invoice-${booking.payment?.status || 'draft'}`"
+                >
+                  {{ booking.payment?.status === 'paid' ? 'Paid' : 'Pending (bank transfer)' }}
+                </span>
+              </div>
+              <div class="invoice-actions">
+                <button
+                  v-if="booking.payment?.status !== 'paid'"
+                  @click="confirmPayment(booking.id)"
+                  class="btn-invoice-approve"
+                  :disabled="paymentLoading === booking.id"
+                >
+                  {{ paymentLoading === booking.id ? 'Confirming...' : '✓ Confirm payment' }}
+                </button>
+                <button v-else class="btn-invoice-sent" disabled>✅ Payment confirmed</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Rooms Section -->
           <div v-if="booking.rooms && booking.rooms.length > 0" class="booking-rooms-section">
             <h4 class="section-title">Rooms</h4>
@@ -273,7 +299,7 @@
                 ✏️ Edit Booking
               </button>
               <div v-if="booking.status === 'confirmed'" class="confirmed-badge">
-                ✅ Confirmed - Guest can check in
+                ✅ Confirmed - {{ booking.payment?.status === 'paid' ? 'Guest can check in' : 'Waiting for payment (QR will be sent after payment)' }}
               </div>
               <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
                 ❌ Rejected
@@ -287,69 +313,176 @@
       </div>
     </div>
 
-    <!-- Edit Invoice Modal -->
+    <!-- Super Advanced Edit Invoice Modal -->
     <Transition name="modal">
       <div v-if="showEditInvoiceModal" class="modal-overlay" @click.self="closeEditInvoiceModal">
-        <div class="modal-content invoice-modal">
+        <div class="modal-content super-invoice-modal">
           <div class="modal-header">
-            <h2>Edit Invoice</h2>
+            <h2>🧾 Super Invoice Editor</h2>
             <button @click="closeEditInvoiceModal" class="btn-close-modal">×</button>
           </div>
-          <form @submit.prevent="saveInvoice" class="invoice-form">
-            <div class="form-group">
-              <label>Subtotal (EUR) *</label>
-              <input
-                v-model.number="invoiceForm.subtotal"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Tax Rate (%) *</label>
-              <input
-                v-model.number="invoiceForm.tax_rate"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Issue Date *</label>
-              <input
-                v-model="invoiceForm.issue_date"
-                type="date"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>Due Date *</label>
-              <input
-                v-model="invoiceForm.due_date"
-                type="date"
-                :min="invoiceForm.issue_date"
-                required
-              />
-            </div>
-            <div class="invoice-summary">
-              <div class="summary-row">
-                <span>Tax Amount:</span>
-                <strong>{{ calculateTaxAmount }} EUR</strong>
-              </div>
-              <div class="summary-row total-row">
-                <span>Total Amount:</span>
-                <strong>{{ calculateTotalAmount }} EUR</strong>
+          
+          <form @submit.prevent="saveInvoice" class="super-invoice-form">
+            <!-- Invoice Status -->
+            <div class="form-section">
+              <h3 class="section-title">📊 Invoice Status</h3>
+              <div class="form-group">
+                <label>Status *</label>
+                <select v-model="invoiceForm.status" required class="form-select">
+                  <option value="draft">Draft</option>
+                  <option value="approved">Approved</option>
+                  <option value="sent">Sent</option>
+                </select>
+                <small class="form-hint">Only draft invoices can be fully edited</small>
               </div>
             </div>
+
+            <!-- Invoice Number -->
+            <div class="form-section">
+              <h3 class="section-title">🔢 Invoice Details</h3>
+              <div class="form-group">
+                <label>Invoice Number *</label>
+                <input
+                  v-model="invoiceForm.invoice_number"
+                  type="text"
+                  required
+                  class="form-input"
+                  placeholder="e.g., EU2024/00001"
+                />
+                <small class="form-hint">Unique invoice identifier</small>
+              </div>
+            </div>
+
+            <!-- Financial Details -->
+            <div class="form-section">
+              <h3 class="section-title">💰 Financial Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Subtotal (EUR) *</label>
+                  <input
+                    v-model.number="invoiceForm.subtotal"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    class="form-input"
+                    @input="recalculateInvoice"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Tax Rate (%) *</label>
+                  <input
+                    v-model.number="invoiceForm.tax_rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    required
+                    class="form-input"
+                    @input="recalculateInvoice"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Tax Amount (EUR)</label>
+                  <input
+                    v-model.number="invoiceForm.tax_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-input"
+                    @input="manualTaxAmount = true"
+                  />
+                  <small class="form-hint">Leave empty for auto-calculation</small>
+                </div>
+                <div class="form-group">
+                  <label>Total Amount (EUR)</label>
+                  <input
+                    v-model.number="invoiceForm.total_amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-input"
+                    @input="manualTotalAmount = true"
+                  />
+                  <small class="form-hint">Leave empty for auto-calculation</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="form-section">
+              <h3 class="section-title">📅 Important Dates</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Issue Date *</label>
+                  <input
+                    v-model="invoiceForm.issue_date"
+                    type="date"
+                    required
+                    class="form-input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Due Date *</label>
+                  <input
+                    v-model="invoiceForm.due_date"
+                    type="date"
+                    :min="invoiceForm.issue_date"
+                    required
+                    class="form-input"
+                  />
+                </div>
+              </div>
+              <div class="info-box">
+                <span>Payment Due: <strong>{{ formatDate(invoiceForm.due_date) }}</strong></span>
+                <span v-if="invoiceForm.due_date" class="days-until">
+                  ({{ calculateDaysUntil(invoiceForm.due_date) }} days)
+                </span>
+              </div>
+            </div>
+
+            <!-- Invoice Summary -->
+            <div class="form-section">
+              <h3 class="section-title">📋 Invoice Summary</h3>
+              <div class="invoice-summary-advanced">
+                <div class="summary-row">
+                  <span>Subtotal:</span>
+                  <strong>€{{ parseFloat(invoiceForm.subtotal || 0).toFixed(2) }}</strong>
+                </div>
+                <div class="summary-row">
+                  <span>Tax ({{ invoiceForm.tax_rate }}%):</span>
+                  <strong>€{{ parseFloat(invoiceForm.tax_amount || calculateTaxAmount).toFixed(2) }}</strong>
+                </div>
+                <div class="summary-row total-row">
+                  <span>Total Amount:</span>
+                  <strong>€{{ parseFloat(invoiceForm.total_amount || calculateTotalAmount).toFixed(2) }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Booking Reference -->
+            <div class="form-section" v-if="editingInvoice">
+              <h3 class="section-title">🔗 Booking Reference</h3>
+              <div class="info-box">
+                <div class="info-row">
+                  <span class="info-label">Booking ID:</span>
+                  <span class="info-value">#{{ editingInvoice.booking_id }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Guest:</span>
+                  <span class="info-value">{{ editingInvoice.booking?.user?.name || 'N/A' }}</span>
+                </div>
+              </div>
+            </div>
+
             <div class="modal-actions">
               <button type="button" @click="closeEditInvoiceModal" class="btn-cancel">
                 Cancel
               </button>
               <button type="submit" class="btn-save" :disabled="savingInvoice">
-                {{ savingInvoice ? 'Saving...' : 'Save Invoice' }}
+                {{ savingInvoice ? 'Saving...' : '💾 Save Invoice' }}
               </button>
             </div>
           </form>
@@ -357,48 +490,185 @@
       </div>
     </Transition>
 
-    <!-- Edit Booking Modal -->
+    <!-- Advanced Edit Booking Modal -->
     <Transition name="modal">
       <div v-if="showEditBookingModal" class="modal-overlay" @click.self="closeEditBookingModal">
-        <div class="modal-content booking-modal">
+        <div class="modal-content advanced-booking-modal">
           <div class="modal-header">
-            <h2>Edit Booking</h2>
+            <h2>📋 Advanced Booking Editor</h2>
             <button @click="closeEditBookingModal" class="btn-close-modal">×</button>
           </div>
-          <form @submit.prevent="saveBooking" class="booking-form">
-            <div class="form-group">
-              <label>Start Date *</label>
-              <input
-                v-model="bookingForm.startDate"
-                type="date"
-                required
-              />
+          
+          <form @submit.prevent="saveBooking" class="advanced-booking-form">
+            <!-- Guest Information Section -->
+            <div class="form-section">
+              <h3 class="section-title">👤 Guest Information</h3>
+              <div v-if="editingBooking?.user" class="guest-info-display">
+                <div class="info-row">
+                  <span class="info-label">Name:</span>
+                  <span class="info-value">{{ editingBooking.user.name }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value">{{ editingBooking.user.email }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Payment Status:</span>
+                  <span class="info-value payment-status" :class="`payment-${editingBooking.payment?.status || 'pending'}`">
+                    {{ editingBooking.payment?.status === 'paid' ? '✅ Paid' : '⏳ Pending' }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label>End Date *</label>
-              <input
-                v-model="bookingForm.endDate"
-                type="date"
-                :min="bookingForm.startDate"
-                required
-              />
+
+            <!-- Booking Status -->
+            <div class="form-section">
+              <h3 class="section-title">📊 Booking Status</h3>
+              <div class="form-group">
+                <label>Status *</label>
+                <select v-model="bookingForm.status" required class="form-select">
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Total Price (EUR) *</label>
-              <input
-                v-model.number="bookingForm.totalPrice"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-              />
+
+            <!-- Date Range -->
+            <div class="form-section">
+              <h3 class="section-title">📅 Date Range</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Check-in Date *</label>
+                  <input
+                    v-model="bookingForm.startDate"
+                    type="date"
+                    required
+                    class="form-input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Check-out Date *</label>
+                  <input
+                    v-model="bookingForm.endDate"
+                    type="date"
+                    :min="bookingForm.startDate"
+                    required
+                    class="form-input"
+                  />
+                </div>
+              </div>
+              <div class="info-box">
+                <span>Nights: <strong>{{ calculateNights(bookingForm.startDate, bookingForm.endDate) }}</strong></span>
+              </div>
             </div>
+
+            <!-- Rooms Management -->
+            <div class="form-section">
+              <h3 class="section-title">🛏️ Rooms</h3>
+              <div v-if="availableRooms.length === 0" class="loading-text">Loading rooms...</div>
+              <div v-else class="multi-select-container">
+                <div class="selected-items">
+                  <div
+                    v-for="roomId in bookingForm.rooms"
+                    :key="roomId"
+                    class="selected-item"
+                  >
+                    <span>{{ getRoomName(roomId) }}</span>
+                    <button
+                      type="button"
+                      @click="removeRoom(roomId)"
+                      class="remove-btn"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <select
+                  v-model="selectedRoomToAdd"
+                  @change="addRoom"
+                  class="form-select"
+                >
+                  <option value="">Select a room to add...</option>
+                  <option
+                    v-for="room in availableRooms.filter(r => !bookingForm.rooms.includes(r.id))"
+                    :key="room.id"
+                    :value="room.id"
+                  >
+                    {{ room.name }} ({{ room.capacity }} guests) - €{{ room.pricePerNight }}/night
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Services Management -->
+            <div class="form-section">
+              <h3 class="section-title">✨ Services</h3>
+              <div v-if="availableServices.length === 0" class="loading-text">Loading services...</div>
+              <div v-else class="multi-select-container">
+                <div class="selected-items">
+                  <div
+                    v-for="serviceId in bookingForm.services"
+                    :key="serviceId"
+                    class="selected-item"
+                  >
+                    <span>{{ getServiceName(serviceId) }} (€{{ getServicePrice(serviceId) }})</span>
+                    <button
+                      type="button"
+                      @click="removeService(serviceId)"
+                      class="remove-btn"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <select
+                  v-model="selectedServiceToAdd"
+                  @change="addService"
+                  class="form-select"
+                >
+                  <option value="">Select a service to add...</option>
+                  <option
+                    v-for="service in availableServices.filter(s => !bookingForm.services.includes(s.id))"
+                    :key="service.id"
+                    :value="service.id"
+                  >
+                    {{ service.name }} - €{{ service.price }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Pricing -->
+            <div class="form-section">
+              <h3 class="section-title">💰 Pricing</h3>
+              <div class="form-group">
+                <label>Total Price (EUR) *</label>
+                <input
+                  v-model.number="bookingForm.totalPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  class="form-input"
+                />
+              </div>
+              <div class="info-box">
+                <div class="price-breakdown">
+                  <div>Rooms: <strong>€{{ calculateRoomsPrice }}</strong></div>
+                  <div>Services: <strong>€{{ calculateServicesPrice }}</strong></div>
+                  <div class="total-price">Total: <strong>€{{ bookingForm.totalPrice }}</strong></div>
+                </div>
+              </div>
+            </div>
+
             <div class="modal-actions">
               <button type="button" @click="closeEditBookingModal" class="btn-cancel">
                 Cancel
               </button>
               <button type="submit" class="btn-save" :disabled="savingBooking">
-                {{ savingBooking ? 'Saving...' : 'Save Booking' }}
+                {{ savingBooking ? 'Saving...' : '💾 Save Changes' }}
               </button>
             </div>
           </form>
@@ -473,15 +743,22 @@ const hotelLoading = ref(true)
 const error = ref('')
 const updating = ref(null)
 const invoiceLoading = ref(null)
+const paymentLoading = ref(null)
 const successMessage = ref('')
 
 // Invoice editing
 const showEditInvoiceModal = ref(false)
 const editingInvoice = ref(null)
 const savingInvoice = ref(false)
+const manualTaxAmount = ref(false)
+const manualTotalAmount = ref(false)
 const invoiceForm = ref({
+  invoice_number: '',
+  status: 'draft',
   subtotal: 0,
   tax_rate: 0,
+  tax_amount: 0,
+  total_amount: 0,
   issue_date: '',
   due_date: ''
 })
@@ -490,10 +767,17 @@ const invoiceForm = ref({
 const showEditBookingModal = ref(false)
 const editingBooking = ref(null)
 const savingBooking = ref(false)
+const availableRooms = ref([])
+const availableServices = ref([])
+const selectedRoomToAdd = ref('')
+const selectedServiceToAdd = ref('')
 const bookingForm = ref({
   startDate: '',
   endDate: '',
-  totalPrice: 0
+  totalPrice: 0,
+  status: 'pending',
+  rooms: [],
+  services: []
 })
 
 // Guest management
@@ -584,7 +868,8 @@ const loadBookings = async () => {
           rooms: rooms,
           user: booking.user || null,
           guests: booking.guests || [],
-          invoice: invoice
+          invoice: invoice,
+          payment: booking.payment || null
         }
       }))
     } else {
@@ -710,47 +995,103 @@ const sendInvoice = async (invoiceId, bookingId) => {
 
 // Invoice editing functions
 const openEditInvoiceModal = (booking) => {
-  if (!booking.invoice || booking.invoice.status !== 'draft') {
-    error.value = 'Only draft invoices can be edited'
+  if (!booking.invoice) {
+    error.value = 'Invoice not found for this booking'
     return
   }
+  
+  // Allow editing even if not draft (super admin mode)
   editingInvoice.value = booking.invoice
+  manualTaxAmount.value = false
+  manualTotalAmount.value = false
+  
   invoiceForm.value = {
+    invoice_number: booking.invoice.invoice_number || '',
+    status: booking.invoice.status || 'draft',
     subtotal: parseFloat(booking.invoice.subtotal) || 0,
     tax_rate: parseFloat(booking.invoice.tax_rate) || 0,
+    tax_amount: parseFloat(booking.invoice.tax_amount) || 0,
+    total_amount: parseFloat(booking.invoice.total_amount) || 0,
     issue_date: booking.invoice.issue_date || '',
     due_date: booking.invoice.due_date || ''
   }
+  
   showEditInvoiceModal.value = true
 }
 
 const closeEditInvoiceModal = () => {
   showEditInvoiceModal.value = false
   editingInvoice.value = null
+  manualTaxAmount.value = false
+  manualTotalAmount.value = false
   invoiceForm.value = {
+    invoice_number: '',
+    status: 'draft',
     subtotal: 0,
     tax_rate: 0,
+    tax_amount: 0,
+    total_amount: 0,
     issue_date: '',
     due_date: ''
   }
 }
 
+const recalculateInvoice = () => {
+  if (!manualTaxAmount.value) {
+    invoiceForm.value.tax_amount = parseFloat(
+      (invoiceForm.value.subtotal * (invoiceForm.value.tax_rate / 100)).toFixed(2)
+    )
+  }
+  if (!manualTotalAmount.value) {
+    invoiceForm.value.total_amount = parseFloat(
+      (parseFloat(invoiceForm.value.subtotal) + parseFloat(invoiceForm.value.tax_amount || 0)).toFixed(2)
+    )
+  }
+}
+
 const calculateTaxAmount = computed(() => {
-  return (invoiceForm.value.subtotal * (invoiceForm.value.tax_rate / 100)).toFixed(2)
+  if (manualTaxAmount.value && invoiceForm.value.tax_amount) {
+    return invoiceForm.value.tax_amount
+  }
+  return parseFloat((invoiceForm.value.subtotal * (invoiceForm.value.tax_rate / 100)).toFixed(2))
 })
 
 const calculateTotalAmount = computed(() => {
-  return (parseFloat(invoiceForm.value.subtotal) + parseFloat(calculateTaxAmount.value)).toFixed(2)
+  if (manualTotalAmount.value && invoiceForm.value.total_amount) {
+    return invoiceForm.value.total_amount
+  }
+  return parseFloat((parseFloat(invoiceForm.value.subtotal) + parseFloat(calculateTaxAmount.value)).toFixed(2))
 })
+
+const calculateDaysUntil = (dateString) => {
+  if (!dateString) return 0
+  const today = new Date()
+  const dueDate = new Date(dateString)
+  const diffTime = dueDate - today
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
 
 const saveInvoice = async () => {
   if (!editingInvoice.value) return
   
   savingInvoice.value = true
   try {
+    // Auto-calculate if not manually set
+    if (!manualTaxAmount.value) {
+      invoiceForm.value.tax_amount = calculateTaxAmount.value
+    }
+    if (!manualTotalAmount.value) {
+      invoiceForm.value.total_amount = calculateTotalAmount.value
+    }
+    
     await invoiceService.updateInvoice(editingInvoice.value.id, {
+      invoice_number: invoiceForm.value.invoice_number,
+      status: invoiceForm.value.status,
       subtotal: invoiceForm.value.subtotal,
       tax_rate: invoiceForm.value.tax_rate,
+      tax_amount: invoiceForm.value.tax_amount,
+      total_amount: invoiceForm.value.total_amount,
       issue_date: invoiceForm.value.issue_date,
       due_date: invoiceForm.value.due_date
     })
@@ -766,25 +1107,104 @@ const saveInvoice = async () => {
 }
 
 // Booking editing functions
-const openEditBookingModal = (booking) => {
+const openEditBookingModal = async (booking) => {
   editingBooking.value = booking
   bookingForm.value = {
     startDate: booking.startDate || '',
     endDate: booking.endDate || '',
-    totalPrice: parseFloat(booking.totalPrice) || 0
+    totalPrice: parseFloat(booking.totalPrice) || 0,
+    status: booking.status || 'pending',
+    rooms: (booking.rooms || []).map(r => r.id),
+    services: (booking.services || []).map(s => s.id)
   }
+  
+  // Load available rooms and services for this hotel
+  if (hotel.value) {
+    try {
+      const roomsData = await hotelService.getRoomsByHotelId(hotel.value.id)
+      availableRooms.value = roomsData.rooms || roomsData || []
+      
+      const servicesData = await hotelService.getServicesByHotelId(hotel.value.id)
+      availableServices.value = servicesData.services || servicesData || []
+    } catch (err) {
+      console.error('Failed to load rooms/services:', err)
+      availableRooms.value = []
+      availableServices.value = []
+    }
+  }
+  
   showEditBookingModal.value = true
 }
 
 const closeEditBookingModal = () => {
   showEditBookingModal.value = false
   editingBooking.value = null
+  availableRooms.value = []
+  availableServices.value = []
+  selectedRoomToAdd.value = ''
+  selectedServiceToAdd.value = ''
   bookingForm.value = {
     startDate: '',
     endDate: '',
-    totalPrice: 0
+    totalPrice: 0,
+    status: 'pending',
+    rooms: [],
+    services: []
   }
 }
+
+const addRoom = () => {
+  if (selectedRoomToAdd.value && !bookingForm.value.rooms.includes(selectedRoomToAdd.value)) {
+    bookingForm.value.rooms.push(selectedRoomToAdd.value)
+    selectedRoomToAdd.value = ''
+  }
+}
+
+const removeRoom = (roomId) => {
+  bookingForm.value.rooms = bookingForm.value.rooms.filter(id => id !== roomId)
+}
+
+const addService = () => {
+  if (selectedServiceToAdd.value && !bookingForm.value.services.includes(selectedServiceToAdd.value)) {
+    bookingForm.value.services.push(selectedServiceToAdd.value)
+    selectedServiceToAdd.value = ''
+  }
+}
+
+const removeService = (serviceId) => {
+  bookingForm.value.services = bookingForm.value.services.filter(id => id !== serviceId)
+}
+
+const getRoomName = (roomId) => {
+  const room = availableRooms.value.find(r => r.id === roomId)
+  return room ? room.name : `Room #${roomId}`
+}
+
+const getServiceName = (serviceId) => {
+  const service = availableServices.value.find(s => s.id === serviceId)
+  return service ? service.name : `Service #${serviceId}`
+}
+
+const getServicePrice = (serviceId) => {
+  const service = availableServices.value.find(s => s.id === serviceId)
+  return service ? service.price : 0
+}
+
+const calculateRoomsPrice = computed(() => {
+  if (!bookingForm.value.startDate || !bookingForm.value.endDate) return 0
+  const nights = calculateNights(bookingForm.value.startDate, bookingForm.value.endDate)
+  return bookingForm.value.rooms.reduce((total, roomId) => {
+    const room = availableRooms.value.find(r => r.id === roomId)
+    if (!room) return total
+    return total + ((room.basePrice || 0) + (room.pricePerNight || 0) * nights)
+  }, 0)
+})
+
+const calculateServicesPrice = computed(() => {
+  return bookingForm.value.services.reduce((total, serviceId) => {
+    return total + getServicePrice(serviceId)
+  }, 0)
+})
 
 const saveBooking = async () => {
   if (!editingBooking.value) return
@@ -794,7 +1214,10 @@ const saveBooking = async () => {
     await bookingService.updateBooking(editingBooking.value.id, {
       startDate: bookingForm.value.startDate,
       endDate: bookingForm.value.endDate,
-      totalPrice: bookingForm.value.totalPrice
+      totalPrice: bookingForm.value.totalPrice,
+      status: bookingForm.value.status,
+      rooms: bookingForm.value.rooms,
+      services: bookingForm.value.services
     })
     successMessage.value = 'Booking updated successfully!'
     setTimeout(() => { successMessage.value = '' }, 5000)
@@ -915,6 +1338,24 @@ const deleteGuest = async (guestId, bookingId) => {
     await loadBookings()
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to delete guest'
+  }
+}
+
+const confirmPayment = async (bookingId) => {
+  if (!confirm('Confirm payment received by bank transfer? This will send the check-in QR code to the guest.')) {
+    return
+  }
+
+  paymentLoading.value = bookingId
+  try {
+    await bookingService.confirmPayment(bookingId)
+    successMessage.value = 'Payment confirmed! QR code email sent to guest.'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+  } catch (err) {
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to confirm payment'
+  } finally {
+    paymentLoading.value = null
   }
 }
 </script>
@@ -1942,6 +2383,269 @@ const deleteGuest = async (guestId, bookingId) => {
 
   .pending-actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Advanced Booking Modal Styles */
+.advanced-booking-modal {
+  max-width: 800px;
+  max-height: 90vh;
+}
+
+.advanced-booking-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.form-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #667eea;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-select {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: white;
+  width: 100%;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-input {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.guest-info-display {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.info-value {
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.payment-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.payment-paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.payment-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.multi-select-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.selected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.selected-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #667eea;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.remove-btn {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.info-box {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid #e0e0e0;
+}
+
+.price-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.price-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.price-breakdown > div:last-child {
+  border-bottom: none;
+}
+
+.total-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 2px solid #667eea;
+}
+
+.loading-text {
+  color: #7f8c8d;
+  font-style: italic;
+  padding: 1rem;
+  text-align: center;
+}
+
+/* Super Invoice Modal Styles */
+.super-invoice-modal {
+  max-width: 900px;
+  max-height: 90vh;
+}
+
+.super-invoice-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.invoice-summary-advanced {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 2px solid #e0e0e0;
+}
+
+.invoice-summary-advanced .summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  font-size: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.invoice-summary-advanced .summary-row:last-child {
+  border-bottom: none;
+}
+
+.invoice-summary-advanced .summary-row.total-row {
+  border-top: 2px solid #667eea;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.days-until {
+  margin-left: 0.5rem;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .advanced-booking-modal,
+  .super-invoice-modal {
+    width: 95%;
+    max-width: 95%;
   }
 }
 </style>

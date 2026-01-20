@@ -93,6 +93,7 @@ Route::get('/bookings/hotel/{hotelId}', [BookingController::class, 'getBookingsB
 Route::delete('/bookings/delete/{id}', [BookingController::class, 'deleteBooking'])->middleware('auth:sanctum');
 Route::put('/bookings/update-status/{id}', [BookingController::class, 'updateStatus']);//->middleware('auth:sanctum');
 Route::put('/bookings/update/{id}', [BookingController::class, 'update'])->middleware('auth:sanctum', 'role:hotel');
+Route::post('/bookings/{id}/confirm-payment', [BookingController::class, 'confirmPayment'])->middleware('auth:sanctum', 'role:hotel');
 
 //INVOICE VÉGPONTOK
 Route::middleware('auth:sanctum')->group(function () {

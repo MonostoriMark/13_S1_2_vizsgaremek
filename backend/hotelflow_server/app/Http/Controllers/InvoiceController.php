@@ -21,7 +21,7 @@ class InvoiceController extends Controller
      */
     public function generatePreview($bookingId)
     {
-        $booking = Booking::with(['hotel.user', 'user', 'rooms', 'services'])->find($bookingId);
+        $booking = Booking::with(['hotel.user', 'user', 'rooms', 'services', 'payment', 'invoiceDetails'])->find($bookingId);
         
         if (!$booking) {
             return response()->json(['error' => 'Foglalás nem található'], 404);
@@ -117,27 +117,55 @@ class InvoiceController extends Controller
         }
 
         $request->validate([
+            'invoice_number' => 'sometimes|string|max:255|unique:invoices,invoice_number,' . $invoiceId,
             'subtotal' => 'sometimes|numeric|min:0',
             'tax_rate' => 'sometimes|numeric|min:0|max:100',
+            'tax_amount' => 'sometimes|numeric|min:0',
+            'total_amount' => 'sometimes|numeric|min:0',
             'issue_date' => 'sometimes|date',
             'due_date' => 'sometimes|date|after_or_equal:issue_date',
+            'status' => 'sometimes|in:draft,approved,sent',
         ]);
 
         DB::beginTransaction();
         try {
+            // Update invoice number if provided (only for draft)
+            if ($request->has('invoice_number')) {
+                $invoice->invoice_number = $request->invoice_number;
+            }
+
+            // Update status if provided (only for draft)
+            if ($request->has('status')) {
+                $invoice->status = $request->status;
+            }
+
+            // Update subtotal
             if ($request->has('subtotal')) {
                 $invoice->subtotal = $request->subtotal;
             }
+
+            // Update tax rate
             if ($request->has('tax_rate')) {
                 $invoice->tax_rate = $request->tax_rate;
-                // Recalculate tax amount and total
+            }
+
+            // Manual tax amount override (if provided)
+            if ($request->has('tax_amount')) {
+                $invoice->tax_amount = $request->tax_amount;
+            } else if ($request->has('subtotal') || $request->has('tax_rate')) {
+                // Auto-calculate if not manually set
                 $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
-                $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
-            } else if ($request->has('subtotal')) {
-                // Recalculate if subtotal changed but tax_rate didn't
-                $invoice->tax_amount = round($invoice->subtotal * ($invoice->tax_rate / 100), 2);
+            }
+
+            // Manual total amount override (if provided)
+            if ($request->has('total_amount')) {
+                $invoice->total_amount = $request->total_amount;
+            } else if ($request->has('subtotal') || $request->has('tax_amount')) {
+                // Auto-calculate if not manually set
                 $invoice->total_amount = $invoice->subtotal + $invoice->tax_amount;
             }
+
+            // Update dates
             if ($request->has('issue_date')) {
                 $invoice->issue_date = $request->issue_date;
             }
@@ -324,7 +352,7 @@ class InvoiceController extends Controller
     private function generatePDF(Booking $booking, Invoice $invoice)
     {
         // Load all necessary relationships
-        $booking->load(['hotel.user', 'user', 'rooms', 'services']);
+        $booking->load(['hotel.user', 'user', 'rooms', 'services', 'payment', 'invoiceDetails']);
 
         // Calculate number of nights
         $startDate = \Carbon\Carbon::parse($booking->startDate);
@@ -409,7 +437,9 @@ class InvoiceController extends Controller
             'booking' => $booking,
             'items' => $items,
             'hotel' => $booking->hotel,
-            'guest' => $booking->user
+            'guest' => $booking->user,
+            'invoiceDetails' => $booking->invoiceDetails,
+            'payment' => $booking->payment,
         ])->render();
 
         $options = new Options();
