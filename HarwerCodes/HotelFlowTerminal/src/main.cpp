@@ -15,8 +15,8 @@ SoftwareSerial espSerial(2, 3);
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 // --- KONFIGURÁCIÓ ---
-const char WIFI_SSID[] = "Xiaomi_FCD0";
-const char WIFI_PASS[] = "Xiaomirouter3000";
+const char WIFI_SSID[] = "HotelFlow-wireless";
+const char WIFI_PASS[] = "OptikArt2025";
 const char MQTT_BROKER[] = "192.168.1.35";
 const uint16_t MQTT_PORT = 1883;
 
@@ -188,7 +188,6 @@ void setup(){
   Serial.println("--- ARDUINO INDUL (LIGHTWEIGHT) ---");
   SPI.begin();
   rfid.PCD_Init();
-  rfid.PCD_SetAntennaGain(rfid.RxGain_max);
 
   Serial.print("RFID Verzió: "); rfid.PCD_DumpVersionToSerial();
   state=S_WAIT_ESP; stateTimer=millis();
