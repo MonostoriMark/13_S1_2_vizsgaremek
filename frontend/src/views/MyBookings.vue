@@ -792,6 +792,7 @@ const downloadInvoice = async (invoiceId, bookingId) => {
   align-items: center;
   gap: 1rem;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .date-icon {
