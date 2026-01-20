@@ -9,7 +9,7 @@ DB_CONFIG = {
     "database": "hotelflowLocal"
 }
 
-API_URL = "http://172.16.50.41:8000/api/devices/bookings/37"
+API_URL = "http://172.16.50.41:8000/api/devices/bookings/38"
 API_HEADERS = {
     "Accept": "application/json"
 }

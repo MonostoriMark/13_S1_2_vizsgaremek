@@ -11,6 +11,15 @@ db_config = {
     'cursorclass': pymysql.cursors.DictCursor  # DictCursor a könnyebb kezeléshez
 }
 
+RFID_LOCKER_MAP = {
+    "A1B2C3D4": (0, 0),
+    "F9E8D7C6": (0, 1),
+    "11223344": (0, 2),
+    "55667788": (1, 0),
+    "99AABBCC": (1, 1),
+}
+
+
 def check_in_out(auth_token: str):
     conn = None
     cursor = None
@@ -82,6 +91,30 @@ def check_in_out(auth_token: str):
                     checkOutTime=NULL
                 WHERE id=%s
             """, (booking_id,))
+
+
+            # -----------------------------
+            # RFID KULCSOK LEKÉRÉSE
+            # -----------------------------
+            cursor.execute("""
+                SELECT rfid_uid
+                FROM rfid_keys
+                WHERE booking_id = %s
+            """, (booking_id,))
+            rfid_keys = cursor.fetchall()
+
+            print("\nRFID kulcsok szekrény pozíciói:")
+
+            for key in rfid_keys:
+                uid = key["rfid_uid"]
+
+                if uid in RFID_LOCKER_MAP:
+                    row, col = RFID_LOCKER_MAP[uid]
+                    print(f"RFID {uid} → Szekrény [{row}][{col}]")
+                else:
+                    print(f"⚠️ RFID {uid} nincs regisztrálva a szekrényben!")
+
+
         else:
             print("\nVendég kijelentkeztetése...")
             cursor.execute("""

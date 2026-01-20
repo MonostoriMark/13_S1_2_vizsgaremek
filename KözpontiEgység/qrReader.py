@@ -51,7 +51,7 @@ try:
         else:
             logging.debug("Nincs QR a képkockában")
 
-        time.sleep(1)  # CPU spórolás
+        time.sleep(0.1)  # CPU spórolás
 
 except KeyboardInterrupt:
     logging.info("QR olvasó debug leállítva kézzel")
