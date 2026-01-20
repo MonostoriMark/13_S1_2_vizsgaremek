@@ -1,0 +1,26 @@
+meta {
+  name: New HTTP Request
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8000/api/bookings
+  body: json
+  auth: none
+}
+
+body:json {
+   {
+      "userId": 71,
+      "hotelId":37,
+      "startDate": "2025-12-26",
+      "endDate": "2025-12-28",
+      "rooms": [
+          {"id": 141, "guests": 2},
+          {"id": 142, "guests": 1}
+      ],
+      "services": [3, 4]
+  }
+
+}

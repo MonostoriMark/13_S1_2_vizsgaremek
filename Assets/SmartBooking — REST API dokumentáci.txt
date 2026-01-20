@@ -1,0 +1,229 @@
+SmartBooking — REST API dokumentáció
+Dokument célja: Teljes, fejlesztésre kész REST API dokumentáció a SmartBooking rendszer backendjéhez (Laravel API). A dokumentum minden végpontot részletesen leír: URL, HTTP metódus, jogosultságok, request body, response példák, hibakódok és megjegyzések. Az autentikáció token-alapú, Laravel Sanctum middleware-vel védett végpontokkal.
+________________________________________
+Verziótörténet
+•	v1.0 — 2025-10-22 — Első teljes változat, REST konvenció szerint
+________________________________________
+Tartalomjegyzék
+1.	Bevezetés
+2.	Általános konvenciók
+3.	Autentikáció (Sanctum / Bearer token)
+4.	Válaszkódok és hibakezelés
+5.	Felhasználói (User) végpontok
+6.	Szállásadó (Hotel) végpontok
+7.	Szoba (Room) végpontok
+8.	Foglalás (Booking) végpontok
+9.	Keresés és elérhetőség
+10.	Automata check-in / check-out (API interfész)
+11.	Opcionális modul: Számlázás (megjegyzés)
+12.	Mellékletek: példa JSON-ek, séma referenciák
+________________________________________
+1. Bevezetés
+A SmartBooking egy szállásfoglaló backend API, amely két szereplőt támogat: Vendég (User) és Szállásadó (Hotel). A rendszer REST architektúrát követ; a végpontok /api/... prefixszel érhetők el. A védett végpontokhoz token alapú autentikáció szükséges; a tokeneket a bejelentkezés adja vissza.
+Minden időpont a backendben UTC-ben tárolódik; a frontend felelős az átalakításért a lokális megjelenítéshez.
+________________________________________
+2. Általános konvenciók
+•	Base URL: https://api.smartbooking.local/api (példa)
+•	Minden védett végpontnál a HTTP header: Authorization: Bearer <token>
+•	Dátum formátum: ISO 8601 YYYY-MM-DD (dátum) és YYYY-MM-DDTHH:MM:SSZ (datetimes, UTC)
+•	Valuta: HUF, számformátum: DECIMAL(10,2)
+•	Pagination: listázó végpontok ?page=1&per_page=20 (Laravel paginator)
+•	Request/response payloadok JSON-ban.
+________________________________________
+3. Autentikáció (Sanctum / Bearer token)
+3.1 Regisztráció (User)
+POST /api/auth/register
+Request
+{
+  "name": "Kiss Péter",
+  "email": "peter@example.com",
+  "password": "Jelszo123!",
+  "role": "user"
+}
+Response (201 Created)
+{
+  "user": { "id": 12, "name": "Kiss Péter", "email": "peter@example.com", "role": "user" },
+  "token": "<sanctum_token_string>"
+}
+Hibakódok: 400 (validation), 409 (email már létezik)
+________________________________________
+3.2 Regisztráció (Hotel)
+POST /api/auth/register-hotel
+Request
+{
+  "name": "Hotel Tulajdonos",
+  "email": "owner@example.com",
+  "password": "Jelszo123!",
+  "role": "hotel",
+  "hotel": { "name": "Tiszavirag", "location": "Szeged, Kossuth Lajos u. 1" }
+}
+Response (201 Created)
+{
+  "user": { "id": 8, "name": "Hotel Tulajdonos", "email": "owner@example.com", "role": "hotel" },
+  "hotel": { "id": 3, "name": "Tiszavirag", "location": "Szeged, Kossuth Lajos u. 1" },
+  "token": "<sanctum_token_string>"
+}
+________________________________________
+3.3 Bejelentkezés
+POST /api/auth/login
+Request
+{ "email": "peter@example.com", "password": "Jelszo123!" }
+Response (200 OK)
+{
+  "user": { "id": 12, "name": "Kiss Péter", "email": "peter@example.com", "role": "user" },
+  "token": "<sanctum_token_string>",
+  "expires_in": 86400
+}
+Megjegyzés: A token-t Sanctum hozza létre; a backend middleware auth:sanctum-mal védi a végpontokat.
+________________________________________
+3.4 Kijelentkezés
+POST /api/auth/logout (Auth required)
+Request: üres
+Response (200 OK)
+{ "message": "Logged out" }
+A backend érvényteleníti a token-t (revocation).
+________________________________________
+4. Válaszkódok és hibakezelés
+Általános kódok:
+•	200 OK — sikeres GET/PUT
+•	201 Created — sikeres létrehozás
+•	204 No Content — sikeres törlés
+•	400 Bad Request — validációs hiba
+•	401 Unauthorized — hiányzó/érvénytelen token
+•	403 Forbidden — vagyoni jogosultság hiánya (pl. más hotel erőforrásaihoz)
+•	404 Not Found — erőforrás nem található
+•	409 Conflict — üzleti konfliktus (pl. foglalási ütközés)
+•	500 Internal Server Error — szerverhiba
+Hiba payload formátum (példa 400):
+{ "message": "Validation failed", "errors": { "start_date": ["The start date must be before end date."] } }
+________________________________________
+5. Felhasználói (User) végpontok
+5.1 GET /api/users/me (Auth required)
+Leírás: Saját profil lekérése
+Response (200)
+{ "id": 12, "name": "Kiss Péter", "email": "peter@example.com", "role": "user", "created_at": "2025-04-01T12:00:00Z" }
+________________________________________
+5.2 PUT /api/users/me (Auth required)
+Leírás: Profil frissítése
+Request
+{ "name": "Kiss P.", "phone": "+36301234567" }
+Response (200)
+{ "id": 12, "name": "Kiss P.", "phone": "+36301234567" }
+________________________________________
+6. Szállásadó (Hotel) végpontok
+6.1 GET /api/hotels (Public)
+Leírás: Szállodák listázása; query paramok: city, min_price, max_price, page, per_page.
+Response (200)
+{ "data": [ {"id":1,"name":"Hotel A","location":"Szeged"} ], "meta": {"page":1} }
+________________________________________
+6.2 POST /api/hotels (Auth: hotel)
+Leírás: Szálloda létrehozása (szállásadók regisztráció után)
+Request
+{ "name": "Tiszavirag", "location": "Szeged, Kossuth u.", "description": "Kedves vendégek" }
+Response (201)
+{ "id": 3, "name":"Tiszavirag", "location":"Szeged, Kossuth u." }
+Permissions: csak role=hotel felhasználó hozhat létre saját hotelt.
+________________________________________
+6.3 GET /api/hotels/{id} (Public)
+Response: részletes hotel objektum, átlag értékelések, szobák száma.
+________________________________________
+6.4 PUT /api/hotels/{id} (Auth: hotel)
+Leírás: Szálloda adatok frissítése — ownership ellenőrizve.
+Request
+{ "description": "Új leírás", "has_auto_checkin": true }
+Response (200) — frissített hotel objektum
+________________________________________
+6.5 DELETE /api/hotels/{id} (Auth: hotel)
+Leírás: Hotel törlése (soft delete javasolt)
+Response: 204 No Content
+________________________________________
+7. Szoba (Room) végpontok
+7.1 GET /api/hotels/{hotelId}/rooms (Public)
+Leírás: Egy hotel összes szobájának listázása
+Response (200)
+{ "data": [ {"id":21,"name":"Superior","price_per_night":"20000.00","capacity":2} ] }
+________________________________________
+7.2 POST /api/hotels/{hotelId}/rooms (Auth: hotel)
+Leírás: Szoba létrehozása a saját hotelhez
+Request
+{ "name": "Superior", "price_per_night": 20000, "capacity": 2 }
+Response (201)
+{ "id": 21, "name": "Superior" }
+________________________________________
+7.3 PUT /api/rooms/{id} (Auth: hotel)
+Leírás: Szoba módosítása (ownership ellenőrzés)
+________________________________________
+7.4 DELETE /api/rooms/{id} (Auth: hotel)
+Leírás: Szoba törlése (soft delete javasolt)
+________________________________________
+7.5 GET /api/rooms/{id}/availability?start=YYYY-MM-DD&end=YYYY-MM-DD (Public)
+Leírás: Elérhetőség ellenőrzése a megadott időszakra. Válasz:
+{ "room_id": 21, "available": true }
+Helyi logika: a backend ellenőrzi, hogy nincs-e nem-cancelled foglalás, amely átfed.
+________________________________________
+8. Foglalás (Booking) végpontok
+8.1 POST /api/bookings (Auth: user)
+Leírás: Új foglalás létrehozása
+Request
+{ "room_id": 21, "start_date": "2025-11-20", "end_date": "2025-11-23", "guests": 2 }
+Response (201)
+{ "booking": { "id": 304, "user_id":12, "room_id":21, "start_date":"2025-11-20","end_date":"2025-11-23","status":"pending","total_price":"60000.00" } }
+Konflikt (409) — ha a szoba nem elérhető a megadott időintervallumban.
+________________________________________
+8.2 GET /api/bookings (Auth: user / hotel)
+Leírás: Listázza a bejelentkezett user foglalásait, vagy ha hotel tokennel hívva, a hotelhez tartozó foglalásokat.
+Query paramok: status, from, to, page.
+________________________________________
+8.3 GET /api/bookings/{id} (Auth: user/hotel)
+Leírás: Foglalás részletei — ownership check (user==owner vagy room.hotel.user==hotel)
+________________________________________
+8.4 PUT /api/bookings/{id}/cancel (Auth: user/hotel)
+Leírás: Foglalás lemondása; visszatérítési logika opcionális.
+Response (200)
+{ "booking": { "id":304, "status":"cancelled" } }
+________________________________________
+8.5 PUT /api/bookings/{id}/confirm (Auth: hotel)
+Leírás: Szálloda megerősíti a foglalást: status -> confirmed
+________________________________________
+8.6 PUT /api/bookings/{id}/checkin (Auth: hotel vagy device callback)
+Leírás: Check-in rekord rögzítése. Státuszváltás: confirmed -> checked_in.
+Request (device callback)
+{ "device_id": "DEV123", "booking_id": 304, "action":"door_open", "rfid_uid":"AB12CD" }
+Response (200)
+{ "status":"ok","message":"check-in recorded" }
+Note: device callback esetén a kérés hitelesítése device tokennel történik (HTTP header X-Device-Token).
+________________________________________
+8.7 PUT /api/bookings/{id}/checkout (Auth: hotel or device)
+Leírás: Check-out rögzítése, status -> checked_out, checkout_time mentése.
+________________________________________
+9. Keresés és elérhetőség
+9.1 GET /api/search (Public)
+Query params: city, start_date, end_date, min_price, max_price, page, per_page
+Leírás: Visszaadja a szállodákat és elérhető szobákat a paraméterek alapján. A backend előszűri a hoteleket, majd a benne lévő szobákat availability checkkel.
+Response (200) (részlet)
+{ "data": [ { "hotel": {"id":3,"name":"Tiszavirag"}, "available_rooms": [ {"id":21,"price_per_night":"20000.00"} ] } ] }
+________________________________________
+10. Automata check-in / check-out (API interfész)
+A fizikai eszközök a következő endpointokat hívhatják (gateway / proxy által), de a fizikai integráció dokumentációját külön kezeljük. Itt csak az API felület szerepel.
+10.1 POST /api/hardware/checkin (Device auth required)
+Request
+{ "device_id": "DEV123", "booking_id": 304, "action": "door_open", "rfid_uid": "AB12CD34" }
+Auth: X-Device-Token header (eszköz token). Backend ellenőrzi, hogy a device a megadott hotelhez tartozik és a booking_id érvényes.
+Response (200)
+{ "status":"ok", "action":"open_door" }
+Denied (403)
+{ "status":"denied", "reason":"no active booking" }
+________________________________________
+11. Opcionális modul: Számlázás
+A számlázás külön fejlesztési modul; API végpontok csak placeholderként szerepelnek a dokumentumban. Ha később implementáljátok: POST /api/invoices/generate-from-booking/:bookingId, GET /api/invoices/:id/pdf, POST /api/invoices/:id/report-to-nav.
+________________________________________
+12. Mellékletek: példa JSON-ek és séma referenciák
+•	Mellékelve: példa booking objektum schema (mezők listája), hotel schema és room schema.
+________________________________________
+Függelék: Gyakori hibák és megoldási javaslatok
+•	Dupla foglalás: Használjatok row-level lockot a bookings létrehozásánál (DB::transaction + lockForUpdate).
+•	Időzóna problémák: backend UTC, frontend lokalizálás.
+•	Token érvénytelenítés: logout endpoint revokálja a Sanctum token-t.
+________________________________________
+Vége — ha szeretnéd, exportálom ezt .docx formátumba, illetve hozzáadom az OpenAPI YAML vázlatot és az ER diagramot a dokumentum végéhez.
+

@@ -1,0 +1,26 @@
+meta {
+  name: New HTTP Request
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://127.0.0.1:8000/api/rooms/create/2
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: 4|GiiSERiC7PqkHmuqVQep33Ebn3hLKyWHsFW2PBsj3307629e
+}
+
+body:json {
+  {
+    "hotels_id":"2",
+    "name": "123",
+    "description": "Van ingyen sör",
+    "pricePerNight": "15000",
+    "capacity": "2",
+    "basePrice": "25.000"
+  }
+}

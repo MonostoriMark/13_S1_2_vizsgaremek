@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend/hotelflow_server
+      dockerfile: Dockerfile
+    container_name: hotelflow_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/hotelflow_server:/var/www
+    env_file:
+      - ./backend/hotelflow_server/.env
+    depends_on:
+      - db
+    networks:
+      - hotelflow-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hotelflow_frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - hotelflow-network
+
+  db:
+    image: mysql:8.0
+    container_name: hotelflow_db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - hotelflow-network
+
+networks:
+  hotelflow-network:
+    driver: bridge
+
+volumes:
+  dbdata: {}
+
+
