@@ -16,10 +16,10 @@
           <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
           <div v-if="!sidebarCollapsed" class="user-info-sidebar">
             <div class="logo-text">HOTELFLOW</div>
-            <div class="logo-subtitle">Admin Panel</div>
+            <div class="logo-subtitle">Admin felület</div>
           </div>
         </div>
-        <button class="sidebar-toggle" @click="toggleSidebar" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+        <button class="sidebar-toggle" @click="toggleSidebar" :title="sidebarCollapsed ? 'Oldalsáv kibontása' : 'Oldalsáv összecsukása'">
           <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path v-if="!sidebarCollapsed" d="M15 18l-6-6 6-6"/>
             <path v-else d="M9 18l6-6-6-6"/>
@@ -47,11 +47,11 @@
           @click="handleNavClick($event, '/admin/bookings')"
         >
           <span class="nav-icon">📅</span>
-          <span v-if="!sidebarCollapsed" class="nav-label">Bookings</span>
+          <span v-if="!sidebarCollapsed" class="nav-label">Foglalások</span>
         </router-link>
-        <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? 'Logout' : ''" :disabled="show2FABlocker">
+        <button @click="handleLogout" class="logout-btn" :title="sidebarCollapsed ? 'Kijelentkezés' : ''" :disabled="show2FABlocker">
           <span class="nav-icon">🚪</span>
-          <span v-if="!sidebarCollapsed">Logout</span>
+          <span v-if="!sidebarCollapsed">Kijelentkezés</span>
         </button>
       </div>
     </aside>
@@ -90,13 +90,13 @@ const sidebarCollapsed = ref(false)
 const show2FABlocker = ref(false)
 
 const menuItems = [
-  { path: '/admin', label: 'Dashboard', icon: '📊' },
-  { path: '/admin/hotels', label: 'Hotels', icon: '🏨' },
-  { path: '/admin/rooms', label: 'Rooms', icon: '🛏️' },
-  { path: '/admin/services', label: 'Services', icon: '✨' },
-  { path: '/admin/tags', label: 'Tags', icon: '🏷️' },
-  { path: '/admin/rfid-keys', label: 'RFID Keys', icon: '🔑' },
-  { path: '/admin/users', label: 'My Profile', icon: '👤' }
+  { path: '/admin', label: 'Irányítópult', icon: '📊' },
+  { path: '/admin/hotels', label: 'Szállodák', icon: '🏨' },
+  { path: '/admin/rooms', label: 'Szobák', icon: '🛏️' },
+  { path: '/admin/services', label: 'Szolgáltatások', icon: '✨' },
+  { path: '/admin/tags', label: 'Címkék', icon: '🏷️' },
+  { path: '/admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' },
+  { path: '/admin/users', label: 'Profilom', icon: '👤' }
 ]
 
 const pageTitle = computed(() => {

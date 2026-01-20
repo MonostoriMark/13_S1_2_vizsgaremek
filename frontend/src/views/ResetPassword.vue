@@ -3,7 +3,7 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
     
     <!-- Card -->
@@ -13,8 +13,8 @@
           <div class="travel-icon-wrapper">
             <div class="travel-icon">🔑</div>
           </div>
-          <h1>Reset Password</h1>
-          <p class="welcome-subtitle">Enter your new password</p>
+          <h1>Jelszó visszaállítása</h1>
+          <p class="welcome-subtitle">Adja meg az új jelszavát</p>
         </div>
 
         <div v-if="error" class="error-message">
@@ -25,12 +25,12 @@
         <div v-if="successMessage" class="success-message">
           <span class="success-icon">✓</span>
           <div class="success-text">{{ successMessage }}</div>
-          <p class="redirect-text">Redirecting to login...</p>
+          <p class="redirect-text">Átirányítás a bejelentkezéshez...</p>
         </div>
 
         <form @submit.prevent="handleSubmit" class="reset-password-form" v-if="!successMessage">
           <div class="form-group">
-            <label for="password">New Password</label>
+            <label for="password">Új jelszó</label>
             <div class="input-wrapper">
               <span class="input-icon">🔒</span>
               <input
@@ -39,7 +39,7 @@
                 type="password"
                 required
                 minlength="8"
-                placeholder="Enter new password (min. 8 characters)"
+                placeholder="Adja meg az új jelszavát (min. 8 karakter)"
                 class="glass-input"
               />
               <div class="input-glow"></div>
@@ -47,7 +47,7 @@
           </div>
 
           <div class="form-group">
-            <label for="confirmPassword">Confirm New Password</label>
+            <label for="confirmPassword">Új jelszó megerősítése</label>
             <div class="input-wrapper">
               <span class="input-icon">🔒</span>
               <input
@@ -56,7 +56,7 @@
                 type="password"
                 required
                 minlength="8"
-                placeholder="Confirm new password"
+                placeholder="Erősítse meg az új jelszavát"
                 class="glass-input"
               />
               <div class="input-glow"></div>
@@ -65,12 +65,12 @@
 
           <button type="submit" class="btn-submit" :disabled="loading">
             <span v-if="loading" class="loading-spinner"></span>
-            <span v-else>{{ loading ? 'Resetting...' : 'RESET PASSWORD' }}</span>
+            <span v-else>{{ loading ? 'Visszaállítás...' : 'JELSZÓ VISSZAÁLLÍTÁSA' }}</span>
             <div class="button-glow"></div>
           </button>
 
           <p class="back-link">
-            Remember your password? <router-link to="/login">Back to Login</router-link>
+            Emlékszik a jelszavára? <router-link to="/login">Vissza a bejelentkezéshez</router-link>
           </p>
         </form>
       </div>
@@ -132,7 +132,7 @@ let slideshowInterval = null
 
 onMounted(() => {
   if (!token) {
-    error.value = 'Invalid reset token. Please request a new password reset link.'
+    error.value = 'Érvénytelen visszaállítási token. Kérjük, kérjen új jelszó-visszaállítási linket.'
     return
   }
 
@@ -154,17 +154,17 @@ const handleSubmit = async () => {
 
   // Validate passwords
   if (password.value.length < 8) {
-    error.value = 'Password must be at least 8 characters long'
+    error.value = 'A jelszónak legalább 8 karakter hosszúnak kell lennie'
     return
   }
 
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
+    error.value = 'A jelszavak nem egyeznek'
     return
   }
 
   if (!token) {
-    error.value = 'Invalid reset token'
+    error.value = 'Érvénytelen visszaállítási token'
     return
   }
 
@@ -174,7 +174,7 @@ const handleSubmit = async () => {
     const result = await authService.resetPassword(token, password.value)
     
     if (result.success || result.message) {
-      successMessage.value = result.message || 'Password has been reset successfully!'
+      successMessage.value = result.message || 'A jelszó sikeresen visszaállítva!'
       if (window.showToast) {
         window.showToast(successMessage.value, 'success')
       }
@@ -184,10 +184,10 @@ const handleSubmit = async () => {
         router.push('/login')
       }, 2000)
     } else {
-      error.value = result.message || 'Failed to reset password'
+      error.value = result.message || 'A jelszó visszaállítása sikertelen'
     }
   } catch (err) {
-    error.value = err.response?.data?.message || 'An error occurred. Please try again or request a new reset link.'
+    error.value = err.response?.data?.message || 'Hiba történt. Kérjük, próbálja újra vagy kérjen új visszaállítási linket.'
     if (window.showToast) {
       window.showToast(error.value, 'error')
     }

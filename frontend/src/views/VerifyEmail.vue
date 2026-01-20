@@ -3,7 +3,7 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
 
     <!-- Verification Card -->

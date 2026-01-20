@@ -117,6 +117,18 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/two-factor-recovery',
+      name: 'TwoFactorRecoveryRequest',
+      component: () => import('../views/TwoFactorRecoveryRequest.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/two-factor-recovery/:token',
+      name: 'TwoFactorRecoveryConfirm',
+      component: () => import('../views/TwoFactorRecoveryConfirm.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/super-admin/dashboard',
       name: 'SuperAdminDashboard',
       component: () => import('../views/super-admin/Dashboard.vue'),

@@ -3,7 +3,7 @@
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <div class="loading-spinner"></div>
-      <p>Loading hotel details...</p>
+      <p>Szálloda részletek betöltése...</p>
     </div>
 
     <!-- Error State -->
@@ -51,18 +51,18 @@
         <!-- Search Results Available - Show Plan Selection -->
         <div v-if="searchResultsData && searchResultsData.hotel.plans && searchResultsData.hotel.plans.length > 0" class="plans-section">
           <div class="booking-info-card">
-            <h2 class="section-title">Select Your Plan</h2>
+            <h2 class="section-title">Válassza ki a csomagját</h2>
             <div class="booking-dates">
               <div class="date-item">
-                <span class="date-label">Check-in</span>
+                <span class="date-label">Bejelentkezés</span>
                 <span class="date-value">{{ formatDate(searchResultsData.searchParams.startDate) }}</span>
               </div>
               <div class="date-item">
-                <span class="date-label">Check-out</span>
+                <span class="date-label">Kijelentkezés</span>
                 <span class="date-value">{{ formatDate(searchResultsData.searchParams.endDate) }}</span>
               </div>
               <div class="date-item">
-                <span class="date-label">Guests</span>
+                <span class="date-label">Vendégek</span>
                 <span class="date-value">{{ searchResultsData.searchParams.guests }}</span>
               </div>
             </div>
@@ -84,12 +84,12 @@
                   </div>
                   <div class="plan-price">
                     <span class="price-amount">{{ plan.total_price }} €</span>
-                    <span class="price-label">Total Price</span>
+                    <span class="price-label">Összesen</span>
                   </div>
                 </div>
                 <div class="plan-rooms">
                   <div class="rooms-header">
-                    <span class="rooms-count">{{ plan.room_count }} {{ plan.room_count === 1 ? 'Room' : 'Rooms' }}</span>
+                    <span class="rooms-count">{{ plan.room_count }} {{ plan.room_count === 1 ? 'Szoba' : 'Szoba' }}</span>
                   </div>
                   <div v-for="room in plan.rooms" :key="room.room_id" class="room-detail">
                     <!-- Room Image Gallery -->
@@ -121,7 +121,7 @@
                           {{ getRoomImageIndex(room.room_id) + 1 }} / {{ getRoomImages(room).length }}
                         </div>
                         <div class="gallery-zoom-hint">
-                          <span class="zoom-icon">🔍</span> Click to view fullscreen
+                          <span class="zoom-icon">🔍</span> Kattintson a teljes képernyős nézetért
                         </div>
                       </div>
                       <!-- Thumbnail Gallery -->
@@ -144,7 +144,7 @@
                     <div class="room-info">
                       <h4 class="room-name">{{ room.name }}</h4>
                       <div class="room-specs">
-                        <span class="spec-item">👥 {{ room.capacity }} guests</span>
+                        <span class="spec-item">👥 {{ room.capacity }} vendég</span>
                         <span class="spec-item">💰 {{ room.price }} €</span>
                       </div>
                       <div v-if="room.tags && room.tags.length > 0" class="room-tags">
@@ -164,7 +164,7 @@
                   :class="{ 'selected': selectedPlanIndex === index }"
                   @click.stop="confirmPlan(index)"
                 >
-                  {{ selectedPlanIndex === index ? 'Selected' : 'Select Plan' }}
+                  {{ selectedPlanIndex === index ? 'Kiválasztva' : 'Csomag kiválasztása' }}
                 </button>
               </div>
             </div>
@@ -199,7 +199,7 @@
 
           <!-- Selected Plan Summary -->
           <div v-if="selectedPlanIndex !== null" class="selected-plan-summary">
-            <h3>Selected Plan</h3>
+            <h3>Kiválasztott csomag</h3>
             <div class="summary-content">
               <div class="summary-plan">
                 <strong>{{ searchResultsData.hotel.plans[selectedPlanIndex].label }}</strong>
@@ -215,7 +215,7 @@
                 </div>
               </div>
               <div v-if="selectedServices.length > 0" class="summary-services">
-                <div class="summary-services-header">Additional Services:</div>
+                <div class="summary-services-header">További szolgáltatások:</div>
                 <div
                   v-for="serviceId in selectedServices"
                   :key="serviceId"
@@ -226,15 +226,15 @@
               </div>
               <div class="summary-total">
                 <div class="total-line">
-                  <span>Plan Total:</span>
+                  <span>Csomag összesen:</span>
                   <span>{{ searchResultsData.hotel.plans[selectedPlanIndex].total_price }} €</span>
                 </div>
                 <div v-if="selectedServices.length > 0" class="total-line">
-                  <span>Services Total:</span>
+                  <span>Szolgáltatások összesen:</span>
                   <span>{{ getSelectedServicesTotal() }} €</span>
                 </div>
                 <div class="total-line final-total">
-                  <span><strong>Grand Total:</strong></span>
+                  <span><strong>Végösszeg:</strong></span>
                   <span><strong>{{ getGrandTotal() }} €</strong></span>
                 </div>
               </div>
@@ -243,11 +243,11 @@
 
           <!-- Additional Services -->
           <div v-if="availableServices.length > 0" class="services-section">
-            <h3 class="services-title">Additional Services</h3>
-            <p class="services-subtitle">Select additional services for your stay</p>
+            <h3 class="services-title">További szolgáltatások</h3>
+            <p class="services-subtitle">Válasszon további szolgáltatásokat a tartózkodásához</p>
             <div v-if="servicesLoading" class="services-loading">
               <div class="loading-spinner-small"></div>
-              <span>Loading services...</span>
+              <span>Szolgáltatások betöltése...</span>
             </div>
             <div v-else class="services-grid">
               <label
@@ -272,7 +272,7 @@
               </label>
             </div>
             <div v-if="selectedServices.length > 0" class="selected-services-summary">
-              <h4>Selected Services</h4>
+              <h4>Kiválasztott szolgáltatások</h4>
               <div class="selected-services-list">
                 <div
                   v-for="serviceId in selectedServices"
@@ -284,18 +284,18 @@
                 </div>
               </div>
               <div class="services-total">
-                <strong>Services Total: {{ getSelectedServicesTotal() }} €</strong>
+                <strong>Szolgáltatások összesen: {{ getSelectedServicesTotal() }} €</strong>
               </div>
             </div>
           </div>
           <div v-else-if="!servicesLoading" class="no-services">
-            <p>No additional services available for this hotel.</p>
+            <p>Nincs további szolgáltatás elérhető ehhez a szállodához.</p>
           </div>
 
           <!-- Booking Actions -->
           <div class="booking-actions">
             <div v-if="!isAuthenticated" class="auth-prompt">
-              <p>Please <router-link to="/login">login</router-link> to complete your booking.</p>
+              <p>Kérjük, <router-link to="/login">jelentkezzen be</router-link> a foglalás befejezéséhez.</p>
             </div>
             <div v-else class="action-buttons">
               <button
@@ -303,10 +303,10 @@
                 class="btn-confirm-booking"
                 :disabled="bookingLoading || selectedPlanIndex === null"
               >
-                {{ bookingLoading ? 'Creating booking...' : 'Confirm Booking' }}
+                {{ bookingLoading ? 'Foglalás létrehozása...' : 'Foglalás megerősítése' }}
               </button>
               <button @click="goBackToSearch" class="btn-back">
-                Back to Search
+                Vissza a kereséshez
               </button>
             </div>
           </div>
@@ -316,7 +316,7 @@
             <div v-if="showPaymentInvoiceModal" class="modal-overlay pay-invoice-overlay" @click.self="closePaymentInvoiceModal">
               <div class="modal-content pay-invoice-modal glass-card">
                 <div class="modal-header">
-                  <h2>💳 Payment & Invoice Details</h2>
+                  <h2>💳 Fizetési és számlázási adatok</h2>
                   <button @click="closePaymentInvoiceModal" class="btn-close-modal">×</button>
                 </div>
 
@@ -328,7 +328,7 @@
                       :class="{ active: invoiceForm.customer_type === 'private' }"
                       @click="invoiceForm.customer_type = 'private'"
                     >
-                      Private
+                      Magánszemély
                     </button>
                     <button
                       type="button"
@@ -336,90 +336,90 @@
                       :class="{ active: invoiceForm.customer_type === 'business' }"
                       @click="invoiceForm.customer_type = 'business'"
                     >
-                      Business
+                      Cég
                     </button>
                   </div>
 
                   <div class="grid-2">
                     <div class="card">
-                      <h3 class="card-title">Payment method</h3>
+                      <h3 class="card-title">Fizetési mód</h3>
                       <div class="radio-row">
                         <label class="radio-card">
                           <input type="radio" value="bank_transfer" v-model="paymentMethod" />
                           <div class="radio-card-content">
-                            <div class="radio-title">Bank transfer</div>
-                            <div class="radio-sub">Pay after invoice is sent</div>
+                            <div class="radio-title">Banki átutalás</div>
+                            <div class="radio-sub">Fizetés a számla küldése után</div>
                           </div>
                         </label>
                       </div>
                     </div>
 
                     <div class="card">
-                      <h3 class="card-title">Invoice preview</h3>
+                      <h3 class="card-title">Számla előnézet</h3>
                       <div class="preview">
-                        <div class="preview-row"><span>Customer</span><strong>{{ invoiceForm.full_name || '—' }}</strong></div>
-                        <div class="preview-row" v-if="invoiceForm.customer_type === 'business'"><span>Company</span><strong>{{ invoiceForm.company_name || '—' }}</strong></div>
-                        <div class="preview-row"><span>Email</span><strong>{{ invoiceForm.email || '—' }}</strong></div>
-                        <div class="preview-row"><span>Address</span><strong>{{ invoiceAddressPreview }}</strong></div>
-                        <div class="preview-row"><span>Total</span><strong>{{ getGrandTotal() }} €</strong></div>
+                        <div class="preview-row"><span>Vásárló</span><strong>{{ invoiceForm.full_name || '—' }}</strong></div>
+                        <div class="preview-row" v-if="invoiceForm.customer_type === 'business'"><span>Cég</span><strong>{{ invoiceForm.company_name || '—' }}</strong></div>
+                        <div class="preview-row"><span>E-mail</span><strong>{{ invoiceForm.email || '—' }}</strong></div>
+                        <div class="preview-row"><span>Cím</span><strong>{{ invoiceAddressPreview }}</strong></div>
+                        <div class="preview-row"><span>Összesen</span><strong>{{ getGrandTotal() }} €</strong></div>
                       </div>
                     </div>
                   </div>
 
                   <div class="card">
-                    <h3 class="card-title">Billing details</h3>
+                    <h3 class="card-title">Számlázási adatok</h3>
                     <div class="form-grid">
                       <div class="form-field">
-                        <label>Full name *</label>
-                        <input v-model="invoiceForm.full_name" type="text" class="input" placeholder="John Doe" />
+                        <label>Teljes név *</label>
+                        <input v-model="invoiceForm.full_name" type="text" class="input" placeholder="Kovács János" />
                       </div>
                       <div class="form-field">
-                        <label>Email *</label>
-                        <input v-model="invoiceForm.email" type="email" class="input" placeholder="john@example.com" />
+                        <label>E-mail *</label>
+                        <input v-model="invoiceForm.email" type="email" class="input" placeholder="pelda@email.com" />
                       </div>
 
                       <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
-                        <label>Company name *</label>
-                        <input v-model="invoiceForm.company_name" type="text" class="input" placeholder="ACME Ltd." />
+                        <label>Cégnév *</label>
+                        <input v-model="invoiceForm.company_name" type="text" class="input" placeholder="Példa Kft." />
                       </div>
                       <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
-                        <label>Tax number</label>
-                        <input v-model="invoiceForm.tax_number" type="text" class="input" placeholder="Optional" />
+                        <label>Adószám</label>
+                        <input v-model="invoiceForm.tax_number" type="text" class="input" placeholder="Opcionális" />
                       </div>
 
                       <div class="form-field">
-                        <label>Country</label>
-                        <input v-model="invoiceForm.country" type="text" class="input" placeholder="Hungary" />
+                        <label>Ország</label>
+                        <input v-model="invoiceForm.country" type="text" class="input" placeholder="Magyarország" />
                       </div>
                       <div class="form-field">
-                        <label>City</label>
+                        <label>Város</label>
                         <input v-model="invoiceForm.city" type="text" class="input" placeholder="Budapest" />
                       </div>
                       <div class="form-field">
-                        <label>Postal code</label>
+                        <label>Irányítószám</label>
                         <input v-model="invoiceForm.postal_code" type="text" class="input" placeholder="1111" />
                       </div>
                       <div class="form-field">
-                        <label>Address line</label>
-                        <input v-model="invoiceForm.address_line" type="text" class="input" placeholder="Street 1." />
+                        <label>Utca, házszám</label>
+                        <input v-model="invoiceForm.address_line" type="text" class="input" placeholder="Példa utca 1." />
                       </div>
                       <div class="form-field full">
-                        <label>Note to hotel (optional)</label>
-                        <textarea v-model="invoiceForm.note" class="textarea" rows="3" placeholder="Optional note to appear on invoice / request"></textarea>
+                        <label>Megjegyzés a szállodának (opcionális)</label>
+                        <textarea v-model="invoiceForm.note" class="textarea" rows="3" placeholder="Opcionális megjegyzés, amely megjelenik a számlán / kérésen"></textarea>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="modal-actions">
-                  <button type="button" class="btn-back" @click="closePaymentInvoiceModal">Cancel</button>
+                  <button type="button" class="btn-back" @click="closePaymentInvoiceModal">Mégse</button>
                   <button
                     type="button"
                     class="btn-confirm-booking"
                     :disabled="bookingLoading || !canSubmitBookingWithInvoice"
                     @click="createBooking"
                   >
-                    {{ bookingLoading ? 'Creating booking...' : 'Send booking request' }}
+                    {{ bookingLoading ? 'Foglalás létrehozása...' : 'Foglalási kérés küldése' }}
                   </button>
                 </div>
               </div>
@@ -429,17 +429,17 @@
           <!-- Messages -->
           <div v-if="bookingError" class="error-message">{{ bookingError }}</div>
           <div v-if="bookingSuccess" class="success-message">
-            <p>✅ Booking created successfully!</p>
-            <router-link to="/bookings" class="view-bookings-link">View my bookings</router-link>
+            <p>✅ Foglalás sikeresen létrehozva!</p>
+            <router-link to="/bookings" class="view-bookings-link">Foglalásaim megtekintése</router-link>
           </div>
         </div>
 
         <!-- No Search Results - Show Info Message -->
         <div v-else class="no-search-results">
           <div class="info-card">
-            <h2>No Booking Plans Available</h2>
-            <p>Please search for hotels with your dates to see available plans.</p>
-            <router-link to="/search" class="btn-primary">Search Hotels</router-link>
+            <h2>Nincs elérhető foglalási csomag</h2>
+            <p>Kérjük, keressen szállodákat a dátumokkal, hogy lássa az elérhető csomagokat.</p>
+            <router-link to="/search" class="btn-primary">Szállodák keresése</router-link>
           </div>
         </div>
       </div>
@@ -451,7 +451,7 @@
   <Transition name="fullscreen-modal">
     <div v-if="fullscreenGallery.open" class="fullscreen-gallery-overlay" @click.self="closeFullscreenGallery">
       <div class="fullscreen-gallery-container">
-        <button class="fullscreen-close-btn" @click="closeFullscreenGallery" title="Close (ESC)">
+        <button class="fullscreen-close-btn" @click="closeFullscreenGallery" title="Bezárás (ESC)">
           ×
         </button>
         <div class="fullscreen-gallery-content">
@@ -598,7 +598,7 @@ onMounted(async () => {
     const servicesHotelId = searchResultsData.value?.hotel?.hotel_id || data.id || hotelId
     await loadServices(servicesHotelId)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to load hotel details'
+    error.value = err.response?.data?.message || 'A szálloda részleteinek betöltése sikertelen'
   } finally {
     loading.value = false
   }
@@ -786,7 +786,7 @@ const openFullscreenGallery = (room) => {
     images: images,
     currentIndex: currentIndex,
     roomId: roomId,
-    roomName: room.name || 'Room'
+    roomName: room.name || 'Szoba'
   }
   
   // Prevent body scroll when modal is open
@@ -918,7 +918,7 @@ const createBooking = async () => {
       router.push('/bookings')
     }, 2000)
   } catch (err) {
-    bookingError.value = err.response?.data?.error || err.response?.data?.message || 'Failed to create booking'
+    bookingError.value = err.response?.data?.error || err.response?.data?.message || 'A foglalás létrehozása sikertelen'
   } finally {
     bookingLoading.value = false
   }

@@ -3,7 +3,7 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
     
     <!-- Card -->
@@ -13,8 +13,8 @@
           <div class="travel-icon-wrapper">
             <div class="travel-icon">🔐</div>
           </div>
-          <h1>Forgot Password</h1>
-          <p class="welcome-subtitle">Enter your email to receive a password reset link</p>
+          <h1>Elfelejtett jelszó</h1>
+          <p class="welcome-subtitle">Adja meg az e-mail címét, hogy jelszó-visszaállítási linket kapjon</p>
         </div>
 
         <div v-if="error" class="error-message">
@@ -29,7 +29,7 @@
 
         <form @submit.prevent="handleSubmit" class="forgot-password-form" v-if="!successMessage">
           <div class="form-group">
-            <label for="email">Email Address</label>
+            <label for="email">E-mail cím</label>
             <div class="input-wrapper">
               <span class="input-icon">✉️</span>
               <input
@@ -37,7 +37,7 @@
                 v-model="email"
                 type="email"
                 required
-                placeholder="thisuix@mail.com"
+                placeholder="pelda@email.com"
                 class="glass-input"
               />
               <div class="input-glow"></div>
@@ -46,12 +46,12 @@
 
           <button type="submit" class="btn-submit" :disabled="loading">
             <span v-if="loading" class="loading-spinner"></span>
-            <span v-else>{{ loading ? 'Sending...' : 'SEND RESET LINK' }}</span>
+            <span v-else>{{ loading ? 'Küldés...' : 'VISSZAÁLLÍTÁSI LINK KÜLDÉSE' }}</span>
             <div class="button-glow"></div>
           </button>
 
           <p class="back-link">
-            Remember your password? <router-link to="/login">Back to Login</router-link>
+            Emlékszik a jelszavára? <router-link to="/login">Vissza a bejelentkezéshez</router-link>
           </p>
         </form>
       </div>
@@ -125,15 +125,15 @@ const handleSubmit = async () => {
     const result = await authService.requestPasswordReset(email.value)
     
     if (result.success || result.message) {
-      successMessage.value = result.message || 'Password reset link has been sent to your email address. Please check your inbox.'
+      successMessage.value = result.message || 'A jelszó-visszaállítási linket elküldtük az e-mail címére. Kérjük, ellenőrizze a postaládáját.'
       if (window.showToast) {
         window.showToast(successMessage.value, 'success')
       }
     } else {
-      error.value = result.message || 'Failed to send password reset link'
+      error.value = result.message || 'A jelszó-visszaállítási link küldése sikertelen'
     }
   } catch (err) {
-    error.value = err.response?.data?.message || 'An error occurred. Please try again later.'
+    error.value = err.response?.data?.message || 'Hiba történt. Kérjük, próbálja újra később.'
     if (window.showToast) {
       window.showToast(error.value, 'error')
     }

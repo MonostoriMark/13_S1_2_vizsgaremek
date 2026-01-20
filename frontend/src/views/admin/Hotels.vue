@@ -2,9 +2,9 @@
   <AdminLayout>
     <div class="hotels-page">
       <div class="page-header">
-        <h1>Hotels Management</h1>
+        <h1>Szállodák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Hotel
+          <span>➕</span> Szálloda hozzáadása
         </button>
       </div>
 
@@ -12,8 +12,8 @@
         :data="hotels"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search hotels..."
-        empty-message="No hotels found"
+        search-placeholder="Szállodák keresése..."
+        empty-message="Nem található szálloda"
         :search-fields="['name', 'location', 'type', 'description']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
@@ -22,8 +22,8 @@
           <span class="stars">{{ '★'.repeat(value || 0) }}</span>
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -32,63 +32,63 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingHotel ? 'Edit Hotel' : 'Create Hotel' }}</h2>
+              <h2>{{ editingHotel ? 'Szálloda szerkesztése' : 'Szálloda létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Hotel Name *</label>
-                <input v-model="form.name" type="text" required placeholder="Enter hotel name" />
+                <label>Szálloda neve *</label>
+                <input v-model="form.name" type="text" required placeholder="Adja meg a szálloda nevét" />
               </div>
 
               <div class="form-group">
-                <label>Location/Address *</label>
-                <input v-model="form.location" type="text" required placeholder="Enter location" />
+                <label>Helyszín/Cím *</label>
+                <input v-model="form.location" type="text" required placeholder="Adja meg a helyszínt" />
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Type</label>
+                  <label>Típus</label>
                   <select v-model="form.type">
-                    <option value="">Select type</option>
-                    <option value="hotel">Hotel</option>
-                    <option value="apartment">Apartment</option>
+                    <option value="">Válasszon típust</option>
+                    <option value="hotel">Szálloda</option>
+                    <option value="apartment">Apartman</option>
                     <option value="villa">Villa</option>
-                    <option value="other">Other</option>
+                    <option value="other">Egyéb</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Star Rating</label>
+                  <label>Csillag értékelés</label>
                   <select v-model.number="form.starRating">
-                    <option :value="null">No rating</option>
-                    <option :value="1">1 Star</option>
-                    <option :value="2">2 Stars</option>
-                    <option :value="3">3 Stars</option>
-                    <option :value="4">4 Stars</option>
-                    <option :value="5">5 Stars</option>
+                    <option :value="null">Nincs értékelés</option>
+                    <option :value="1">1 csillag</option>
+                    <option :value="2">2 csillag</option>
+                    <option :value="3">3 csillag</option>
+                    <option :value="4">4 csillag</option>
+                    <option :value="5">5 csillag</option>
                   </select>
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Description</label>
+                <label>Leírás</label>
                 <textarea
                   v-model="form.description"
                   rows="4"
-                  placeholder="Enter hotel description"
+                  placeholder="Adja meg a szálloda leírását"
                 ></textarea>
               </div>
 
               <!-- Cover Image Upload -->
               <div v-if="editingHotel" class="form-group">
-                <label>Cover Image</label>
+                <label>Borítókép</label>
                 <div class="cover-image-section">
                   <div v-if="coverImagePreview || editingHotel.cover_image" class="cover-image-preview">
                     <img 
                       :src="coverImagePreview || getImageUrl(editingHotel.cover_image)" 
-                      alt="Cover image"
+                      alt="Borítókép"
                       class="cover-preview-img"
                       @error="handleImageError"
                     />
@@ -102,7 +102,7 @@
                     </button>
                     <div v-if="uploadingCover" class="upload-overlay">
                       <div class="upload-spinner"></div>
-                      <p>Uploading...</p>
+                      <p>Feltöltés...</p>
                     </div>
                   </div>
                   <div v-else class="cover-image-upload">
@@ -119,25 +119,25 @@
                       class="btn-upload-cover"
                       :disabled="uploadingCover"
                     >
-                      {{ uploadingCover ? 'Uploading...' : '📷 Upload Cover Image' }}
+                      {{ uploadingCover ? 'Feltöltés...' : '📷 Borítókép feltöltése' }}
                     </button>
-                    <p class="upload-hint">Upload a cover photo for your hotel (JPG, PNG, GIF, WebP - Max 4MB)</p>
+                    <p class="upload-hint">Töltse fel a szálloda borítóképét (JPG, PNG, GIF, WebP - Max 4MB)</p>
                   </div>
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Status</label>
+                <label>Státusz</label>
                 <label class="switch">
                   <input v-model="form.active" type="checkbox" />
                   <span class="slider"></span>
-                  <span class="switch-label">{{ form.active ? 'Active' : 'Inactive' }}</span>
+                  <span class="switch-label">{{ form.active ? 'Aktív' : 'Inaktív' }}</span>
                 </label>
               </div>
 
               <!-- Tags Section -->
               <div v-if="editingHotel" class="form-group">
-                <label>Tags</label>
+                <label>Címkék</label>
                 <div class="tags-section">
                   <div v-if="currentHotelTags.length > 0" class="current-tags">
                     <div
@@ -156,10 +156,10 @@
                       </button>
                     </div>
                   </div>
-                  <div v-else class="no-tags">No tags assigned</div>
+                  <div v-else class="no-tags">Nincs hozzárendelt címke</div>
                   
                   <div class="add-tags-section">
-                    <label class="add-tags-label">Add Tags</label>
+                    <label class="add-tags-label">Címkék hozzáadása</label>
                     <div class="available-tags">
                       <button
                         v-for="tag in availableTagsForHotel"
@@ -173,16 +173,16 @@
                       </button>
                     </div>
                     <p v-if="availableTagsForHotel.length === 0" class="no-available-tags">
-                      No available tags. Create tags in the Tags management page.
+                      Nincs elérhető címke. Hozzon létre címkéket a Címkék kezelése oldalon.
                     </p>
                   </div>
                 </div>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -192,10 +192,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Hotel"
-        :message="`Are you sure you want to delete this hotel? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szálloda törlése"
+        :message="`Biztosan törölni szeretné ezt a szállodát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -246,11 +246,11 @@ const coverImagePreview = ref(null)
 const uploadingCover = ref(false)
 
 const columns = [
-  { key: 'name', label: 'Hotel Name', sortable: true },
-  { key: 'location', label: 'Location', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'starRating', label: 'Rating', sortable: true },
-  { key: 'description', label: 'Description' }
+  { key: 'name', label: 'Szálloda neve', sortable: true },
+  { key: 'location', label: 'Helyszín', sortable: true },
+  { key: 'type', label: 'Típus', sortable: true },
+  { key: 'starRating', label: 'Értékelés', sortable: true },
+  { key: 'description', label: 'Leírás' }
 ]
 
 const loadHotels = async () => {
@@ -263,7 +263,7 @@ const loadHotels = async () => {
       tags: hotel.tags || []
     }))
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -316,7 +316,7 @@ const confirmDelete = async () => {
 
   try {
     await adminService.deleteHotel(hotelToDelete.value.id)
-    showToast('Hotel deleted successfully', 'success')
+    showToast('Szálloda sikeresen törölve', 'success')
     await loadHotels()
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to delete hotel', 'error')
@@ -338,7 +338,7 @@ const handleSubmit = async () => {
         starRating: form.value.starRating,
         description: form.value.description
       })
-      showToast('Hotel updated successfully', 'success')
+      showToast('Szálloda sikeresen frissítve', 'success')
     } else {
       await adminService.createHotel({
         name: form.value.name,
@@ -347,14 +347,14 @@ const handleSubmit = async () => {
         starRating: form.value.starRating,
         description: form.value.description
       })
-      showToast('Hotel created successfully', 'success')
+      showToast('Szálloda sikeresen létrehozva', 'success')
       // Refresh hotel list to update dropdowns in other pages
       window.dispatchEvent(new CustomEvent('hotels-updated'))
     }
     closeModal()
     await loadHotels()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save hotel'
+    error.value = err.response?.data?.message || 'A szálloda mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -412,7 +412,7 @@ const addTagToHotel = async (tagId) => {
     // Update tag usage
     const usage = await tagService.getTagUsage()
     tagUsage.value = usage
-    showToast('Tag added successfully', 'success')
+    showToast('Címke sikeresen hozzáadva', 'success')
   } catch (err) {
     const message = err.response?.data?.message || 'Failed to add tag'
     showToast(message, 'error')
@@ -431,7 +431,7 @@ const removeTagFromHotel = async (tagId) => {
     // Update tag usage
     const usage = await tagService.getTagUsage()
     tagUsage.value = usage
-    showToast('Tag removed successfully', 'success')
+    showToast('Címke sikeresen eltávolítva', 'success')
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to remove tag', 'error')
   } finally {
@@ -474,17 +474,17 @@ const handleCoverImageSelect = async (event) => {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 
   if (!validTypes.includes(file.type)) {
-    showToast('Invalid file type. Only JPG, PNG, GIF, and WebP are allowed.', 'error')
+    showToast('Érvénytelen fájltípus. Csak JPG, PNG, GIF és WebP formátumok engedélyezettek.', 'error')
     return
   }
 
   if (file.size > maxSize) {
-    showToast('File size exceeds 4MB limit.', 'error')
+    showToast('A fájl mérete meghaladja a 4MB korlátot.', 'error')
     return
   }
 
   if (!editingHotel.value) {
-    showToast('Please save the hotel first before uploading cover image', 'warning')
+    showToast('Kérjük, először mentse el a szállodát a borítókép feltöltése előtt', 'warning')
     return
   }
 
@@ -495,7 +495,7 @@ const handleCoverImageSelect = async (event) => {
   uploadingCover.value = true
   try {
     const result = await adminService.uploadHotelCoverImage(editingHotel.value.id, file)
-    showToast('Cover image uploaded successfully', 'success')
+    showToast('Borítókép sikeresen feltöltve', 'success')
     // Update the hotel object
     if (editingHotel.value) {
       editingHotel.value.cover_image = result.cover_image
@@ -520,7 +520,7 @@ const removeCoverImage = async () => {
   // Note: We'd need a delete endpoint for cover images
   // For now, just clear the preview
   coverImagePreview.value = null
-  showToast('Cover image removed. Upload a new one to replace it.', 'info')
+    showToast('Borítókép eltávolítva. Töltse fel egy újat a lecseréléshez.', 'info')
 }
 
 const handleImageError = (event) => {

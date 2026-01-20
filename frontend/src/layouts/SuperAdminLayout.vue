@@ -7,10 +7,10 @@
           <div class="logo-icon">⚡</div>
           <div v-if="!sidebarCollapsed" class="logo-text">
             <div class="logo-title">SUPER ADMIN</div>
-            <div class="logo-subtitle">Control Center</div>
+            <div class="logo-subtitle">Vezérlőközpont</div>
           </div>
         </div>
-        <button class="sidebar-toggle" @click="toggleSidebar" :title="sidebarCollapsed ? 'Expand' : 'Collapse'">
+        <button class="sidebar-toggle" @click="toggleSidebar" :title="sidebarCollapsed ? 'Kibontás' : 'Összecsukás'">
           <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path v-if="!sidebarCollapsed" d="M15 18l-6-6 6-6"/>
             <path v-else d="M9 18l6-6-6-6"/>
@@ -45,7 +45,7 @@
         <div class="topbar-actions">
           <div class="status-indicator">
             <span class="status-dot"></span>
-            <span class="status-text">System Online</span>
+            <span class="status-text">Rendszer online</span>
           </div>
           <div class="user-info-top">
             <div class="user-avatar-top">{{ getUserInitials }}</div>
@@ -54,9 +54,9 @@
               <div class="user-role-top">Super Admin</div>
             </div>
           </div>
-          <button @click="handleLogout" class="logout-btn-top" title="Logout">
+          <button @click="handleLogout" class="logout-btn-top" title="Kijelentkezés">
             <span class="logout-icon">🚪</span>
-            <span class="logout-text">Logout</span>
+            <span class="logout-text">Kijelentkezés</span>
           </button>
         </div>
       </div>
@@ -82,19 +82,19 @@ const authStore = useAuthStore()
 const sidebarCollapsed = ref(false)
 
 const menuItems = [
-  { path: '/super-admin/dashboard', label: 'Dashboard', icon: '📊' },
-  { path: '/super-admin/users', label: 'Users', icon: '👥' },
-  { path: '/super-admin/hotels', label: 'Hotels', icon: '🏨' },
-  { path: '/super-admin/rooms', label: 'Rooms', icon: '🛏️' },
-  { path: '/super-admin/services', label: 'Services', icon: '✨' },
-  { path: '/super-admin/bookings', label: 'Bookings', icon: '📅' },
-  { path: '/super-admin/invoices', label: 'Invoices', icon: '🧾' },
-  { path: '/super-admin/rfid-keys', label: 'RFID Keys', icon: '🔑' }
+  { path: '/super-admin/dashboard', label: 'Irányítópult', icon: '📊' },
+  { path: '/super-admin/users', label: 'Felhasználók', icon: '👥' },
+  { path: '/super-admin/hotels', label: 'Szállodák', icon: '🏨' },
+  { path: '/super-admin/rooms', label: 'Szobák', icon: '🛏️' },
+  { path: '/super-admin/services', label: 'Szolgáltatások', icon: '✨' },
+  { path: '/super-admin/bookings', label: 'Foglalások', icon: '📅' },
+  { path: '/super-admin/invoices', label: 'Számlák', icon: '🧾' },
+  { path: '/super-admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' }
 ]
 
 const pageTitle = computed(() => {
   const item = menuItems.find(i => i.path === route.path)
-  return item ? item.label : 'Super Admin Panel'
+  return item ? item.label : 'Super Admin felület'
 })
 
 const userName = computed(() => authStore.state.user?.name || 'Super Admin')

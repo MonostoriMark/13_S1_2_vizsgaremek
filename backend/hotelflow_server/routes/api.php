@@ -49,6 +49,10 @@ Route::post('/auth/2fa/verify-enable', [AuthController::class, 'verifyAndEnable2
 Route::post('/auth/2fa/disable', [AuthController::class, 'disable2FA'])->middleware('auth:sanctum');
 Route::post('/auth/verify-2fa', [AuthController::class, 'verify2FA'])->middleware('auth:sanctum');
 
+// 2FA helyreállítás (elveszett telefon esetén)
+Route::post('/auth/2fa/recovery/request', [AuthController::class, 'requestTwoFactorRecovery']);
+Route::post('/auth/2fa/recovery/confirm', [AuthController::class, 'confirmTwoFactorRecovery']);
+
 //HOTEL VÉGPONTOK
 Route::get('/hotels', [HotelController::class, 'getHotels']);
 Route::get('/hotels/{id}', [HotelController::class, 'getHotelById']);

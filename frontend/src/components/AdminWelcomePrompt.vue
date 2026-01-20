@@ -4,31 +4,31 @@
       <div class="modal-content">
         <div class="modal-header">
           <div class="welcome-icon">🏨</div>
-          <h2>Welcome to HotelFlow Admin</h2>
-          <p class="modal-subtitle">Your hotel management dashboard</p>
+          <h2>Üdvözöljük a HotelFlow Admin felületén</h2>
+          <p class="modal-subtitle">Szálloda kezelő irányítópultja</p>
         </div>
 
         <div class="modal-body">
           <div class="info-section">
             <p class="info-text">
-              {{ message || 'Manage your hotels, rooms, services, and bookings all in one place. Get started by exploring the dashboard!' }}
+              {{ message || 'Kezelje szállodáit, szobáit, szolgáltatásait és foglalásait egy helyen. Kezdje el az irányítópult felfedezésével!' }}
             </p>
           </div>
 
           <div v-if="showQuickActions" class="quick-actions-section">
-            <h3 class="actions-title">Quick Actions</h3>
+            <h3 class="actions-title">Gyors műveletek</h3>
             <div class="actions-grid">
               <button @click="handleAction('hotels')" class="action-btn">
                 <span class="action-icon">🏨</span>
-                <span>Manage Hotels</span>
+                <span>Szállodák kezelése</span>
               </button>
               <button @click="handleAction('rooms')" class="action-btn">
                 <span class="action-icon">🛏️</span>
-                <span>Manage Rooms</span>
+                <span>Szobák kezelése</span>
               </button>
               <button @click="handleAction('bookings')" class="action-btn">
                 <span class="action-icon">📅</span>
-                <span>View Bookings</span>
+                <span>Foglalások megtekintése</span>
               </button>
             </div>
           </div>
@@ -39,7 +39,7 @@
               {{ primaryAction }}
             </button>
             <button @click="handleDismiss" class="btn-dismiss">
-              {{ dismissText || 'Got it!' }}
+              {{ dismissText || 'Rendben!' }}
             </button>
           </div>
         </div>
@@ -73,7 +73,7 @@ const props = defineProps({
   },
   dismissText: {
     type: String,
-    default: 'Got it!'
+    default: 'Rendben!'
   },
   showQuickActions: {
     type: Boolean,

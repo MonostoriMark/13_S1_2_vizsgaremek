@@ -3,14 +3,14 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button" v-if="!isAuthenticated">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
     
     <!-- Clean Search Section -->
     <div class="search-container">
       <div class="search-header">
-        <h1 style="margin-top: 50px;">Find Your Perfect Stay</h1>
-        <p>Discover amazing hotels, apartments, and villas</p>
+        <h1 style="margin-top: 50px;">Találja meg az ideális szálláshelyet</h1>
+        <p>Fedezzen fel fantasztikus szállodákat, apartmanokat és villákat</p>
       </div>
 
       <!-- Main Search Bar -->
@@ -24,7 +24,7 @@
                   v-model="searchParams.city"
                   type="text"
                   required
-                  placeholder="Where are you going?"
+                  placeholder="Hová utazik?"
                   class="booking-input"
                   list="locations-list"
                   autocomplete="off"
@@ -76,13 +76,13 @@
                   type="number"
                   required
                   min="1"
-                  :placeholder="`${searchParams.guests || 1} guest${(searchParams.guests || 1) > 1 ? 's' : ''}`"
+                  :placeholder="`${searchParams.guests || 1} vendég${(searchParams.guests || 1) > 1 ? '' : ''}`"
                   class="booking-input"
                 />
                 <span class="input-arrow">▼</span>
               </div>
               <button type="submit" class="btn-search-booking" :disabled="loading">
-                {{ loading ? 'Searching...' : 'Search' }}
+                {{ loading ? 'Keresés...' : 'Keresés' }}
               </button>
             </div>
           </form>
@@ -90,16 +90,16 @@
           <!-- Filter bar below search -->
           <div class="filters-row-booking">
             <div class="filter-group-booking">
-              <label for="typeFilter">Type</label>
+              <label for="typeFilter">Típus</label>
               <select id="typeFilter" v-model="filters.type" class="filter-select">
-                <option value="">Any</option>
-                <option value="hotel">Hotel</option>
-                <option value="apartment">Apartment</option>
+                <option value="">Bármelyik</option>
+                <option value="hotel">Szálloda</option>
+                <option value="apartment">Apartman</option>
                 <option value="villa">Villa</option>
               </select>
             </div>
             <div class="filter-group-booking">
-              <label>Price / night</label>
+              <label>Ár / éjszaka</label>
               <div class="price-filter-booking">
                 <input
                   v-model.number="filters.minPrice"
@@ -119,7 +119,7 @@
               </div>
             </div>
             <div class="filter-group-booking services-filter-booking">
-              <label>Tags</label>
+              <label>Címkék</label>
               <div class="services-chips-booking">
                 <button
                   v-for="tag in availableTagsForFilter"
@@ -141,7 +141,7 @@
       <!-- Loading State -->
       <div v-if="loading && !hasSearched" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>Loading recommended hotels...</p>
+        <p>Ajánlott szállodák betöltése...</p>
       </div>
 
       <!-- Error State -->
@@ -149,7 +149,7 @@
 
       <!-- Search Results -->
       <div v-if="hasSearched && filteredResults.length > 0" class="results-section">
-        <h2 class="section-title">Search Results ({{ filteredResults.length }})</h2>
+        <h2 class="section-title">Keresési eredmények ({{ filteredResults.length }})</h2>
         <div class="hotels-grid">
           <div
             v-for="hotel in filteredResults"
@@ -196,14 +196,14 @@
               </div>
               <div class="hotel-footer">
                 <div class="price-info">
-                  <span class="price-label">Starting from</span>
+                  <span class="price-label">Ár kezdve</span>
                   <span class="price-amount">
                     {{ getStartingPrice(hotel) }} €
-                    <span class="price-period">/night</span>
+                    <span class="price-period">/éjszaka</span>
                   </span>
                 </div>
                 <button class="btn-view" @click.stop="viewHotel(hotel.hotel_id)">
-                  View Details
+                  Részletek
                 </button>
               </div>
             </div>
@@ -213,8 +213,8 @@
 
       <!-- Recommended Hotels (Initial State) -->
       <div v-if="!hasSearched && recommendedHotels.length > 0" class="recommended-section">
-        <h2 class="section-title">Recommended Hotels</h2>
-        <p class="section-subtitle">Discover amazing places to stay</p>
+        <h2 class="section-title">Ajánlott szállodák</h2>
+        <p class="section-subtitle">Fedezzen fel fantasztikus szálláshelyeket</p>
         <div class="hotels-grid">
           <div
             v-for="hotel in recommendedHotels"
@@ -252,15 +252,15 @@
               </div>
               <div class="hotel-footer">
                 <div class="price-info">
-                  <span class="price-label">Starting from</span>
+                  <span class="price-label">Ár kezdve</span>
                   <span class="price-amount" v-if="hotel.startingPrice">
                     {{ hotel.startingPrice }} €
-                    <span class="price-period">/night</span>
+                    <span class="price-period">/éjszaka</span>
                   </span>
-                  <span class="price-amount" v-else>Price on request</span>
+                  <span class="price-amount" v-else>Ár igény esetén</span>
                 </div>
                 <button class="btn-view" @click.stop="viewRecommendedHotel(hotel)">
-                  View Hotel
+                  Szálloda megtekintése
                 </button>
               </div>
             </div>
@@ -271,14 +271,14 @@
       <!-- Empty State (No Search Results) -->
       <div v-if="hasSearched && filteredResults.length === 0 && !loading" class="empty-state">
         <div class="empty-icon">🏨</div>
-        <h2>No hotels found</h2>
-        <p>We couldn't find any hotels matching your search criteria.</p>
+        <h2>Nem található szálloda</h2>
+        <p>Nem találtunk szállodát, amely megfelelne a keresési feltételeinek.</p>
         <div class="empty-actions">
-          <button @click="clearSearch" class="btn-primary">Try Different Dates</button>
-          <button @click="showRecommended" class="btn-secondary">View Recommended Hotels</button>
+          <button @click="clearSearch" class="btn-primary">Próbáljon más dátumokat</button>
+          <button @click="showRecommended" class="btn-secondary">Ajánlott szállodák megtekintése</button>
         </div>
         <div v-if="recommendedHotels.length > 0" class="alternative-hotels">
-          <h3>You might also like:</h3>
+          <h3>Ez is érdekelheti:</h3>
           <div class="hotels-grid compact">
             <div
               v-for="hotel in recommendedHotels.slice(0, 3)"
@@ -298,7 +298,7 @@
                 <h3 class="hotel-name">{{ hotel.name || hotel.location }}</h3>
                 <div class="price-info">
                   <span class="price-amount" v-if="hotel.startingPrice">
-                    {{ hotel.startingPrice }} €<span class="price-period">/night</span>
+                    {{ hotel.startingPrice }} €<span class="price-period">/éjszaka</span>
                   </span>
                 </div>
               </div>
@@ -440,7 +440,7 @@ const handleSearch = async () => {
     )
     results.value = data
   } catch (err) {
-    error.value = err.response?.data?.message || 'Search failed'
+    error.value = err.response?.data?.message || 'Keresés sikertelen'
     results.value = []
   } finally {
     loading.value = false

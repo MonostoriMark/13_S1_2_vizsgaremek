@@ -14,7 +14,7 @@
               class="nav-link"
               @click="closeMobileMenu"
             >
-              Search Hotels
+              Szállodák keresése
             </router-link>
             <router-link 
               v-if="userRole === 'user'" 
@@ -22,7 +22,7 @@
               class="nav-link"
               @click="closeMobileMenu"
             >
-              My Bookings
+              Foglalásaim
             </router-link>
             <router-link 
               v-if="userRole === 'hotel'" 
@@ -30,7 +30,7 @@
               class="nav-link"
               @click="closeMobileMenu"
             >
-              Admin Panel
+              Admin felület
             </router-link>
             <router-link 
               v-if="userRole === 'hotel'" 
@@ -38,7 +38,7 @@
               class="nav-link"
               @click="closeMobileMenu"
             >
-              Bookings
+              Foglalások
             </router-link>
             
             <div class="user-menu">
@@ -48,7 +48,7 @@
               </router-link>
               <button @click="handleLogout" class="btn-logout">
                 <span class="logout-icon">🚪</span>
-                <span>Sign Out</span>
+                <span>Kijelentkezés</span>
               </button>
             </div>
           </template>
@@ -59,7 +59,7 @@
               class="nav-link"
               @click="closeMobileMenu"
             >
-              Search Hotels
+              Szállodák keresése
             </router-link>
             <div class="auth-buttons">
               <router-link 
@@ -67,14 +67,14 @@
                 class="btn-login"
                 @click="closeMobileMenu"
               >
-                Login
+                Bejelentkezés
               </router-link>
               <router-link 
                 to="/register" 
                 class="btn-signup"
                 @click="closeMobileMenu"
               >
-                Sign Up
+                Regisztráció
               </router-link>
             </div>
           </template>
@@ -97,8 +97,8 @@
       <div v-if="adminLoading && isAdminRoute" class="admin-loading-screen">
         <div class="loading-content">
           <div class="loading-spinner-large"></div>
-          <h2>Loading Admin Panel</h2>
-          <p>Please wait...</p>
+          <h2>Admin felület betöltése</h2>
+          <p>Kérjük, várjon...</p>
         </div>
       </div>
     </Transition>

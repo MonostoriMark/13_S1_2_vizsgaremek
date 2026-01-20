@@ -15,24 +15,24 @@
 
       <!-- Recent Activity -->
       <div class="section">
-        <h2 class="section-title">Recent Bookings</h2>
+        <h2 class="section-title">Legutóbbi foglalások</h2>
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Guest</th>
-                <th>Hotel</th>
-                <th>Dates</th>
-                <th>Status</th>
-                <th>Total</th>
+                <th>Vendég</th>
+                <th>Szálloda</th>
+                <th>Dátumok</th>
+                <th>Státusz</th>
+                <th>Összesen</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="booking in recentBookings" :key="booking.id">
                 <td>#{{ booking.id }}</td>
-                <td>{{ booking.user?.name || 'N/A' }}</td>
-                <td>{{ booking.hotel?.name || 'N/A' }}</td>
+                <td>{{ booking.user?.name || 'Nincs adat' }}</td>
+                <td>{{ booking.hotel?.name || 'Nincs adat' }}</td>
                 <td>{{ formatDate(booking.startDate) }} - {{ formatDate(booking.endDate) }}</td>
                 <td>
                   <span class="status-badge" :class="`status-${booking.status}`">
@@ -42,7 +42,7 @@
                 <td>€{{ parseFloat(booking.totalPrice || 0).toFixed(2) }}</td>
               </tr>
               <tr v-if="recentBookings.length === 0">
-                <td colspan="6" class="empty-state">No recent bookings</td>
+                <td colspan="6" class="empty-state">Nincs legutóbbi foglalás</td>
               </tr>
             </tbody>
           </table>
@@ -62,7 +62,7 @@ const recentBookings = ref([])
 const loading = ref(true)
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'N/A'
+  if (!dateString) return 'Nincs adat'
   return new Date(dateString).toLocaleDateString('hu-HU')
 }
 
@@ -72,15 +72,15 @@ const loadDashboard = async () => {
     const data = await superAdminService.getDashboardStats()
     
     stats.value = [
-      { key: 'users', label: 'Total Users', value: data.total_users, icon: '👥' },
-      { key: 'hotels', label: 'Hotels', value: data.total_hotels, icon: '🏨' },
-      { key: 'rooms', label: 'Rooms', value: data.total_rooms, icon: '🛏️' },
-      { key: 'services', label: 'Services', value: data.total_services, icon: '✨' },
-      { key: 'bookings', label: 'Bookings', value: data.total_bookings, icon: '📅' },
-      { key: 'invoices', label: 'Invoices', value: data.total_invoices, icon: '🧾' },
-      { key: 'rfid_keys', label: 'RFID Keys', value: data.total_rfid_keys || 0, icon: '🔑' },
-      { key: 'pending', label: 'Pending', value: data.pending_bookings, icon: '⏳' },
-      { key: 'confirmed', label: 'Confirmed', value: data.confirmed_bookings, icon: '✓' }
+      { key: 'users', label: 'Összes felhasználó', value: data.total_users, icon: '👥' },
+      { key: 'hotels', label: 'Szállodák', value: data.total_hotels, icon: '🏨' },
+      { key: 'rooms', label: 'Szobák', value: data.total_rooms, icon: '🛏️' },
+      { key: 'services', label: 'Szolgáltatások', value: data.total_services, icon: '✨' },
+      { key: 'bookings', label: 'Foglalások', value: data.total_bookings, icon: '📅' },
+      { key: 'invoices', label: 'Számlák', value: data.total_invoices, icon: '🧾' },
+      { key: 'rfid_keys', label: 'RFID kulcsok', value: data.total_rfid_keys || 0, icon: '🔑' },
+      { key: 'pending', label: 'Függőben', value: data.pending_bookings, icon: '⏳' },
+      { key: 'confirmed', label: 'Megerősítve', value: data.confirmed_bookings, icon: '✓' }
     ]
 
     recentBookings.value = data.recent_bookings || []

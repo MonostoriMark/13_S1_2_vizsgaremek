@@ -3,7 +3,7 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
     
     <!-- Minimal Card -->
@@ -14,8 +14,8 @@
                 <div class="travel-icon">✈️</div>
                 <div class="icon-glow"></div>
               </div>
-              <h1>Welcome</h1>
-              <p class="welcome-subtitle">Login with Email</p>
+              <h1>Üdvözöljük</h1>
+              <p class="welcome-subtitle">Bejelentkezés e-mail címmel</p>
             </div>
 
             <div v-if="error" class="error-message">
@@ -33,7 +33,7 @@
 
             <form @submit.prevent="handleLogin" class="login-form">
               <div class="form-group">
-                <label for="email">Email Id</label>
+                <label for="email">E-mail cím</label>
                 <div class="input-wrapper">
                   <span class="input-icon">✉️</span>
                   <input
@@ -41,7 +41,7 @@
                     v-model="email"
                     type="email"
                     required
-                    placeholder="thisuix@mail.com"
+                    placeholder="pelda@email.com"
                     class="glass-input"
                   />
                   <div class="input-glow"></div>
@@ -49,7 +49,7 @@
               </div>
 
               <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">Jelszó</label>
                 <div class="input-wrapper">
                   <span class="input-icon">🔒</span>
                   <input
@@ -65,17 +65,17 @@
               </div>
 
               <div class="forgot-password">
-                <router-link to="/forgot-password" class="forgot-link">Forgot your password?</router-link>
+                <router-link to="/forgot-password" class="forgot-link">Elfelejtetted a jelszavad?</router-link>
               </div>
 
               <button type="submit" class="btn-login" :disabled="loading">
                 <span v-if="loading" class="loading-spinner"></span>
-                <span v-else>{{ loading ? 'Logging in...' : 'LOGIN' }}</span>
+                <span v-else>{{ loading ? 'Bejelentkezés...' : 'BEJELENTKEZÉS' }}</span>
                 <div class="button-glow"></div>
               </button>
 
               <p class="register-link">
-                Don't have account? <router-link to="/register">Register Now</router-link>
+                Nincs még fiókod? <router-link to="/register">Regisztrálj most</router-link>
               </p>
             </form>
           </div>
@@ -209,7 +209,7 @@ const handleLogin = async () => {
       }
     })
   } else {
-    error.value = result.message || 'Login failed'
+    error.value = result.message || 'Bejelentkezés sikertelen'
     // If email not verified, show resend option
     if (result.email_verified === false || result.message?.includes('erősítsd meg')) {
       // Error message already includes instructions, resend button will show automatically
@@ -252,7 +252,7 @@ const handleEnable2FA = () => {
   }
   // Show a toast message to remind them to enable 2FA in profile
   if (window.showToast) {
-    window.showToast('You can enable 2FA in your profile settings for added security', 'info')
+    window.showToast('A 2FA-t a profil beállításaiban engedélyezheted a további biztonságért', 'info')
   }
 }
 

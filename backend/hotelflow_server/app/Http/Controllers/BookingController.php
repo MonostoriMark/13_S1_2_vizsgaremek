@@ -12,6 +12,7 @@ use App\Mail\BookingConfirmationMail;
 use App\Mail\NewBookingNotificationMail;
 use App\Mail\BookingRequestNotificationMail;
 use App\Mail\BookingConfirmedPendingPaymentMail;
+use App\Mail\BookingCancelledMail;
 use App\Models\Invoice;
 use App\Models\Guest;
 use App\Models\RFIDKey;
@@ -347,11 +348,11 @@ public function store(Request $request)
 }
 public function deleteBooking($id)
 {
-    $booking = Booking::find($id);
-    $rooms = $booking->rooms;
-        if (!$booking) {
+    $booking = Booking::with(['user', 'hotel', 'rooms'])->find($id);
+    if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
+    $rooms = $booking->rooms;
 
     // 🔥 Jogosultság ellenőrzés
     if ($booking->users_id !== auth()->id()) {
@@ -379,10 +380,19 @@ public function deleteBooking($id)
             $rfidConnection->delete();
         }
     }
+    // Notify guest about cancellation (deletion by guest)
+    try {
+        if ($booking->user && $booking->user->email) {
+            Mail::to($booking->user->email)->send(new BookingCancelledMail($booking, 'A foglalást a felhasználó törölte.'));
+        }
+    } catch (\Exception $e) {
+        \Log::error('Foglalás törlés értesítő e-mail küldési hiba: ' . $e->getMessage());
+    }
+
     $booking->delete();
 
 
-    return response()->json(['message' => 'Booking deleted successfully'], 200);
+    return response()->json(['message' => 'Foglalás sikeresen törölve'], 200);
 
 }
 public function getBookingsByUserId($userId)
@@ -419,7 +429,7 @@ function updateStatus(Request $request, $id)
         'status' => 'required|in:pending,confirmed,cancelled,completed'
     ]);
 
-    $booking = Booking::find($id);
+    $booking = Booking::with(['user', 'hotel', 'rooms'])->find($id);
     if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
@@ -490,6 +500,18 @@ function updateStatus(Request $request, $id)
         }
     }
 
+    // Notify guest when booking gets cancelled
+    if ($request->status === 'cancelled' && $oldStatus !== 'cancelled') {
+        try {
+            $booking->load(['hotel', 'user']);
+            if ($booking->user && $booking->user->email) {
+                Mail::to($booking->user->email)->send(new BookingCancelledMail($booking, 'A foglalást a szálloda törölte.'));
+            }
+        } catch (\Exception $mailEx) {
+            \Log::error('Foglalás törlés értesítő e-mail küldési hiba: ' . $mailEx->getMessage());
+        }
+    }
+
     // Automatically release RFID keys when booking is completed or cancelled
     if (in_array($request->status, ['completed', 'cancelled'])) {
         // Reservation-based system: mark all assignments as released
@@ -517,7 +539,7 @@ function updateStatus(Request $request, $id)
         }
     }
 
-    return response()->json(['message' => 'Booking status updated successfully'], 200);
+    return response()->json(['message' => 'Foglalás státusza sikeresen frissítve'], 200);
 }
 
     /**
@@ -617,7 +639,7 @@ function updateStatus(Request $request, $id)
             DB::commit();
 
             return response()->json([
-                'message' => 'Booking updated successfully',
+                'message' => 'Foglalás sikeresen frissítve',
                 'booking' => $booking->fresh(['user', 'rooms', 'services', 'guests', 'payment'])
             ], 200);
         } catch (\Exception $e) {
@@ -639,7 +661,7 @@ public function getBookingsByHotelId($hotelId)
 
     // Check if user is a hotel admin
     if ($user->role !== 'hotel') {
-        return response()->json(['message' => 'Unauthorized - Hotel admin access required'], 403);
+        return response()->json(['message' => 'Jogosulatlan - Szálloda admin hozzáférés szükséges'], 403);
     }
 
     // Verify the hotel belongs to the authenticated user
@@ -664,7 +686,7 @@ public function confirmPayment($id)
 {
     $user = auth()->user();
     if (!$user || $user->role !== 'hotel') {
-        return response()->json(['message' => 'Unauthorized - Hotel admin access required'], 403);
+        return response()->json(['message' => 'Jogosulatlan - Szálloda admin hozzáférés szükséges'], 403);
     }
 
     $booking = Booking::with(['hotel', 'user', 'rooms.hotel', 'services', 'payment'])->find($id);

@@ -2,8 +2,8 @@
   <AdminLayout>
     <AdminWelcomePrompt
       :visible="showWelcomePrompt"
-      message="Welcome to your hotel management dashboard! Here you can manage your hotels, rooms, services, and view all your bookings."
-      dismiss-text="Let's get started!"
+      message="Üdvözöljük a szálloda kezelő irányítópultján! Itt kezelheti szállodáit, szobáit, szolgáltatásait és megtekintheti az összes foglalást."
+      dismiss-text="Kezdjük el!"
       @dismiss="handleDismissWelcome"
     />
     
@@ -13,39 +13,39 @@
           <div class="stat-icon">🏨</div>
           <div class="stat-content">
             <h3>{{ stats.hotels }}</h3>
-            <p>Hotels</p>
+            <p>Szállodák</p>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">🛏️</div>
           <div class="stat-content">
             <h3>{{ stats.rooms }}</h3>
-            <p>Rooms</p>
+            <p>Szobák</p>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">✨</div>
           <div class="stat-content">
             <h3>{{ stats.services }}</h3>
-            <p>Services</p>
+            <p>Szolgáltatások</p>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">📅</div>
           <div class="stat-content">
             <h3>{{ stats.bookings }}</h3>
-            <p>Bookings</p>
+            <p>Foglalások</p>
           </div>
         </div>
       </div>
 
       <div class="dashboard-content">
         <div class="dashboard-section">
-          <h2>Recent Activity</h2>
+          <h2>Legutóbbi tevékenységek</h2>
           <div class="activity-list">
-            <div v-if="loading" class="loading">Loading...</div>
+            <div v-if="loading" class="loading">Betöltés...</div>
             <div v-else-if="recentActivity.length === 0" class="empty-state">
-              <p>No recent activity</p>
+              <p>Nincs legutóbbi tevékenység</p>
             </div>
             <div v-else class="activity-item" v-for="activity in recentActivity" :key="activity.id">
               <span class="activity-icon">{{ activity.icon }}</span>
@@ -58,22 +58,22 @@
         </div>
 
         <div class="dashboard-section">
-          <h2>Quick Actions</h2>
+          <h2>Gyors műveletek</h2>
           <div class="quick-actions">
             <router-link to="/admin/hotels" class="action-card">
               <span class="action-icon">➕</span>
-              <h3>Add Hotel</h3>
-              <p>Create a new hotel</p>
+              <h3>Szálloda hozzáadása</h3>
+              <p>Új szálloda létrehozása</p>
             </router-link>
             <router-link to="/admin/rooms" class="action-card">
               <span class="action-icon">🛏️</span>
-              <h3>Add Room</h3>
-              <p>Create a new room</p>
+              <h3>Szoba hozzáadása</h3>
+              <p>Új szoba létrehozása</p>
             </router-link>
             <router-link to="/admin/services" class="action-card">
               <span class="action-icon">✨</span>
-              <h3>Add Service</h3>
-              <p>Create a new service</p>
+              <h3>Szolgáltatás hozzáadása</h3>
+              <p>Új szolgáltatás létrehozása</p>
             </router-link>
           </div>
         </div>
@@ -139,13 +139,13 @@ const loadDashboardData = async () => {
       {
         id: 1,
         icon: '🏨',
-        text: 'Hotel updated',
+        text: 'Szálloda frissítve',
         time: new Date(Date.now() - 3600000)
       },
       {
         id: 2,
         icon: '🛏️',
-        text: 'New room added',
+        text: 'Új szoba hozzáadva',
         time: new Date(Date.now() - 7200000)
       }
     ]
@@ -163,10 +163,10 @@ const formatTime = (date) => {
   const hours = Math.floor(minutes / 60)
   const days = Math.floor(hours / 24)
 
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${days}d ago`
+  if (minutes < 1) return 'Épp most'
+  if (minutes < 60) return `${minutes} perce`
+  if (hours < 24) return `${hours} órája`
+  return `${days} napja`
 }
 
 onMounted(() => {

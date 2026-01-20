@@ -11,8 +11,11 @@ use App\Models\User;
 use App\Models\Hotel;
 use App\Mail\EmailVerificationMail;
 use App\Mail\PasswordResetMail;
+use App\Mail\TwoFactorRecoveryMail;
 use App\Helpers\TOTP;
 use Endroid\QrCode\Builder\Builder;
+use App\Models\TwoFactorRecoveryToken;
+use Illuminate\Support\Carbon;
 
 class AuthController extends Controller
 {
@@ -40,7 +43,7 @@ class AuthController extends Controller
         ]);
 
         // Send verification email
-        $frontendUrl = config('app.frontend_url');
+        $frontendUrl = config('app.frontend_url, http://172.16.52.231:3000');
         $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
         Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
@@ -70,7 +73,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
-                'message' => 'Invalid credentials'
+                'message' => 'Érvénytelen bejelentkezési adatok'
             ], 401);
         }
 
@@ -104,7 +107,7 @@ class AuthController extends Controller
                     'requires_2fa_setup' => true,
                     'two_factor_secret' => $secret,
                     'qr_code' => 'data:image/png;base64,' . $qrCodeBase64,
-                    'message' => 'Please scan the QR code with your authenticator app and enter the code to complete setup.'
+                    'message' => 'Kérjük, olvassa be a QR kódot az autentikációs alkalmazásával, majd adja meg a kódot a beállítás befejezéséhez.'
                 ], 200);
             }
 
@@ -118,7 +121,7 @@ class AuthController extends Controller
 
             if (!TOTP::verify($user->two_factor_secret, $validated['two_factor_code'])) {
                 return response()->json([
-                    'message' => 'Invalid two-factor authentication code'
+                    'message' => 'Érvénytelen kétfaktoros autentikációs kód'
                 ], 401);
             }
         }
@@ -129,13 +132,13 @@ class AuthController extends Controller
             if (!isset($validated['two_factor_code'])) {
                 return response()->json([
                     'requires_2fa' => true,
-                    'message' => 'Two-factor authentication code required'
+                    'message' => 'Kétfaktoros autentikációs kód szükséges'
                 ], 200);
             }
 
             if (!TOTP::verify($user->two_factor_secret, $validated['two_factor_code'])) {
                 return response()->json([
-                    'message' => 'Invalid two-factor authentication code'
+                    'message' => 'Érvénytelen kétfaktoros autentikációs kód'
                 ], 401);
             }
         }
@@ -308,13 +311,13 @@ class AuthController extends Controller
                     
                     if (!Hash::check($validated['password'], $user->password)) {
                         return response()->json([
-                            'message' => 'Invalid password'
+                            'message' => 'Érvénytelen jelszó'
                         ], 401);
                     }
                     
                     // Delete user (cascade will handle related data)
                     $user->delete();
-                    return response()->json(['message' => 'Account deleted successfully'], 200);
+                    return response()->json(['message' => 'Fiók sikeresen törölve'], 200);
                 }
 
                 // Admin endpoint to update their own user data (including invoice fields)
@@ -431,7 +434,7 @@ class AuthController extends Controller
 
                     if (!TOTP::verify($user->two_factor_secret, $validated['code'])) {
                         return response()->json([
-                            'message' => 'Invalid code'
+                            'message' => 'Érvénytelen kód'
                         ], 401);
                     }
 
@@ -440,7 +443,7 @@ class AuthController extends Controller
                     $user->save();
 
                     return response()->json([
-                        'message' => '2FA enabled successfully',
+                        'message' => 'A kétfaktoros autentikáció sikeresen engedélyezve',
                         'two_factor_enabled' => true
                     ], 200);
                 }
@@ -469,7 +472,7 @@ class AuthController extends Controller
                     // Verify password before disabling
                     if (!Hash::check($validated['password'], $user->password)) {
                         return response()->json([
-                            'message' => 'Invalid password'
+                            'message' => 'Érvénytelen jelszó'
                         ], 401);
                     }
 
@@ -478,7 +481,7 @@ class AuthController extends Controller
                     $user->save();
 
                     return response()->json([
-                        'message' => '2FA disabled successfully',
+                        'message' => 'A kétfaktoros autentikáció sikeresen letiltva',
                         'two_factor_enabled' => false
                     ], 200);
                 }
@@ -501,12 +504,97 @@ class AuthController extends Controller
 
                     if (!TOTP::verify($user->two_factor_secret, $validated['code'])) {
                         return response()->json([
-                            'message' => 'Invalid code'
+                            'message' => 'Érvénytelen kód'
                         ], 401);
                     }
 
                     return response()->json([
-                        'message' => '2FA verified successfully'
+                        'message' => 'A kétfaktoros autentikáció sikeresen megerősítve'
+                    ], 200);
+                }
+
+                // 2FA helyreállítás e-mailen keresztül (elveszett/ellopott telefon esetén)
+                // 1) Kérés: küldünk egy egyszer használatos linket az e-mail címre
+                public function requestTwoFactorRecovery(Request $request)
+                {
+                    $validated = $request->validate([
+                        'email' => ['required', 'string', 'email'],
+                    ]);
+
+                    // Mindig azonos választ adunk (felhasználó-azonosítás elkerülése)
+                    $genericMessage = 'Ha a megadott e-mail címhez tartozó fiókon engedélyezve van a 2FA, hamarosan elküldjük a helyreállítási linket.';
+
+                    $user = User::where('email', $validated['email'])->first();
+                    if (!$user || !$user->two_factor_enabled) {
+                        return response()->json(['message' => $genericMessage], 200);
+                    }
+
+                    // Biztonság: csak megerősített e-mailhez engedünk helyreállítást
+                    if (!$user->isVerified && $user->role !== 'super_admin') {
+                        return response()->json(['message' => $genericMessage], 200);
+                    }
+
+                    // Token generálás és tárolás (hash-elve)
+                    $rawToken = Str::random(64);
+                    $tokenHash = hash('sha256', $rawToken);
+                    $expiresAt = Carbon::now()->addMinutes(30);
+
+                    TwoFactorRecoveryToken::create([
+                        'user_id' => $user->id,
+                        'token_hash' => $tokenHash,
+                        'expires_at' => $expiresAt,
+                        'used_at' => null,
+                    ]);
+
+                    $frontendUrl = config('app.frontend_url');
+                    $recoveryUrl = $frontendUrl . '/two-factor-recovery/' . $rawToken;
+
+                    Mail::to($user->email)->send(new TwoFactorRecoveryMail($user, $recoveryUrl));
+
+                    return response()->json(['message' => $genericMessage], 200);
+                }
+
+                // 2) Véglegesítés: token + jelszó mellett letiltjuk a 2FA-t (majd újra beállítható)
+                public function confirmTwoFactorRecovery(Request $request)
+                {
+                    $validated = $request->validate([
+                        'token' => ['required', 'string'],
+                        'password' => ['required', 'string'],
+                    ]);
+
+                    $tokenHash = hash('sha256', $validated['token']);
+                    $record = TwoFactorRecoveryToken::where('token_hash', $tokenHash)->first();
+
+                    if (!$record || $record->used_at || $record->expires_at->isPast()) {
+                        return response()->json([
+                            'message' => 'Érvénytelen vagy lejárt helyreállítási link.'
+                        ], 400);
+                    }
+
+                    $user = User::find($record->user_id);
+                    if (!$user) {
+                        return response()->json([
+                            'message' => 'Felhasználó nem található.'
+                        ], 404);
+                    }
+
+                    if (!Hash::check($validated['password'], $user->password)) {
+                        return response()->json([
+                            'message' => 'Érvénytelen jelszó'
+                        ], 401);
+                    }
+
+                    // Letiltjuk a 2FA-t, így a következő bejelentkezéskor újra beállítható
+                    $user->two_factor_enabled = false;
+                    $user->two_factor_secret = null;
+                    $user->save();
+
+                    $record->used_at = Carbon::now();
+                    $record->save();
+
+                    return response()->json([
+                        'message' => 'A 2FA helyreállítása sikeres. Most már be tudsz jelentkezni, és szükség esetén újra beállíthatod a kétfaktoros hitelesítést.',
+                        'two_factor_enabled' => false
                     ], 200);
                 }
 

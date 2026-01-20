@@ -3,7 +3,7 @@
     <!-- Home Button -->
     <router-link to="/" class="home-button">
       <span class="home-icon">🏠</span>
-      <span class="home-text">Home</span>
+      <span class="home-text">Kezdőlap</span>
     </router-link>
     
     <!-- Minimal Card -->
@@ -15,13 +15,13 @@
             <div class="travel-icon-wrapper">
               <div class="travel-icon">✈️</div>
             </div>
-            <h1>Welcome</h1>
-            <p class="welcome-subtitle">Create Your Account</p>
+            <h1>Üdvözöljük</h1>
+            <p class="welcome-subtitle">Fiók létrehozása</p>
           </div>
 
           <div class="role-selection-group">
-            <label class="role-label">Please select your role</label>
-            <p class="role-description">Choose the type of account you want to create</p>
+            <label class="role-label">Kérjük, válassza ki a szerepkörét</label>
+            <p class="role-description">Válassza ki a létrehozni kívánt fiók típusát</p>
             <div class="role-cards">
               <div
                 class="role-card"
@@ -29,7 +29,7 @@
                 @click="selectRole('user')"
               >
                 <div class="role-icon">👤</div>
-                <div class="role-name">Guest</div>
+                <div class="role-name">Vendég</div>
               </div>
               <div
                 class="role-card"
@@ -37,7 +37,7 @@
                 @click="selectRole('hotel')"
               >
                 <div class="role-icon">🏨</div>
-                <div class="role-name">Hotel Admin</div>
+                <div class="role-name">Szálloda Admin</div>
               </div>
             </div>
             <button
@@ -46,7 +46,7 @@
               :disabled="!userType"
               @click="nextStep"
             >
-              Continue
+              Tovább
             </button>
             <div class="step-indicators">
               <div class="step-dot active"></div>
@@ -59,10 +59,10 @@
         <div v-if="currentStep === 2" class="step-content">
           <div class="welcome-header">
             <button type="button" class="btn-back" @click="prevStep">
-              ← Back
+              ← Vissza
             </button>
-            <h1>Registration Details</h1>
-            <p class="welcome-subtitle">Fill in your information</p>
+            <h1>Regisztrációs adatok</h1>
+            <p class="welcome-subtitle">Töltse ki az adatait</p>
           </div>
 
           <div v-if="error" class="error-message">
@@ -77,7 +77,7 @@
 
           <form @submit.prevent="handleRegister" class="register-form">
             <div class="form-group">
-              <label for="name">Full Name</label>
+              <label for="name">Teljes név</label>
               <div class="input-wrapper">
                 <span class="input-icon">👤</span>
                 <input
@@ -85,7 +85,7 @@
                   v-model="name"
                   type="text"
                   required
-                  placeholder="Enter your name"
+                  placeholder="Adja meg a nevét"
                   class="glass-input"
                 />
                 <div class="input-glow"></div>
@@ -93,7 +93,7 @@
             </div>
 
             <div class="form-group">
-              <label for="email">Email Id</label>
+              <label for="email">E-mail cím</label>
               <div class="input-wrapper">
                 <span class="input-icon">✉️</span>
                 <input
@@ -101,7 +101,7 @@
                   v-model="email"
                   type="email"
                   required
-                  placeholder="thisuix@mail.com"
+                  placeholder="pelda@email.com"
                   class="glass-input"
                 />
                 <div class="input-glow"></div>
@@ -109,7 +109,7 @@
             </div>
 
             <div class="form-group">
-              <label for="password">Password</label>
+              <label for="password">Jelszó</label>
               <div class="input-wrapper">
                 <span class="input-icon">🔒</span>
                 <input
@@ -129,7 +129,7 @@
             <Transition name="slide-fade">
               <div v-if="userType === 'hotel'" class="hotel-fields">
                 <div class="form-group">
-                  <label for="hotelName">Hotel Name</label>
+                  <label for="hotelName">Szálloda neve</label>
                   <div class="input-wrapper">
                     <span class="input-icon">🏨</span>
                     <input
@@ -137,14 +137,14 @@
                       v-model="hotelName"
                       type="text"
                       required
-                      placeholder="Enter hotel name"
+                      placeholder="Adja meg a szálloda nevét"
                       class="glass-input"
                     />
                     <div class="input-glow"></div>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="location">Location</label>
+                  <label for="location">Helyszín</label>
                   <div class="input-wrapper">
                     <span class="input-icon">📍</span>
                     <input
@@ -152,36 +152,36 @@
                       v-model="location"
                       type="text"
                       required
-                      placeholder="City, Country"
+                      placeholder="Város, Ország"
                       class="glass-input"
                     />
                     <div class="input-glow"></div>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="type">Hotel Type</label>
+                  <label for="type">Szálloda típusa</label>
                   <div class="input-wrapper">
                     <span class="input-icon">🏨</span>
                     <select id="type" v-model="type" required class="glass-input glass-select">
-                      <option value="hotel">Hotel</option>
-                      <option value="apartment">Apartment</option>
+                      <option value="hotel">Szálloda</option>
+                      <option value="apartment">Apartman</option>
                       <option value="villa">Villa</option>
-                      <option value="other">Other</option>
+                      <option value="other">Egyéb</option>
                     </select>
                     <div class="input-glow"></div>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="starRating">Star Rating (optional)</label>
+                  <label for="starRating">Csillag értékelés (opcionális)</label>
                   <div class="input-wrapper">
                     <span class="input-icon">⭐</span>
                     <select id="starRating" v-model.number="starRating" class="glass-input glass-select">
-                      <option :value="null">None</option>
-                      <option value="1">1 Star</option>
-                      <option value="2">2 Stars</option>
-                      <option value="3">3 Stars</option>
-                      <option value="4">4 Stars</option>
-                      <option value="5">5 Stars</option>
+                      <option :value="null">Nincs</option>
+                      <option value="1">1 csillag</option>
+                      <option value="2">2 csillag</option>
+                      <option value="3">3 csillag</option>
+                      <option value="4">4 csillag</option>
+                      <option value="5">5 csillag</option>
                     </select>
                     <div class="input-glow"></div>
                   </div>
@@ -191,12 +191,12 @@
 
             <button type="submit" class="btn-register" :disabled="loading">
               <span v-if="loading" class="loading-spinner"></span>
-              <span v-else>{{ loading ? 'Registering...' : 'REGISTER' }}</span>
+              <span v-else>{{ loading ? 'Regisztrálás...' : 'REGISZTRÁLÁS' }}</span>
               <div class="button-glow"></div>
             </button>
 
             <p class="login-link">
-              Already have account? <router-link to="/login">Login Now</router-link>
+              Már van fiókja? <router-link to="/login">Bejelentkezés most</router-link>
             </p>
           </form>
           <div class="step-indicators">
@@ -302,12 +302,12 @@ const handleRegister = async () => {
     result = await authStore.registerUser(name.value, email.value, password.value)
   } else {
     if (!hotelName.value) {
-      error.value = 'Hotel name is required for hotel registration'
+      error.value = 'A szálloda neve kötelező a szálloda regisztrációhoz'
       loading.value = false
       return
     }
     if (!location.value) {
-      error.value = 'Location is required for hotel registration'
+      error.value = 'A helyszín kötelező a szálloda regisztrációhoz'
       loading.value = false
       return
     }
@@ -337,7 +337,7 @@ const handleRegister = async () => {
       router.push('/login')
     }, 5000)
   } else {
-    error.value = result.message || 'Registration failed'
+    error.value = result.message || 'Regisztráció sikertelen'
   }
 
   loading.value = false

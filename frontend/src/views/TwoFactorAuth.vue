@@ -3,8 +3,8 @@
     <div class="two-factor-container" :class="{ 'light-theme': isLightTheme }">
       <div class="tech-header">
         <div class="tech-icon">🔐</div>
-        <h1>Two-Factor Authentication</h1>
-        <p class="tech-subtitle">{{ setupMode ? 'Set up your authenticator' : 'Enter verification code' }}</p>
+        <h1>Kétfaktoros hitelesítés</h1>
+        <p class="tech-subtitle">{{ setupMode ? 'Autentikátor beállítása' : 'Ellenőrző kód megadása' }}</p>
       </div>
 
       <!-- Setup Mode (First Time) -->
@@ -13,15 +13,15 @@
           <img v-if="qrCode" :src="qrCode" alt="QR Code" class="qr-code" />
         </div>
         <div class="secret-info">
-          <p class="info-text">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+          <p class="info-text">Olvasd be a QR kódot az autentikációs alkalmazásoddal (Google Authenticator, Authy, stb.).</p>
           <div class="secret-box">
-            <label>Secret Key:</label>
+            <label>Titkos kulcs:</label>
             <div class="secret-value">{{ secret }}</div>
-            <button @click="copySecret" class="btn-copy">📋 Copy</button>
+            <button @click="copySecret" class="btn-copy">📋 Másolás</button>
           </div>
         </div>
         <div class="form-group">
-          <label>Enter 6-digit code from your app</label>
+          <label>Add meg az alkalmazásból a 6 jegyű kódot</label>
           <input
             v-model="code"
             type="text"
@@ -32,14 +32,14 @@
           />
         </div>
         <button @click="verifySetup" class="btn-verify" :disabled="code.length !== 6 || verifying">
-          {{ verifying ? 'Verifying...' : 'Verify & Complete Setup' }}
+          {{ verifying ? 'Ellenőrzés...' : 'Ellenőrzés és befejezés' }}
         </button>
       </div>
 
       <!-- Verification Mode (Normal Login) -->
       <div v-else class="verification-section">
         <div class="form-group">
-          <label>Enter 6-digit code from your authenticator app</label>
+          <label>Add meg az autentikációs alkalmazás 6 jegyű kódját</label>
           <input
             v-model="code"
             type="text"
@@ -51,14 +51,23 @@
           />
         </div>
         <button @click="verifyCode" class="btn-verify" :disabled="code.length !== 6 || verifying">
-          {{ verifying ? 'Verifying...' : 'Verify' }}
+          {{ verifying ? 'Ellenőrzés...' : 'Ellenőrzés' }}
         </button>
+
+        <div class="recovery-row">
+          <router-link
+            :to="{ path: '/two-factor-recovery', query: email ? { email } : {} }"
+            class="recovery-link"
+          >
+            Elvesztetted a telefonod? 2FA helyreállítás e-mailben
+          </router-link>
+        </div>
       </div>
 
       <div v-if="error" class="error-message">{{ error }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
-      <button @click="goBack" class="btn-back">← Back to Login</button>
+      <button @click="goBack" class="btn-back">← Vissza a bejelentkezéshez</button>
     </div>
   </div>
 </template>
@@ -114,7 +123,7 @@ const formatCode = (e) => {
 
 const copySecret = () => {
   navigator.clipboard.writeText(secret.value)
-  successMessage.value = 'Secret copied to clipboard!'
+  successMessage.value = 'Titkos kulcs a vágólapra másolva!'
   setTimeout(() => {
     successMessage.value = ''
   }, 2000)
@@ -122,7 +131,7 @@ const copySecret = () => {
 
 const verifySetup = async () => {
   if (code.value.length !== 6) {
-    error.value = 'Please enter a 6-digit code'
+    error.value = 'Kérjük, adj meg egy 6 jegyű kódot'
     return
   }
 
@@ -135,7 +144,7 @@ const verifySetup = async () => {
     const result = await authStore.login(email.value, password.value, code.value)
     
     if (result.success) {
-      successMessage.value = '2FA setup complete!'
+      successMessage.value = 'A 2FA beállítása sikeres!'
       setTimeout(() => {
         // Navigate based on role
         if (authStore.state.user?.role === 'super_admin') {
@@ -149,10 +158,10 @@ const verifySetup = async () => {
         }
       }, 1000)
     } else {
-      error.value = result.message || 'Invalid code. Please try again.'
+      error.value = result.message || 'Érvénytelen kód. Kérjük, próbáld újra.'
     }
   } catch (err) {
-    error.value = err.response?.data?.message || 'Verification failed'
+    error.value = err.response?.data?.message || 'Az ellenőrzés sikertelen'
   } finally {
     verifying.value = false
   }
@@ -160,7 +169,7 @@ const verifySetup = async () => {
 
 const verifyCode = async () => {
   if (code.value.length !== 6) {
-    error.value = 'Please enter a 6-digit code'
+    error.value = 'Kérjük, adj meg egy 6 jegyű kódot'
     return
   }
 
@@ -172,7 +181,7 @@ const verifyCode = async () => {
     const result = await authStore.login(email.value, password.value, code.value)
     
     if (result.success) {
-      successMessage.value = 'Login successful!'
+      successMessage.value = 'Sikeres bejelentkezés!'
       setTimeout(() => {
         // Navigate based on role
         if (authStore.state.user?.role === 'super_admin') {
@@ -186,10 +195,10 @@ const verifyCode = async () => {
         }
       }, 1000)
     } else {
-      error.value = result.message || 'Invalid code. Please try again.'
+      error.value = result.message || 'Érvénytelen kód. Kérjük, próbáld újra.'
     }
   } catch (err) {
-    error.value = err.response?.data?.message || 'Verification failed'
+    error.value = err.response?.data?.message || 'Az ellenőrzés sikertelen'
   } finally {
     verifying.value = false
   }
@@ -256,6 +265,24 @@ const goBack = () => {
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.1),
     0 0 40px rgba(102, 126, 234, 0.05);
+}
+
+.recovery-row {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.recovery-link {
+  display: inline-block;
+  color: #667eea;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.recovery-link:hover {
+  text-decoration: underline;
+  color: #764ba2;
 }
 
 .tech-header {

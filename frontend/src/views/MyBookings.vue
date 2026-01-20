@@ -1,14 +1,14 @@
 <template>
   <div class="bookings-page">
     <div class="page-header">
-      <h1>My Bookings</h1>
-      <p class="page-subtitle">Manage your hotel reservations</p>
+      <h1>Foglalásaim</h1>
+      <p class="page-subtitle">Szállodai foglalásaim kezelése</p>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <div class="loading-spinner"></div>
-      <p>Loading your bookings...</p>
+      <p>Foglalásaim betöltése...</p>
     </div>
 
     <!-- Error State -->
@@ -17,9 +17,9 @@
     <!-- Empty State -->
     <div v-if="bookings.length === 0 && !loading" class="empty-state">
       <div class="empty-icon">📅</div>
-      <h2>No Bookings Yet</h2>
-      <p>Start exploring amazing hotels and create your first booking!</p>
-      <router-link to="/search" class="btn-primary">Search Hotels</router-link>
+      <h2>Még nincs foglalás</h2>
+      <p>Fedezzen fel fantasztikus szállodákat és hozza létre az első foglalását!</p>
+      <router-link to="/search" class="btn-primary">Szállodák keresése</router-link>
     </div>
 
     <!-- Bookings List -->
@@ -27,15 +27,15 @@
       <div class="bookings-stats">
         <div class="stat-card">
           <div class="stat-value">{{ bookings.length }}</div>
-          <div class="stat-label">Total Bookings</div>
+          <div class="stat-label">Összes foglalás</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ confirmedCount }}</div>
-          <div class="stat-label">Confirmed</div>
+          <div class="stat-label">Megerősítve</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ pendingCount }}</div>
-          <div class="stat-label">Pending</div>
+          <div class="stat-label">Függőben</div>
         </div>
       </div>
 
@@ -49,7 +49,7 @@
           <!-- Booking Header -->
           <div class="booking-card-header">
             <div class="booking-id-section">
-              <span class="booking-label">Booking</span>
+              <span class="booking-label">Foglalás</span>
               <h3 class="booking-id">#{{ booking.id }}</h3>
             </div>
             <span :class="['status-badge', `badge-${booking.status}`]">
@@ -62,15 +62,15 @@
             <div class="date-card">
               <div class="date-icon">📅</div>
               <div class="date-info">
-                <span class="date-label">Check-in</span>
+                <span class="date-label">Bejelentkezés</span>
                 <span class="date-value">{{ formatDate(booking.startDate) }}</span>
               </div>
             </div>
-            <div class="date-separator">→</div>
+            <div class="date-separator">↓</div>
             <div class="date-card">
               <div class="date-icon">📅</div>
               <div class="date-info">
-                <span class="date-label">Check-out</span>
+                <span class="date-label">Kijelentkezés</span>
                 <span class="date-value">{{ formatDate(booking.endDate) }}</span>
               </div>
             </div>
@@ -79,18 +79,18 @@
           <!-- Booking Details -->
           <div class="booking-details">
             <div class="detail-row">
-              <span class="detail-label">Total Price</span>
+              <span class="detail-label">Összesen</span>
               <span class="detail-value price">{{ booking.totalPrice }} €</span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">Nights</span>
-              <span class="detail-value">{{ calculateNights(booking.startDate, booking.endDate) }} nights</span>
+              <span class="detail-label">Éjszakák</span>
+              <span class="detail-value">{{ calculateNights(booking.startDate, booking.endDate) }} éjszaka</span>
             </div>
           </div>
 
           <!-- Rooms Section -->
           <div v-if="booking.rooms && booking.rooms.length > 0" class="booking-rooms-section">
-            <h4 class="section-title">Rooms</h4>
+            <h4 class="section-title">Szobák</h4>
             <div class="rooms-list">
               <div
                 v-for="room in booking.rooms"
@@ -100,7 +100,7 @@
                 <div class="room-icon">🛏️</div>
                 <div class="room-info">
                   <span class="room-name">{{ room.name }}</span>
-                  <span class="room-capacity">{{ room.capacity }} guests</span>
+                  <span class="room-capacity">{{ room.capacity }} vendég</span>
                 </div>
               </div>
             </div>
@@ -108,7 +108,7 @@
 
           <!-- Services Section -->
           <div v-if="booking.services && booking.services.length > 0" class="booking-services-section">
-            <h4 class="section-title">Additional Services</h4>
+            <h4 class="section-title">További szolgáltatások</h4>
             <div class="services-list">
               <div
                 v-for="service in booking.services"
@@ -125,18 +125,18 @@
           <div class="booking-guests-section">
             <div class="guests-header">
               <div class="guests-title-section">
-                <h4 class="section-title">Guest Information</h4>
+                <h4 class="section-title">Vendég információk</h4>
                 <span class="guests-capacity-info">
-                  {{ getCurrentGuestCount(booking) }}/{{ getMaxCapacity(booking) }} guests
+                  {{ getCurrentGuestCount(booking) }}/{{ getMaxCapacity(booking) }} vendég
                 </span>
               </div>
               <button
                 @click="openGuestModal(booking.id)"
                 class="btn-add-guest"
                 :disabled="booking.status === 'cancelled' || isAtCapacity(booking)"
-                :title="isAtCapacity(booking) ? 'Maximum guest capacity reached' : 'Add guest'"
+                :title="isAtCapacity(booking) ? 'Elérte a maximális vendégkapacitást' : 'Vendég hozzáadása'"
               >
-                + Add Guest
+                + Vendég hozzáadása
               </button>
             </div>
             <div v-if="booking.guests && booking.guests.length > 0" class="guests-list">
@@ -150,7 +150,7 @@
                   <span class="guest-name">{{ guest.name }}</span>
                   <div class="guest-details">
                     <span class="guest-id">ID: {{ guest.idNumber }}</span>
-                    <span class="guest-dob">DOB: {{ formatDate(guest.dateOfBirth) }}</span>
+                    <span class="guest-dob">Szül. dátum: {{ formatDate(guest.dateOfBirth) }}</span>
                   </div>
                 </div>
                 <div class="guest-actions">
@@ -158,7 +158,7 @@
                     @click="editGuest(guest, booking.id)"
                     class="btn-edit-guest"
                     :disabled="booking.status === 'cancelled'"
-                    title="Edit guest"
+                    title="Vendég szerkesztése"
                   >
                     ✏️
                   </button>
@@ -166,7 +166,7 @@
                     @click="deleteGuest(guest.id, booking.id)"
                     class="btn-delete-guest"
                     :disabled="booking.status === 'cancelled'"
-                    title="Delete guest"
+                    title="Vendég törlése"
                   >
                     🗑️
                   </button>
@@ -174,16 +174,16 @@
               </div>
             </div>
             <div v-else class="no-guests">
-              <p>No guests added yet. Click "Add Guest" to register guest information.</p>
+              <p>Még nincs hozzáadott vendég. Kattintson a "Vendég hozzáadása" gombra a vendég információk regisztrálásához.</p>
             </div>
             <div v-if="isAtCapacity(booking)" class="capacity-warning">
-              ⚠️ Maximum guest capacity reached ({{ getMaxCapacity(booking) }} guests)
+              ⚠️ Elérte a maximális vendégkapacitást ({{ getMaxCapacity(booking) }} vendég)
             </div>
           </div>
 
           <!-- Invoice Section (Guest) -->
           <div v-if="booking.status === 'confirmed' && booking.invoice && booking.invoice.status !== 'draft'" class="invoice-section">
-            <h4 class="section-title">Invoice</h4>
+            <h4 class="section-title">Számla</h4>
             <div class="invoice-info">
               <div class="invoice-status">
                 <span class="invoice-number">{{ booking.invoice.invoice_number }}</span>
@@ -194,7 +194,7 @@
                 class="btn-download-invoice"
                 :disabled="invoiceLoading === booking.id"
               >
-                {{ invoiceLoading === booking.id ? 'Downloading...' : '📥 Download Invoice' }}
+                {{ invoiceLoading === booking.id ? 'Letöltés...' : '📥 Számla letöltése' }}
               </button>
             </div>
           </div>
@@ -207,16 +207,16 @@
               class="btn-cancel"
               :disabled="deleting === booking.id"
             >
-              {{ deleting === booking.id ? 'Cancelling...' : 'Cancel Booking' }}
+              {{ deleting === booking.id ? 'Törlés...' : 'Foglalás törlése' }}
             </button>
             <div v-else-if="booking.status === 'confirmed'" class="confirmed-badge">
-              ✅ Confirmed - Ready for check-in
+              ✅ Megerősítve - Készen áll a bejelentkezésre
             </div>
             <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
-              ❌ Cancelled
+              ❌ Törölve
             </div>
             <div v-else-if="booking.status === 'finished'" class="completed-badge">
-              ✓ Completed
+              ✓ Befejezve
             </div>
           </div>
         </div>
@@ -228,32 +228,32 @@
   <div v-if="showGuestModal" class="modal-overlay" @click.self="closeGuestModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>{{ editingGuest ? 'Edit Guest' : 'Add Guest' }}</h2>
+        <h2>{{ editingGuest ? 'Vendég szerkesztése' : 'Vendég hozzáadása' }}</h2>
         <button @click="closeGuestModal" class="btn-close-modal">×</button>
       </div>
       <form @submit.prevent="saveGuest" class="guest-form">
         <div class="form-group">
-          <label for="guestName">Full Name *</label>
+          <label for="guestName">Teljes név *</label>
           <input
             id="guestName"
             v-model="guestForm.name"
             type="text"
             required
-            placeholder="Enter guest's full name"
+            placeholder="Adja meg a vendég teljes nevét"
           />
         </div>
         <div class="form-group">
-          <label for="guestIdNumber">ID Number *</label>
+          <label for="guestIdNumber">Személyigazolvány szám *</label>
           <input
             id="guestIdNumber"
             v-model="guestForm.idNumber"
             type="text"
             required
-            placeholder="Enter ID/Passport number"
+            placeholder="Adja meg a személyigazolvány/útlevél számát"
           />
         </div>
         <div class="form-group">
-          <label for="guestDateOfBirth">Date of Birth *</label>
+          <label for="guestDateOfBirth">Születési dátum *</label>
           <input
             id="guestDateOfBirth"
             v-model="guestForm.dateOfBirth"
@@ -264,10 +264,10 @@
         </div>
         <div class="modal-actions">
           <button type="button" @click="closeGuestModal" class="btn-cancel-modal">
-            Cancel
+            Mégse
           </button>
           <button type="submit" class="btn-save-guest" :disabled="savingGuest">
-            {{ savingGuest ? 'Saving...' : (editingGuest ? 'Update Guest' : 'Add Guest') }}
+            {{ savingGuest ? 'Mentés...' : (editingGuest ? 'Vendég frissítése' : 'Vendég hozzáadása') }}
           </button>
         </div>
       </form>
@@ -312,7 +312,7 @@ onMounted(async () => {
 
 const loadBookings = async () => {
   if (!authStore.state.user) {
-    error.value = 'Not authenticated'
+    error.value = 'Nincs bejelentkezve'
     loading.value = false
     return
   }
@@ -340,7 +340,7 @@ const loadBookings = async () => {
       }
     }))
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to load bookings'
+    error.value = err.response?.data?.message || 'A foglalások betöltése sikertelen'
   } finally {
     loading.value = false
   }
@@ -357,10 +357,10 @@ const formatDate = (dateString) => {
 
 const formatStatus = (status) => {
   const statusMap = {
-    'pending': 'Pending',
-    'confirmed': 'Confirmed',
-    'cancelled': 'Cancelled',
-    'finished': 'Completed'
+    'pending': 'Függőben',
+    'confirmed': 'Megerősítve',
+    'cancelled': 'Törölve',
+    'finished': 'Befejezve'
   }
   return statusMap[status] || status
 }
@@ -374,7 +374,7 @@ const calculateNights = (startDate, endDate) => {
 }
 
 const cancelBooking = async (bookingId) => {
-  if (!confirm('Are you sure you want to cancel this booking?')) {
+  if (!confirm('Biztosan törölni szeretné ezt a foglalást?')) {
     return
   }
 
@@ -383,7 +383,7 @@ const cancelBooking = async (bookingId) => {
     await bookingService.deleteBooking(bookingId)
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to cancel booking'
+    error.value = err.response?.data?.message || 'A foglalás törlése sikertelen'
   } finally {
     deleting.value = null
   }
@@ -433,7 +433,7 @@ const saveGuest = async () => {
   // Find the booking to check capacity
   const booking = bookings.value.find(b => b.id === currentBookingId.value)
   if (!booking) {
-    error.value = 'Booking not found'
+    error.value = 'Foglalás nem található'
     return
   }
 
@@ -443,7 +443,7 @@ const saveGuest = async () => {
     const maxCapacity = getMaxCapacity(booking)
     
     if (currentCount >= maxCapacity) {
-      error.value = `Maximum guest capacity reached. This booking can accommodate ${maxCapacity} guest${maxCapacity !== 1 ? 's' : ''}.`
+      error.value = `Elérte a maximális vendégkapacitást. Ez a foglalás ${maxCapacity} vendéget tud elhelyezni.`
       closeGuestModal()
       return
     }
@@ -470,14 +470,14 @@ const saveGuest = async () => {
     closeGuestModal()
     error.value = '' // Clear any previous errors
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to save guest information'
+    error.value = err.response?.data?.message || err.response?.data?.error || 'A vendég információk mentése sikertelen'
   } finally {
     savingGuest.value = false
   }
 }
 
 const deleteGuest = async (guestId, bookingId) => {
-  if (!confirm('Are you sure you want to delete this guest?')) {
+  if (!confirm('Biztosan törölni szeretné ezt a vendéget?')) {
     return
   }
 
@@ -485,7 +485,7 @@ const deleteGuest = async (guestId, bookingId) => {
     await guestService.deleteGuest(guestId)
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to delete guest'
+    error.value = err.response?.data?.message || 'A vendég törlése sikertelen'
   }
 }
 
@@ -528,7 +528,7 @@ const downloadInvoice = async (invoiceId, bookingId) => {
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to download invoice'
+    error.value = err.response?.data?.message || 'A számla letöltése sikertelen'
   } finally {
     invoiceLoading.value = null
   }
@@ -774,28 +774,37 @@ const downloadInvoice = async (invoiceId, bookingId) => {
 /* Dates Section */
 .booking-dates-section {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin: 0 auto 1.5rem;
   padding: 1.5rem;
   background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
   border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
 }
 
 .date-card {
-  flex: 1;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 1rem;
+  box-sizing: border-box;
 }
 
 .date-icon {
   font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
 .date-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .date-label {
@@ -804,18 +813,24 @@ const downloadInvoice = async (invoiceId, bookingId) => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 0.25rem;
+  white-space: nowrap;
 }
 
 .date-value {
   font-size: 1.1rem;
   font-weight: 600;
   color: #2c3e50;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .date-separator {
   font-size: 1.5rem;
   color: #667eea;
   font-weight: 600;
+  text-align: center;
+  padding: 0.25rem 0;
 }
 
 /* Booking Details */
@@ -1288,6 +1303,12 @@ const downloadInvoice = async (invoiceId, bookingId) => {
 
   .booking-dates-section {
     flex-direction: column;
+    padding: 1rem;
+  }
+
+  .date-card {
+    max-width: 100%;
+    width: 100%;
   }
 
   .date-separator {

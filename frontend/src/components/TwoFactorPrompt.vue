@@ -4,28 +4,28 @@
       <div class="modal-content">
         <div class="modal-header">
           <div class="security-icon">🔐</div>
-          <h2>Enable Two-Factor Authentication</h2>
-          <p class="modal-subtitle">Add an extra layer of security to your account</p>
+          <h2>Kétfaktoros hitelesítés engedélyezése</h2>
+          <p class="modal-subtitle">További biztonsági réteg hozzáadása a fiókjához</p>
         </div>
 
         <div class="modal-body">
           <div class="info-section">
             <p class="info-text">
-              Two-factor authentication (2FA) helps protect your account by requiring a code from your phone in addition to your password.
+              A kétfaktoros hitelesítés (2FA) segít megvédeni a fiókját azáltal, hogy a jelszó mellett telefonjáról is kódot igényel.
             </p>
           </div>
 
           <div class="action-buttons">
             <button @click="handleEnable" class="btn-enable">
               <span class="btn-icon">🔒</span>
-              Enable 2FA
+              2FA engedélyezése
             </button>
             <button @click="handleSkip" class="btn-skip">
-              Skip for now
+              Kihagyás most
             </button>
           </div>
 
-          <p class="skip-hint">You can enable 2FA anytime in your profile settings</p>
+          <p class="skip-hint">A 2FA-t bármikor engedélyezheti a profil beállításaiban</p>
         </div>
       </div>
     </div>

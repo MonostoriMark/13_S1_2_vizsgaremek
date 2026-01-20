@@ -68,6 +68,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Invoice PDF Formatting (Hungary)
+    |--------------------------------------------------------------------------
+    |
+    | Currency printed on invoices and (optional) conversion rate if your
+    | internal amounts are stored in EUR. Defaults match a Hungary-focused setup.
+    |
+    */
+
+    'invoice_currency' => env('INVOICE_CURRENCY', 'HUF'),
+    'invoice_eur_to_huf_rate' => (float) env('INVOICE_EUR_TO_HUF_RATE', 383.63),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

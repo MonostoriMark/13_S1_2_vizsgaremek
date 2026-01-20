@@ -2,16 +2,16 @@
   <AdminLayout>
     <div class="rooms-page">
       <div class="page-header">
-        <h1>Rooms Management</h1>
+        <h1>Szobák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Room
+          <span>➕</span> Szoba hozzáadása
         </button>
       </div>
 
       <div class="hotel-selector card">
-        <h3>Select Hotel</h3>
+        <h3>Szálloda kiválasztása</h3>
         <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
-          <option value="">Choose a hotel...</option>
+          <option value="">Válasszon szállodát...</option>
           <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
             {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
           </option>
@@ -23,8 +23,8 @@
           :data="rooms"
           :columns="columns"
           :loading="loading"
-          search-placeholder="Search rooms..."
-          empty-message="No rooms found"
+          search-placeholder="Szobák keresése..."
+          empty-message="Nem található szoba"
           :search-fields="['name', 'description']"
           :on-edit="handleEdit"
           :on-delete="handleDelete"
@@ -33,11 +33,11 @@
             €{{ parseFloat(value || 0).toFixed(2) }}
           </template>
           <template #cell-capacity="{ value }">
-            {{ value }} guests
+            {{ value }} vendég
           </template>
           <template #actions="{ row }">
-            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
           </template>
         </DataTable>
       </div>
@@ -47,16 +47,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingRoom ? 'Edit Room' : 'Create Room' }}</h2>
+              <h2>{{ editingRoom ? 'Szoba szerkesztése' : 'Szoba létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div v-if="!editingRoom" class="form-group">
-                <label>Select Hotel *</label>
+                <label>Szálloda kiválasztása *</label>
                 <select v-model="form.hotelId" required class="form-select">
-                  <option value="">Choose a hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
                     {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
                   </option>
@@ -64,38 +64,38 @@
               </div>
 
               <div class="form-group">
-                <label>Room Name/Number *</label>
-                <input v-model="form.name" type="text" required placeholder="e.g., Room 101" />
+                <label>Szoba neve/száma *</label>
+                <input v-model="form.name" type="text" required placeholder="pl. 101-es szoba" />
               </div>
 
               <div class="form-group">
-                <label>Description *</label>
+                <label>Leírás *</label>
                 <textarea
                   v-model="form.description"
                   rows="3"
                   required
-                  placeholder="Enter room description"
+                  placeholder="Adja meg a szoba leírását"
                 ></textarea>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Capacity (guests) *</label>
+                  <label>Kapacitás (vendég) *</label>
                   <input v-model.number="form.capacity" type="number" min="1" required />
                 </div>
                 <div class="form-group">
-                  <label>Price Per Night (€) *</label>
+                  <label>Ár/éjszaka (€) *</label>
                   <input v-model.number="form.pricePerNight" type="number" min="0" step="0.01" required />
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Base Price (€) *</label>
+                <label>Alapár (€) *</label>
                 <input v-model.number="form.basePrice" type="number" min="0" step="0.01" required />
               </div>
 
               <div class="form-group">
-                <label>Room Images</label>
+                <label>Szoba képek</label>
                 <ImageUpload
                   v-model="form.images"
                   :max-files="10"
@@ -124,10 +124,10 @@
                       </button>
                     </div>
                   </div>
-                  <div v-else class="no-tags">No tags assigned</div>
+                  <div v-else class="no-tags">Nincs hozzárendelt címke</div>
                   
                   <div class="add-tags-section">
-                    <label class="add-tags-label">Add Tags</label>
+                    <label class="add-tags-label">Címkék hozzáadása</label>
                     <div class="available-tags">
                       <button
                         v-for="tag in availableTagsForRoom"
@@ -141,16 +141,16 @@
                       </button>
                     </div>
                     <p v-if="availableTagsForRoom.length === 0" class="no-available-tags">
-                      No available tags. Create tags in the Tags management page.
+                      Nincs elérhető címke. Hozzon létre címkéket a Címkék kezelése oldalon.
                     </p>
                   </div>
                 </div>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -160,10 +160,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Room"
-        :message="`Are you sure you want to delete this room? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szoba törlése"
+        :message="`Biztosan törölni szeretné ezt a szobát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -218,10 +218,10 @@ const form = ref({
 })
 
 const columns = [
-  { key: 'name', label: 'Room Name', sortable: true },
-  { key: 'description', label: 'Description' },
-  { key: 'capacity', label: 'Capacity', sortable: true },
-  { key: 'pricePerNight', label: 'Price/Night', sortable: true, type: 'currency' }
+  { key: 'name', label: 'Szoba neve', sortable: true },
+  { key: 'description', label: 'Leírás' },
+  { key: 'capacity', label: 'Kapacitás', sortable: true },
+  { key: 'pricePerNight', label: 'Ár/éjszaka', sortable: true, type: 'currency' }
 ]
 
 const loadHotels = async () => {
@@ -235,7 +235,7 @@ const loadHotels = async () => {
       await loadRooms()
     }
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
   }
 }
 
@@ -259,7 +259,7 @@ const loadRooms = async () => {
       tags: room.tags || room.serviceTags || []
     }))
   } catch (err) {
-    showToast('Failed to load rooms', 'error')
+    showToast('A szobák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -267,7 +267,7 @@ const loadRooms = async () => {
 
 const openCreateModal = () => {
   if (!selectedHotel.value) {
-    showToast('Please select a hotel first', 'warning')
+    showToast('Kérjük, először válasszon szállodát', 'warning')
     return
   }
   editingRoom.value = null
@@ -336,7 +336,7 @@ const confirmDelete = async () => {
 
   try {
     await adminService.deleteRoom(roomToDelete.value.id)
-    showToast('Room deleted successfully', 'success')
+    showToast('Szoba sikeresen törölve', 'success')
     await loadRooms()
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to delete room', 'error')
@@ -402,7 +402,7 @@ const handleImageUpload = async (imageObj) => {
       imageObj.preview = imageUrl
       imageObj.progress = 100
       imageObj.uploading = false
-      showToast('Image uploaded successfully', 'success')
+      showToast('Kép sikeresen feltöltve', 'success')
       if (resolvePromise) resolvePromise()
     } else {
       throw new Error('Invalid response from server')
@@ -463,7 +463,7 @@ const handleSubmit = async () => {
         pricePerNight: form.value.pricePerNight,
         basePrice: form.value.basePrice
       })
-      showToast('Room updated successfully', 'success')
+      showToast('Szoba sikeresen frissítve', 'success')
     } else {
       await adminService.createRoom(hotelId, {
         name: form.value.name,
@@ -472,12 +472,12 @@ const handleSubmit = async () => {
         pricePerNight: form.value.pricePerNight,
         basePrice: form.value.basePrice
       })
-      showToast('Room created successfully', 'success')
+      showToast('Szoba sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadRooms()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save room'
+    error.value = err.response?.data?.message || 'A szoba mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -530,7 +530,7 @@ const addTagToRoom = async (tagId) => {
     // Update tag usage
     const usage = await tagService.getTagUsage()
     tagUsage.value = usage
-    showToast('Tag added successfully', 'success')
+    showToast('Címke sikeresen hozzáadva', 'success')
   } catch (err) {
     const message = err.response?.data?.message || 'Failed to add tag'
     showToast(message, 'error')
@@ -549,7 +549,7 @@ const removeTagFromRoom = async (tagId) => {
     // Update tag usage
     const usage = await tagService.getTagUsage()
     tagUsage.value = usage
-    showToast('Tag removed successfully', 'success')
+    showToast('Címke sikeresen eltávolítva', 'success')
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to remove tag', 'error')
   } finally {

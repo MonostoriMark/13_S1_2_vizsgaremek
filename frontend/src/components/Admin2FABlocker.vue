@@ -4,27 +4,27 @@
       <div class="blocker-content">
         <div class="blocker-header">
           <div class="security-icon">🔒</div>
-          <h2>Two-Factor Authentication Required</h2>
-          <p class="blocker-subtitle">Hotel administrators must enable 2FA to access the admin panel</p>
+          <h2>Kétfaktoros hitelesítés szükséges</h2>
+          <p class="blocker-subtitle">A szálloda adminoknak kötelező a 2FA az admin felület használatához</p>
         </div>
 
         <div class="blocker-body">
           <div class="info-section">
             <p class="info-text">
-              For security reasons, all hotel administrators are required to enable two-factor authentication (2FA) before accessing the admin panel.
+              Biztonsági okokból minden szálloda adminnak engedélyeznie kell a kétfaktoros hitelesítést (2FA), mielőtt hozzáfér az admin felülethez.
             </p>
             <div class="features-list">
               <div class="feature-item">
                 <span class="feature-icon">✓</span>
-                <span>Enhanced account security</span>
+                <span>Fokozott fiókbiztonság</span>
               </div>
               <div class="feature-item">
                 <span class="feature-icon">✓</span>
-                <span>Protection against unauthorized access</span>
+                <span>Védelem a jogosulatlan hozzáférés ellen</span>
               </div>
               <div class="feature-item">
                 <span class="feature-icon">✓</span>
-                <span>Required for all hotel administrators</span>
+                <span>Kötelező minden szálloda admin számára</span>
               </div>
             </div>
           </div>
@@ -32,11 +32,16 @@
           <div class="action-buttons">
             <button @click="handleEnable2FA" class="btn-enable">
               <span class="btn-icon">🔐</span>
-              Enable 2FA Now
+              2FA bekapcsolása most
             </button>
           </div>
 
-          <p class="help-text">You can enable 2FA in your profile settings. All admin operations are blocked until 2FA is enabled.</p>
+          <p class="help-text">
+            A 2FA-t a profil beállításaiban tudod engedélyezni. Amíg nincs bekapcsolva, minden admin művelet le van tiltva.
+          </p>
+          <p class="help-text" style="margin-top: 0.75rem;">
+            Elvesztetted a telefonod? <router-link to="/two-factor-recovery" style="color:#667eea; font-weight:600; text-decoration:none;">2FA helyreállítás e-mailben</router-link>
+          </p>
         </div>
       </div>
     </div>

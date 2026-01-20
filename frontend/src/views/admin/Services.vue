@@ -2,16 +2,16 @@
   <AdminLayout>
     <div class="services-page">
       <div class="page-header">
-        <h1>Services Management</h1>
+        <h1>Szolgáltatások kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Service
+          <span>➕</span> Szolgáltatás hozzáadása
         </button>
       </div>
 
       <div class="hotel-selector card">
-        <h3>Select Hotel</h3>
+        <h3>Szálloda kiválasztása</h3>
         <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
-          <option value="">Choose a hotel...</option>
+          <option value="">Válasszon szállodát...</option>
           <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
             {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
           </option>
@@ -23,19 +23,19 @@
           :data="services"
           :columns="columns"
           :loading="loading"
-          search-placeholder="Search services..."
-          empty-message="No services found"
+          search-placeholder="Szolgáltatások keresése..."
+          empty-message="Nem található szolgáltatás"
           :search-fields="['name', 'description']"
           :on-edit="handleEdit"
           :on-delete="handleDelete"
         >
           <template #cell-price="{ value }">
             <span v-if="value">€{{ parseFloat(value).toFixed(2) }}</span>
-            <span v-else class="text-muted">Free</span>
+            <span v-else class="text-muted">Ingyenes</span>
           </template>
           <template #actions="{ row }">
-            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
           </template>
         </DataTable>
       </div>
@@ -45,16 +45,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>{{ editingService ? 'Edit Service' : 'Create Service' }}</h2>
+              <h2>{{ editingService ? 'Szolgáltatás szerkesztése' : 'Szolgáltatás létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div v-if="!editingService" class="form-group">
-                <label>Select Hotel *</label>
+                <label>Szálloda kiválasztása *</label>
                 <select v-model="form.hotelId" required class="form-select">
-                  <option value="">Choose a hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
                     {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
                   </option>
@@ -62,34 +62,34 @@
               </div>
 
               <div class="form-group">
-                <label>Service Name *</label>
-                <input v-model="form.name" type="text" required placeholder="e.g., WiFi, Breakfast" />
+                <label>Szolgáltatás neve *</label>
+                <input v-model="form.name" type="text" required placeholder="pl. WiFi, Reggeli" />
               </div>
 
               <div class="form-group">
-                <label>Description</label>
+                <label>Leírás</label>
                 <textarea
                   v-model="form.description"
                   rows="3"
-                  placeholder="Enter service description"
+                  placeholder="Adja meg a szolgáltatás leírását"
                 ></textarea>
               </div>
 
               <div class="form-group">
-                <label>Price (€)</label>
+                <label>Ár (€)</label>
                 <input
                   v-model.number="form.price"
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Leave empty for free service"
+                  placeholder="Hagyja üresen ingyenes szolgáltatás esetén"
                 />
-                <small class="form-hint">Leave empty if the service is free</small>
+                <small class="form-hint">Hagyja üresen, ha a szolgáltatás ingyenes</small>
               </div>
 
 
               <div class="form-group">
-                <label>Service Image</label>
+                <label>Szolgáltatás képe</label>
                 <ImageUpload
                   v-model="form.images"
                   :max-files="1"
@@ -98,9 +98,9 @@
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -110,10 +110,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Service"
-        :message="`Are you sure you want to delete this service? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szolgáltatás törlése"
+        :message="`Biztosan törölni szeretné ezt a szolgáltatást? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -159,9 +159,9 @@ const form = ref({
 })
 
 const columns = [
-  { key: 'name', label: 'Service Name', sortable: true },
-  { key: 'description', label: 'Description' },
-  { key: 'price', label: 'Price', sortable: true }
+  { key: 'name', label: 'Szolgáltatás neve', sortable: true },
+  { key: 'description', label: 'Leírás' },
+  { key: 'price', label: 'Ár', sortable: true }
 ]
 
 const loadHotels = async () => {
@@ -175,7 +175,7 @@ const loadHotels = async () => {
       await loadServices()
     }
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
   }
 }
 
@@ -199,7 +199,7 @@ const loadServices = async () => {
     if (err.response?.status === 404) {
       services.value = []
     } else {
-      showToast('Failed to load services', 'error')
+      showToast('A szolgáltatások betöltése sikertelen', 'error')
     }
   } finally {
     loading.value = false
@@ -233,7 +233,7 @@ const confirmDelete = async () => {
 
   try {
     await adminService.deleteService(serviceToDelete.value.id)
-    showToast('Service deleted successfully', 'success')
+    showToast('Szolgáltatás sikeresen törölve', 'success')
     await loadServices()
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to delete service', 'error')
@@ -255,13 +255,13 @@ const handleImageUpload = async (imageObj) => {
 
 const handleSubmit = async () => {
   if (!editingService.value && !form.value.hotelId) {
-    showToast('Please select a hotel', 'warning')
+    showToast('Kérjük, válasszon szállodát', 'warning')
     return
   }
 
   const hotelId = editingService.value ? selectedHotel.value?.id : form.value.hotelId
   if (!hotelId) {
-    showToast('Please select a hotel', 'warning')
+    showToast('Kérjük, válasszon szállodát', 'warning')
     return
   }
 
@@ -275,19 +275,19 @@ const handleSubmit = async () => {
         description: form.value.description,
         price: form.value.price || null
       })
-      showToast('Service updated successfully', 'success')
+      showToast('Szolgáltatás sikeresen frissítve', 'success')
     } else {
       await adminService.createService(hotelId, {
         name: form.value.name,
         description: form.value.description,
         price: form.value.price || null
       })
-      showToast('Service created successfully', 'success')
+      showToast('Szolgáltatás sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadServices()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save service'
+    error.value = err.response?.data?.message || 'A szolgáltatás mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false

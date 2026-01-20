@@ -77,6 +77,16 @@ export const authService = {
     return response.data
   },
 
+  async requestTwoFactorRecovery(email) {
+    const response = await api.post('/auth/2fa/recovery/request', { email })
+    return response.data
+  },
+
+  async confirmTwoFactorRecovery(token, password) {
+    const response = await api.post('/auth/2fa/recovery/confirm', { token, password })
+    return response.data
+  },
+
   async deleteAccount(userId, password) {
     const response = await api.post(`/auth/deleteuser/${userId}`, { password })
     return response.data

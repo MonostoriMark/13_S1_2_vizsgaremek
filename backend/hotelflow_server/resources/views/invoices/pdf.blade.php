@@ -14,431 +14,355 @@
         }
         body {
             font-family: 'DejaVu Sans', Arial, sans-serif;
-            font-size: 11pt;
-            line-height: 1.4;
+            font-size: 10.5pt;
+            line-height: 1.45;
             color: #000;
             background: white;
         }
         .invoice-container {
             background: white;
-            padding: 20px;
+            padding: 0;
             max-width: 210mm;
             margin: 0 auto;
         }
-        
-        /* Header Section with Logo */
-        .header-section {
+
+        /* NAV-style blocks */
+        .top-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .logo-circle {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #e8f5e9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .logo-bars {
-            font-size: 20px;
-            color: #4caf50;
-            line-height: 1;
-        }
-        .logo-text {
-            display: flex;
-            flex-direction: column;
-        }
-        .logo-main {
-            font-size: 24pt;
-            font-weight: bold;
-            color: #4caf50;
-            line-height: 1.1;
-            font-family: 'DejaVu Sans', Arial, sans-serif;
-        }
-        .logo-sub {
-            font-size: 9pt;
-            color: #666;
-            margin-top: 2px;
-        }
-        .invoice-title-section {
-            flex: 1;
-            text-align: center;
-        }
-        .invoice-title {
-            font-size: 28pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #000;
-            letter-spacing: 2px;
-            margin: 0;
-            font-family: 'DejaVu Sans', Arial, sans-serif;
-        }
-        .invoice-number-section {
-            text-align: right;
-        }
-        .invoice-number-label {
-            font-size: 10pt;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .invoice-number-value {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #000;
-        }
-        
-        /* Issuer and Customer Section */
-        .parties-section {
-            margin: 20px 0;
-            border: 1px solid #d0d0d0;
-        }
-        .parties-header {
-            display: flex;
-            background: #b3d9ff;
-        }
-        .party-header {
-            flex: 1;
-            padding: 8px 12px;
-            font-weight: 600;
-            font-size: 10pt;
-            color: #000;
-            border-right: 1px solid #d0d0d0;
-        }
-        .party-header:last-child {
-            border-right: none;
-        }
-        .parties-content {
-            display: flex;
-        }
-        .party-content {
-            flex: 1;
-            padding: 12px;
-            border-right: 1px solid #d0d0d0;
-            font-size: 10pt;
-            line-height: 1.6;
-        }
-        .party-content:last-child {
-            border-right: none;
-        }
-        .party-content p {
-            margin: 3px 0;
-        }
-        
-        /* Payment and Date Information */
-        .payment-dates-section {
-            margin: 20px 0;
-            border: 1px solid #d0d0d0;
-        }
-        .payment-dates-header {
-            display: flex;
-            background: #b3d9ff;
-        }
-        .payment-date-header {
-            flex: 1;
-            padding: 8px 12px;
-            font-weight: 600;
-            font-size: 10pt;
-            color: #000;
-            border-right: 1px solid #d0d0d0;
-            text-align: center;
-        }
-        .payment-date-header:last-child {
-            border-right: none;
-        }
-        .payment-dates-content {
-            display: flex;
-        }
-        .payment-date-content {
-            flex: 1;
-            padding: 10px 12px;
-            border-right: 1px solid #d0d0d0;
-            font-size: 10pt;
-            text-align: center;
-        }
-        .payment-date-content:last-child {
-            border-right: none;
-        }
-        
-        /* Items Table */
-        .items-table {
-            width: 100%;
-            margin: 20px 0;
-            border-collapse: collapse;
-            border: 1px solid #d0d0d0;
-        }
-        .items-table th {
-            background: #f5f5f5;
-            padding: 10px 8px;
-            text-align: left;
-            font-size: 10pt;
-            font-weight: 600;
-            border: 1px solid #d0d0d0;
-            border-bottom: 2px solid #d0d0d0;
-        }
-        .items-table th.text-right {
-            text-align: right;
-        }
-        .items-table td {
-            padding: 10px 8px;
-            border: 1px solid #d0d0d0;
-            font-size: 10pt;
-        }
-        .items-table td.text-right {
-            text-align: right;
-        }
-        .items-table td.text-center {
-            text-align: center;
-        }
-        
-        /* Sub-total and Total Rows */
-        .subtotal-row {
-            background: #f9f9f9;
-        }
-        .subtotal-row td {
-            font-size: 9pt;
-            padding: 8px;
-        }
-        .total-row {
-            background: #f0f0f0;
-            font-weight: bold;
-        }
-        .total-row td {
-            padding: 12px 8px;
-            font-size: 11pt;
-        }
-        
-        /* Final Total Section */
-        .final-total {
-            text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-        }
-        .final-total-main {
-            font-size: 16pt;
-            font-weight: bold;
             margin-bottom: 10px;
         }
-        .final-total-secondary {
-            font-size: 10pt;
-            color: #666;
-            margin-top: 5px;
+        .brand {
+            font-size: 13pt;
+            font-weight: 700;
+            letter-spacing: 0.3px;
         }
-        .exchange-rate {
-            font-size: 9pt;
-            color: #999;
-            margin-top: 5px;
-        }
-        
-        .text-right {
-            text-align: right;
-        }
-        .text-center {
+        .invoice-type {
+            font-size: 18pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             text-align: center;
+            margin: 12px 0 8px 0;
+        }
+        .inv-no {
+            text-align: right;
+            font-size: 10.5pt;
+        }
+        .inv-no strong {
+            font-size: 11.5pt;
+        }
+
+        .two-col {
+            display: flex;
+            gap: 20px;
+            margin: 12px 0 10px 0;
+        }
+        .col {
+            flex: 1;
+        }
+        .label {
+            color: #222;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .block {
+            border: 1px solid #000;
+            border-radius: 0;
+            padding: 10px 12px;
+            min-height: 78px;
+        }
+        .line {
+            margin: 2px 0;
+        }
+        .muted {
+            color: #444;
+        }
+
+        .meta {
+            margin: 10px 0 8px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 18px;
+        }
+        .meta .kv {
+            min-width: 190px;
+        }
+        .meta .k {
+            font-weight: 700;
+        }
+
+        .currency {
+            margin: 6px 0 10px 0;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 6px 7px;
+            font-size: 9.5pt;
+            vertical-align: top;
+        }
+        th {
+            background: #fff;
+            font-weight: 700;
+        }
+        .right { text-align: right; }
+        .center { text-align: center; }
+
+        .note-row {
+            font-size: 9pt;
+        }
+        .summary {
+            margin-top: 10px;
+            border: 1px solid #000;
+            padding: 8px 10px;
+        }
+        .summary-title {
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+        .summary-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .summary-grid .left-col {
+            flex: 1 1 55%;
+            min-width: 260px;
+        }
+        .summary-grid .right-col {
+            flex: 1 1 40%;
+            min-width: 220px;
+        }
+        .sum-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 3px 0;
+        }
+        .sum-line .k { font-weight: 700; }
+        .payable {
+            margin-top: 8px;
+            font-size: 12pt;
+            font-weight: 900;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #000;
+            padding-top: 8px;
+        }
+        .footer {
+            margin-top: 12px;
+            font-size: 8.8pt;
+            color: #111;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .page {
+            text-align: right;
         }
     </style>
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header with Logo -->
-        <div class="header-section">
-            <div class="logo-section">
-                <div class="logo-circle">
-                    <div class="logo-bars">▬▬▬</div>
-                </div>
-                <div class="logo-text">
-                    <div class="logo-main">PÉLDA</div>
-                    <div class="logo-sub">LOGO</div>
-                </div>
-            </div>
-            <div class="invoice-title-section">
-                <h1 class="invoice-title">SZÁMLA / INVOICE</h1>
-            </div>
-            <div class="invoice-number-section">
-                <div class="invoice-number-label">Számlaszám / Invoice number:</div>
-                <div class="invoice-number-value">{{ $invoice->invoice_number }}</div>
+        @php
+            $issueDate = \Carbon\Carbon::parse($invoice->issue_date)->format('Y.m.d.');
+            $performanceDate = \Carbon\Carbon::parse($booking->endDate)->format('Y.m.d.');
+            $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('Y.m.d.');
+
+            $method = $payment->method ?? 'bank_transfer';
+            $paymentMethodHu = $method === 'bank_transfer' ? 'Átutalás' : ($method === 'cash' ? 'Készpénz' : $method);
+
+            $currency = config('app.invoice_currency', 'HUF');
+            $eurToHufRate = (float) config('app.invoice_eur_to_huf_rate', 383.63);
+
+            // Heuristic: internal amounts look like EUR if they are small decimals and frontend shows €,
+            // but invoices in HU usually must be printed in HUF. We convert only when configured currency is HUF.
+            $useConversion = strtoupper($currency) === 'HUF';
+
+            $fmtMoney = function ($amount, $decimals = 2) {
+                return number_format((float) $amount, $decimals, ',', ' ');
+            };
+            $fmtIntMoney = function ($amount) {
+                return number_format((float) $amount, 0, ',', ' ');
+            };
+            $toPrint = function ($amount) use ($useConversion, $eurToHufRate) {
+                return $useConversion ? round(((float) $amount) * $eurToHufRate, 0) : (float) $amount;
+            };
+
+            $taxRate = (int) ($invoice->tax_rate ?? 0);
+            $vatLabel = $taxRate === 0 ? 'AAM' : ($taxRate . '%');
+
+            $custName = $invoiceDetails->full_name ?? ($booking->user->name ?? 'N/A');
+            $custEmail = $invoiceDetails->email ?? ($booking->user->email ?? null);
+            $custType = $invoiceDetails->customer_type ?? 'private';
+            $custCompany = ($custType === 'business') ? ($invoiceDetails->company_name ?? null) : null;
+        @endphp
+
+        <div class="top-row">
+            <div class="brand">{{ $hotel->name }}</div>
+            <div class="inv-no">
+                <div><span class="muted">Sorszám:</span> <strong>{{ $invoice->invoice_number }}</strong></div>
             </div>
         </div>
 
-        <!-- Issuer and Customer Details -->
-        <div class="parties-section">
-            <div class="parties-header">
-                <div class="party-header">Számla kiállító adatai/Invoice issuer:</div>
-                <div class="party-header">Vevő adatai/Customer:</div>
-            </div>
-            <div class="parties-content">
-                <div class="party-content">
-                    <p><strong>{{ $hotel->name }}</strong></p>
-                    <p>{{ $hotel->location ?? 'N/A' }}</p>
-                    <p>Adószám / Tax number: {{ $hotel->user->tax_number ?? 'N/A' }}</p>
-                    @if($hotel->user->eu_tax_number)
-                    <p>EU adószám / EU tax number: {{ $hotel->user->eu_tax_number }}</p>
-                    @endif
-                    <p>Bankszámlaszám / Bank account:</p>
-                    @if($hotel->user->bank_name)
-                    <p>{{ $hotel->user->bank_name }}</p>
+        <div class="invoice-type">SZÁMLA</div>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="label">Eladó:</div>
+                <div class="block">
+                    <div class="line"><strong>{{ $hotel->user->name ?? $hotel->name }}</strong></div>
+                    <div class="line">{{ $hotel->location ?? '' }}</div>
+                    @if($hotel->user->tax_number)
+                        <div class="line">Adószám: {{ $hotel->user->tax_number }}</div>
                     @endif
                     @if($hotel->user->bank_account)
-                    <p>{{ $hotel->user->bank_account }}</p>
-                    @endif
-                    @if($hotel->user->swift_code)
-                    <p>SWIFT: {{ $hotel->user->swift_code }}</p>
+                        <div class="line">Bankszámlaszám: {{ $hotel->user->bank_account }}</div>
                     @endif
                 </div>
-                <div class="party-content">
-                    @php
-                        $custName = $invoiceDetails->full_name ?? ($booking->user->name ?? 'N/A');
-                        $custEmail = $invoiceDetails->email ?? ($booking->user->email ?? null);
-                        $custType = $invoiceDetails->customer_type ?? 'private';
-                    @endphp
-                    <p><strong>{{ $custName }}</strong></p>
-                    @if(($custType === 'business') && ($invoiceDetails->company_name ?? null))
-                    <p>{{ $invoiceDetails->company_name }}</p>
+            </div>
+            <div class="col">
+                <div class="label">Vevő:</div>
+                <div class="block">
+                    <div class="line"><strong>{{ $custName }}</strong></div>
+                    @if($custCompany)
+                        <div class="line">{{ $custCompany }}</div>
                     @endif
                     @if($invoiceDetails && ($invoiceDetails->address_line || $invoiceDetails->postal_code || $invoiceDetails->city || $invoiceDetails->country))
-                    <p>
-                        {{ $invoiceDetails->address_line ?? '' }}
-                        @if($invoiceDetails->postal_code || $invoiceDetails->city)
-                            <br>{{ trim(($invoiceDetails->postal_code ?? '') . ' ' . ($invoiceDetails->city ?? '')) }}
+                        <div class="line">
+                            {{ $invoiceDetails->country ? ($invoiceDetails->country . ' ') : '' }}
+                            {{ trim(($invoiceDetails->postal_code ?? '') . ' ' . ($invoiceDetails->city ?? '')) }}
+                        </div>
+                        @if($invoiceDetails->address_line)
+                            <div class="line">{{ $invoiceDetails->address_line }}</div>
                         @endif
-                        @if($invoiceDetails->country)
-                            <br>{{ $invoiceDetails->country }}
-                        @endif
-                    </p>
                     @elseif($booking->user->address)
-                    <p>{{ $booking->user->address }}</p>
-                    @endif
-                    @if($custEmail)
-                    <p>{{ $custEmail }}</p>
+                        <div class="line">{{ $booking->user->address }}</div>
                     @endif
                     @if($invoiceDetails && $invoiceDetails->tax_number)
-                    <p>Adószám / Tax number: {{ $invoiceDetails->tax_number }}</p>
+                        <div class="line">Magyar adószám: {{ $invoiceDetails->tax_number }}</div>
                     @elseif($booking->user->tax_number)
-                    <p>Adószám / Tax number: {{ $booking->user->tax_number }}</p>
+                        <div class="line">Magyar adószám: {{ $booking->user->tax_number }}</div>
                     @endif
-                    @if($booking->user->eu_tax_number)
-                    <p>EU adószám / EU tax number: {{ $booking->user->eu_tax_number }}</p>
+                    @if($custEmail)
+                        <div class="line">{{ $custEmail }}</div>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- Payment and Date Information -->
-        <div class="payment-dates-section">
-            <div class="payment-dates-header">
-                <div class="payment-date-header">Fizetési mód</div>
-                <div class="payment-date-header">Számla kelte</div>
-                <div class="payment-date-header">Teljesítés időpontja</div>
-                <div class="payment-date-header">Fizetési határidő</div>
-            </div>
-            <div class="payment-dates-content">
-                <div class="payment-date-content">
-                    @php
-                        $method = $payment->method ?? 'bank_transfer';
-                    @endphp
-                    @if($method === 'bank_transfer')
-                        átutalás / transfer
-                    @else
-                        {{ $method }}
-                    @endif
-                </div>
-                <div class="payment-date-content">{{ \Carbon\Carbon::parse($invoice->issue_date)->format('Y.m.d.') }}</div>
-                <div class="payment-date-content">{{ \Carbon\Carbon::parse($booking->endDate)->format('Y.m.d.') }}</div>
-                <div class="payment-date-content">{{ \Carbon\Carbon::parse($invoice->due_date)->format('Y.m.d.') }}</div>
-            </div>
+        <div class="meta">
+            <div class="kv"><span class="k">Fizetési mód:</span> {{ $paymentMethodHu }}</div>
+            <div class="kv"><span class="k">Teljesítés:</span> {{ $performanceDate }}</div>
+            <div class="kv"><span class="k">Keltezés:</span> {{ $issueDate }}</div>
+            <div class="kv"><span class="k">Fizetési határidő:</span> {{ $dueDate }}</div>
         </div>
 
-        <!-- Items Table -->
-        <table class="items-table">
+        <div class="currency">Pénznem: {{ strtoupper($currency) }}</div>
+
+        <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Megnevezés</th>
-                    <th class="text-right">Menny.Mee.</th>
-                    <th class="text-right">Nettó egységár</th>
-                    <th class="text-right">ÁFA</th>
-                    <th class="text-right">Nettó érték</th>
-                    <th class="text-right">ÁFA érték</th>
-                    <th class="text-right">Bruttó érték</th>
+                    <th style="width: 34%;">Tétel neve</th>
+                    <th class="center" style="width: 9%;">Mennyiség</th>
+                    <th class="center" style="width: 12%;">Mennyiségi egység</th>
+                    <th class="center" style="width: 9%;">Áfakulcs</th>
+                    <th class="right" style="width: 12%;">Áfa összege</th>
+                    <th class="right" style="width: 12%;">Tételsor nettó érték</th>
+                    <th class="right" style="width: 12%;">Ellenérték (bruttó)</th>
                 </tr>
             </thead>
             <tbody>
                 @php
-                    $itemIndex = 1;
-                    $totalNet = 0;
-                    $totalTax = 0;
-                    $totalGross = 0;
+                    $sumNet = 0;
+                    $sumVat = 0;
+                    $sumGross = 0;
                 @endphp
                 @foreach($items as $item)
-                @php
-                    $netPrice = $item['total'];
-                    $taxAmount = round($netPrice * ($invoice->tax_rate / 100), 2);
-                    $grossPrice = $netPrice + $taxAmount;
-                    $totalNet += $netPrice;
-                    $totalTax += $taxAmount;
-                    $totalGross += $grossPrice;
-                @endphp
-                <tr>
-                    <td>{{ $itemIndex++ }}.</td>
-                    <td>{{ $item['name'] }}</td>
-                    <td class="text-right">{{ number_format($item['quantity'], 2, ',', '') }}db/pc</td>
-                    <td class="text-right">{{ number_format($item['unit_price'], 2, ',', ' ') }} EUA</td>
-                    <td class="text-right"></td>
-                    <td class="text-right">{{ number_format($netPrice, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($taxAmount, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($grossPrice, 2, ',', ' ') }}</td>
-                </tr>
+                    @php
+                        $net = (float) ($item['total'] ?? 0);
+                        $vat = round($net * ($taxRate / 100), 2);
+                        $gross = $net + $vat;
+
+                        $pNet = $toPrint($net);
+                        $pVat = $toPrint($vat);
+                        $pGross = $toPrint($gross);
+
+                        $sumNet += $pNet;
+                        $sumVat += $pVat;
+                        $sumGross += $pGross;
+                    @endphp
+                    <tr>
+                        <td>{{ $item['name'] }}</td>
+                        <td class="center">{{ $fmtMoney($item['quantity'] ?? 1, 2) }}</td>
+                        <td class="center">db</td>
+                        <td class="center">{{ $vatLabel }}</td>
+                        <td class="right">{{ $fmtIntMoney($pVat) }}</td>
+                        <td class="right">{{ $fmtIntMoney($pNet) }}</td>
+                        <td class="right">{{ $fmtIntMoney($pGross) }}</td>
+                    </tr>
                 @endforeach
-                
-                <!-- Sub-total Row -->
-                <tr class="subtotal-row">
-                    <td colspan="4">(EU-s termékértékesítés/Tax-free) EUA</td>
-                    <td class="text-right"></td>
-                    <td class="text-right">{{ number_format($totalNet, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($totalTax, 2, ',', ' ') }}</td>
-                    <td class="text-right">{{ number_format($totalGross, 2, ',', ' ') }}</td>
-                </tr>
-                
-                <!-- Total Row -->
-                <tr class="total-row">
-                    <td colspan="4"><strong>Összesen / Total:</strong></td>
-                    <td class="text-right"></td>
-                    <td class="text-right"><strong>{{ number_format($totalNet, 2, ',', ' ') }}</strong></td>
-                    <td class="text-right"><strong>{{ number_format($totalTax, 2, ',', ' ') }}</strong></td>
-                    <td class="text-right"><strong>{{ number_format($totalGross, 2, ',', ' ') }}</strong></td>
-                </tr>
+
+                @if($taxRate === 0)
+                    <tr class="note-row">
+                        <td colspan="7">
+                            <strong>Alanyi adómentes</strong>
+                            <span class="muted"> — Adómentesség leírása: Alanyi adómentes</span>
+                        </td>
+                    </tr>
+                @endif
             </tbody>
         </table>
 
-        <!-- Final Total Section -->
-        <div class="final-total">
-            <div class="final-total-main">
-                Fizetendő végösszeg / Total invoice value: {{ number_format($invoice->total_amount, 2, ',', ' ') }} EUR
+        <div class="summary">
+            <div class="summary-title">Számla összesítő:</div>
+            <div class="summary-grid">
+                <div class="left-col">
+                    <div class="sum-line"><span class="k">Számla nettó értéke</span><span>{{ $fmtIntMoney($sumNet) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">Áthárított áfa összege</span><span>{{ $fmtIntMoney($sumVat) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">Számla bruttó végösszege</span><span>{{ $fmtIntMoney($sumGross) }} {{ strtoupper($currency) }}</span></div>
+                </div>
+                <div class="right-col">
+                    <div class="sum-line"><span class="k">Áfa százaléka és értéke</span><span></span></div>
+                    <div class="sum-line"><span class="k">{{ $vatLabel }}</span><span>{{ $fmtIntMoney($sumVat) }} {{ strtoupper($currency) }}</span></div>
+                    @if($taxRate === 0)
+                        <div class="sum-line"><span class="k">Alanyi adómentes</span><span></span></div>
+                    @endif
+                </div>
             </div>
-            @php
-                // Convert EUR to HUF (example rate, should be configurable)
-                $eurToHufRate = 383.6300;
-                $totalHuf = round($invoice->total_amount * $eurToHufRate, 0);
-                $taxHuf = round($invoice->tax_amount * $eurToHufRate, 0);
-            @endphp
-            <div class="final-total-secondary">
-                ÁFA tartalom / VAT amount {{ number_format($taxHuf, 0, ',', ' ') }} Ft, 
-                Összesen / Total {{ number_format($totalHuf, 0, ',', ' ') }} Ft.
+            <div class="payable">
+                <div>Fizetendő összeg:</div>
+                <div>{{ $fmtIntMoney($sumGross) }} {{ strtoupper($currency) }}</div>
             </div>
-            <div class="exchange-rate">
-                (1 EUR={{ number_format($eurToHufRate, 4, ',', '') }} Ft)
-            </div>
+            @if($useConversion)
+                <div class="muted" style="margin-top: 6px; font-size: 8.8pt;">
+                    Tájékoztató: az összegek HUF-ra konvertálva (1 EUR = {{ number_format($eurToHufRate, 4, ',', ' ') }} HUF).
+                </div>
+            @endif
         </div>
+
+        <div class="footer">
+            <div class="muted">Készült: NAV Online Számlázó program formátumát követő sablon</div>
+            <div class="page">Oldalszám: <span class="pageNumber"></span>/<span class="pageCount"></span></div>
+        </div>
+
+        <script type="text/php">
+            if (isset($pdf)) {
+                $pdf->page_script('
+                    $font = $fontMetrics->get_font("DejaVu Sans", "normal");
+                    $pdf->text(520, 820, "Oldalszám: " . $PAGE_NUM . "/" . $PAGE_COUNT, $font, 8);
+                ');
+            }
+        </script>
     </div>
 </body>
 </html>
