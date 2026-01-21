@@ -12,11 +12,8 @@ db_config = {
 }
 
 RFID_LOCKER_MAP = {
-    "A1B2C3D4": (0, 0),
-    "F9E8D7C6": (0, 1),
-    "11223344": (0, 2),
-    "55667788": (1, 0),
-    "99AABBCC": (1, 1),
+    "HUOHDSPHI": (0, 0),
+    "123456": (0, 1)
 }
 
 
@@ -94,25 +91,50 @@ def check_in_out(auth_token: str):
 
 
             # -----------------------------
-            # RFID KULCSOK LEKÉRÉSE
+            # FOGLALÁSHOZ TARTOZÓ SZOBÁK
             # -----------------------------
             cursor.execute("""
-                SELECT rfid_uid
-                FROM rfid_keys
+                SELECT rooms_id
+                FROM relations
                 WHERE booking_id = %s
             """, (booking_id,))
-            rfid_keys = cursor.fetchall()
+            rooms = cursor.fetchall()
 
-            print("\nRFID kulcsok szekrény pozíciói:")
+            if not rooms:
+                print("⚠️ Nincs szoba a foglaláshoz rendelve!")
+            else:
+                print("\nRFID kulcsok és szekrény koordináták:")
 
-            for key in rfid_keys:
-                uid = key["rfid_uid"]
+                for room in rooms:
+                    room_id = room["rooms_id"]
 
-                if uid in RFID_LOCKER_MAP:
-                    row, col = RFID_LOCKER_MAP[uid]
-                    print(f"RFID {uid} → Szekrény [{row}][{col}]")
-                else:
-                    print(f"⚠️ RFID {uid} nincs regisztrálva a szekrényben!")
+                    # -----------------------------
+                    # SZOBÁHOZ TARTOZÓ RFID KULCS
+                    # -----------------------------
+                    cursor.execute("""
+                        SELECT rfidKey
+                        FROM rfidConnections
+                        WHERE roomId = %s
+                    """, (room_id,))
+                    rfid = cursor.fetchone()
+
+                    if not rfid:
+                        print(f"⚠️ Nincs RFID kulcs a(z) {room_id} szobához!")
+                        continue
+
+                    rfid_key = rfid["rfidKey"]
+
+                    # -----------------------------
+                    # RFID → SZEKRÉNY MÁTRIX
+                    # -----------------------------
+                    if rfid_key in RFID_LOCKER_MAP:
+                        row, col = RFID_LOCKER_MAP[rfid_key]
+                        print(
+                            f"Szoba {room_id} | "
+                            f"RFID {rfid_key} → Szekrény [{row}][{col}]"
+                        )
+                    else:
+                        print(f"⚠️ RFID {rfid_key} nincs benne a szekrény mátrixban!")
 
 
         else:
