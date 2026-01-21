@@ -7,8 +7,36 @@
           <span>Vissza az irányítópulthoz</span>
         </router-link>
       </div>
-      <h1>Szálloda foglalások</h1>
-      <p class="page-subtitle">Foglalások kezelése a szállodájához</p>
+      <div class="page-header-main">
+        <div class="page-header-text">
+          <h1>Szálloda foglalások</h1>
+          <p class="page-subtitle">Foglalások kezelése a szállodájához</p>
+        </div>
+
+        <!-- Compact Hotel Selector (Header) -->
+        <div v-if="selectedHotel && !hotelLoading" class="hotel-selector-compact header-compact">
+          <div class="hotel-compact-info">
+            <div class="hotel-compact-icon">🏨</div>
+            <div class="hotel-compact-details">
+              <div class="hotel-compact-name">{{ selectedHotel.name || `Szálloda #${selectedHotel.id}` }}</div>
+              <div class="hotel-compact-location">📍 {{ selectedHotel.location || 'Helyszín nincs megadva' }}</div>
+            </div>
+          </div>
+          <button 
+            v-if="hotels.length > 1"
+            @click="openCarousel" 
+            class="hotel-change-btn"
+            title="Szálloda váltása"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 4V10H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Váltás</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading States -->
@@ -23,26 +51,84 @@
     <!-- Success Message -->
     <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
-    <!-- Hotel Selector -->
-    <div v-if="hotels.length > 0 && !hotelLoading" class="hotel-selector-card">
-      <div class="hotel-selector-content">
-        <label for="hotel-select" class="hotel-selector-label">
-          <span class="selector-icon">🏨</span>
-          <span>Szálloda kiválasztása</span>
-        </label>
-        <select 
-          id="hotel-select"
-          v-model="selectedHotelId" 
-          @change="handleHotelChange" 
-          class="hotel-select-dropdown"
-        >
-          <option value="">Összes szálloda</option>
-          <option v-for="h in hotels" :key="h.id" :value="h.id">
-            {{ h.name || h.location || `Szálloda #${h.id}` }}
-          </option>
-        </select>
+    <!-- Minimal Hotel Selector Carousel -->
+    <Transition name="fade">
+      <div v-if="hotels.length > 1 && showHotelCarousel && !hotelLoading" class="hotel-carousel-overlay" @click.self="closeCarousel">
+        <div class="hotel-carousel-container-minimal">
+          <div class="hotel-carousel-header-minimal">
+            <h3 class="carousel-title-minimal">🏨 Szálloda kiválasztása</h3>
+            <button @click="closeCarousel" class="carousel-close-btn-minimal">×</button>
+          </div>
+          
+          <div class="hotel-carousel-wrapper-minimal">
+            <button 
+              @click="previousHotel" 
+              class="carousel-nav-btn-modern carousel-prev-modern"
+              title="Előző szálloda"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 18L9 12L15 6" stroke="#667eea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            
+            <div class="hotel-carousel-minimal">
+              <div 
+                class="hotel-card-carousel-minimal"
+                :style="{ transform: `translateX(-${currentHotelIndex * 100}%)` }"
+              >
+                <div
+                  v-for="hotel in hotels"
+                  :key="hotel.id"
+                  class="hotel-card-item-minimal"
+                  @click="selectHotel(hotel.id)"
+                  :class="{ 'selected': selectedHotelId === hotel.id }"
+                >
+                  <div class="hotel-card-image-minimal">
+                    <img 
+                      v-if="hotel.cover_image" 
+                      :src="getImageUrl(hotel.cover_image)" 
+                      :alt="hotel.name || 'Hotel'"
+                      class="hotel-cover-image-minimal"
+                      @error="handleImageError"
+                    />
+                    <div v-else class="hotel-image-placeholder-minimal">
+                      <span class="hotel-icon-minimal">🏨</span>
+                    </div>
+                  </div>
+                  <div class="hotel-card-content-minimal">
+                    <h4 class="hotel-card-name-minimal">{{ hotel.name || `Szálloda #${hotel.id}` }}</h4>
+                    <p class="hotel-card-location-minimal">📍 {{ hotel.location || 'Helyszín nincs megadva' }}</p>
+                    <button class="hotel-select-btn-minimal">
+                      {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              @click="nextHotel" 
+              class="carousel-nav-btn-modern carousel-next-modern"
+              title="Következő szálloda"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 18L15 12L9 6" stroke="#667eea" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="carousel-indicators-minimal">
+            <button
+              v-for="(hotel, index) in hotels"
+              :key="hotel.id"
+              @click="goToHotel(index)"
+              class="carousel-indicator-minimal"
+              :class="{ 'active': currentHotelIndex === index }"
+            ></button>
+          </div>
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Hotel Info Card -->
     <div v-if="selectedHotel && !hotelLoading" class="hotel-info-card">
@@ -55,20 +141,22 @@
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-if="bookings.length === 0 && !loading && !hotelLoading" class="empty-state">
+    <!-- Empty State (No bookings at all) -->
+    <div v-if="bookings.length === 0 && !loading && !hotelLoading && !(hotels.length > 1 && showHotelCarousel)" class="empty-state">
       <div class="empty-icon">📋</div>
       <h2>Nem található foglalás</h2>
       <p v-if="selectedHotelId">Még nem készült foglalás ehhez a szállodához.</p>
+      <p v-else-if="hotels.length > 1 && !selectedHotelId">Kérjük, válasszon egy szállodát a foglalások megtekintéséhez.</p>
       <p v-else>Még nem készült foglalás a szállodá(i)hoz.</p>
     </div>
 
     <!-- Bookings List -->
     <div v-if="bookings.length > 0" class="bookings-container">
+      <!-- Filter Tabs -->
       <div class="bookings-stats">
         <div class="stat-card">
-          <div class="stat-value">{{ bookings.length }}</div>
-          <div class="stat-label">Összes foglalás</div>
+          <div class="stat-value">{{ filteredBookings.length }}</div>
+          <div class="stat-label">Kiválasztott foglalások</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ confirmedCount }}</div>
@@ -79,10 +167,148 @@
           <div class="stat-label">Függőben</div>
         </div>
       </div>
+      <!-- View Switcher -->
+      <div class="view-switcher">
+        <div class="view-switcher-label">
+          <span>Nézet:</span>
+        </div>
+        <div class="view-switcher-buttons">
+          <button
+            @click="viewMode = 'card'"
+            :class="['view-btn', { active: viewMode === 'card' }]"
+            title="Kártya nézet"
+          >
+            <span class="view-icon">📋</span>
+            <span>Kártya</span>
+          </button>
+          <button
+            @click="viewMode = 'table'"
+            :class="['view-btn', { active: viewMode === 'table' }]"
+            title="Táblázat nézet"
+          >
+            <span class="view-icon">📊</span>
+            <span>Táblázat</span>
+          </button>
+        </div>
+      </div>
+      <div class="bookings-filters">
+        <button
+          @click="activeFilter = 'all'"
+          :class="['filter-btn', { active: activeFilter === 'all' }]"
+        >
+          <span class="filter-icon">📋</span>
+          <span>Összes</span>
+          <span class="filter-count">({{ bookings.length }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'pending'"
+          :class="['filter-btn', { active: activeFilter === 'pending' }]"
+        >
+          <span class="filter-icon">⏳</span>
+          <span>Függőben</span>
+          <span class="filter-count">({{ pendingCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'confirmed'"
+          :class="['filter-btn', { active: activeFilter === 'confirmed' }]"
+        >
+          <span class="filter-icon">✅</span>
+          <span>Megerősítve</span>
+          <span class="filter-count">({{ confirmedCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'cancelled'"
+          :class="['filter-btn', { active: activeFilter === 'cancelled' }]"
+        >
+          <span class="filter-icon">❌</span>
+          <span>Törölve</span>
+          <span class="filter-count">({{ cancelledCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'finished'"
+          :class="['filter-btn', { active: activeFilter === 'finished' }]"
+        >
+          <span class="filter-icon">✓</span>
+          <span>Befejezve</span>
+          <span class="filter-count">({{ finishedCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'archived'"
+          :class="['filter-btn', { active: activeFilter === 'archived' }]"
+        >
+          <span class="filter-icon">📦</span>
+          <span>Archivált</span>
+          <span class="filter-count">({{ archivedCount }})</span>
+        </button>
+      </div>
 
-      <div class="bookings-grid">
+      
+
+      
+
+      <!-- Empty State for Filtered Results -->
+      <div v-if="filteredBookings.length === 0 && !loading && !hotelLoading" class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h2>Nincs foglalás ezzel a szűrővel</h2>
+        <p>Nincs találat a kiválasztott szűrőre.</p>
+      </div>
+
+      <!-- Table View (Minimal) -->
+      <div v-if="filteredBookings.length > 0 && viewMode === 'table'" class="bookings-table-container">
+        <table class="bookings-table minimal-table">
+          <thead>
+            <tr>
+              <th>Foglalás ID</th>
+              <th>Vendég</th>
+              <th>Bejelentkezés</th>
+              <th>Kijelentkezés</th>
+              <th>Éjszakák</th>
+              <th>Összeg</th>
+              <th>Státusz</th>
+              <th>Műveletek</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="booking in filteredBookings"
+              :key="booking.id"
+              :class="booking.checkInstatus === 'checkedOut' ? 'table-row-finished' : `table-row-${booking.status}`"
+            >
+              <td class="booking-id-cell">#{{ booking.id }}</td>
+              <td class="guest-cell">
+                <div v-if="booking.user" class="guest-info-inline">
+                  <div class="guest-name-inline">{{ booking.user.name }}</div>
+                  <div class="guest-email-inline">{{ booking.user.email }}</div>
+                </div>
+                <span v-else>-</span>
+              </td>
+              <td>{{ formatDate(booking.startDate) }}</td>
+              <td>{{ formatDate(booking.endDate) }}</td>
+              <td>{{ calculateNights(booking.startDate, booking.endDate) }} éjszaka</td>
+              <td class="price-cell">{{ booking.totalPrice || 'Nincs adat' }} €</td>
+              <td>
+                <span :class="['status-badge', booking.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${booking.status}`]">
+                  {{ booking.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(booking.status) }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button
+                  @click="openBookingActionsModal(booking)"
+                  class="btn-actions"
+                  title="Műveletek"
+                >
+                  ⚙️ Műveletek
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Card View -->
+      <div v-if="filteredBookings.length > 0 && viewMode === 'card'" class="bookings-grid">
         <div
-          v-for="booking in bookings"
+          v-for="booking in filteredBookings"
           :key="booking.id"
           class="booking-card"
           :class="`status-${booking.status}`"
@@ -93,8 +319,8 @@
               <span class="booking-label">Foglalás</span>
               <h3 class="booking-id">#{{ booking.id }}</h3>
             </div>
-            <span :class="['status-badge', `badge-${booking.status}`]">
-              {{ formatStatus(booking.status) }}
+            <span :class="['status-badge', booking.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${booking.status}`]">
+              {{ booking.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(booking.status) }}
             </span>
           </div>
 
@@ -192,7 +418,7 @@
               <button
                 @click="openGuestModal(booking)"
                 class="btn-add-guest"
-                :disabled="booking.status === 'cancelled' || booking.status === 'finished' || isAtCapacity(booking)"
+                :disabled="booking.status === 'cancelled' || booking.checkInstatus === 'checkedOut' || isAtCapacity(booking)"
                 :title="isAtCapacity(booking) ? 'Elérte a maximális vendégkapacitást' : 'Vendég hozzáadása'"
               >
                 + Vendég hozzáadása
@@ -216,7 +442,7 @@
                   <button
                     @click="openEditGuestModal(booking, guest)"
                     class="btn-edit-guest"
-                    :disabled="booking.status === 'cancelled' || booking.status === 'finished'"
+                    :disabled="booking.status === 'cancelled' || booking.checkInstatus === 'checkedOut'"
                     title="Vendég szerkesztése"
                   >
                     ✏️
@@ -224,7 +450,7 @@
                   <button
                     @click="deleteGuest(guest.id, booking.id)"
                     class="btn-delete-guest"
-                    :disabled="booking.status === 'cancelled' || booking.status === 'finished'"
+                    :disabled="booking.status === 'cancelled' || booking.checkInstatus === 'checkedOut'"
                     title="Vendég törlése"
                   >
                     🗑️
@@ -294,8 +520,8 @@
             </div>
           </div>
 
-          <!-- Booking Actions (Admin) -->
-          <div class="booking-actions">
+          <!-- Booking Actions (Admin) - Only show for active bookings -->
+          <div v-if="booking.status !== 'cancelled' && booking.checkInstatus !== 'checkedOut'" class="booking-actions">
             <div v-if="booking.status === 'pending'" class="pending-actions">
               <button
                 @click="updateBookingStatus(booking.id, 'confirmed')"
@@ -322,12 +548,6 @@
               </button>
               <div v-if="booking.status === 'confirmed'" class="confirmed-badge">
                 ✅ Megerősítve - {{ booking.payment?.status === 'paid' ? 'Vendég bejelentkezhet' : 'Fizetésre vár (QR kód a fizetés után kerül elküldésre)' }}
-              </div>
-              <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
-                ❌ Elutasítva
-              </div>
-              <div v-else-if="booking.status === 'finished'" class="completed-badge">
-                ✓ Befejezve
               </div>
             </div>
           </div>
@@ -746,6 +966,216 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Cancellation Message Modal -->
+    <Transition name="modal">
+      <div v-if="showCancellationModal" class="modal-overlay" @click.self="closeCancellationModal">
+        <div class="modal-content cancellation-modal">
+          <div class="modal-header">
+            <h2>⚠️ Foglalás törlése</h2>
+            <button @click="closeCancellationModal" class="btn-close-modal">×</button>
+          </div>
+          <div class="cancellation-warning">
+            <p><strong>Figyelem!</strong> Ez a művelet törli a foglalást és értesítést küld a vendégnek.</p>
+          </div>
+          <form @submit.prevent="confirmCancellation" class="cancellation-form">
+            <div class="form-group">
+              <label>Üzenet a vendégnek (opcionális)</label>
+              <textarea
+                v-model="cancellationMessage"
+                rows="5"
+                placeholder="Írjon egy üzenetet a vendégnek, amelyet az e-mailben kapni fog. Például: 'Sajnáljuk, de a foglalását törölnünk kellett a következő okok miatt...'"
+                class="form-textarea"
+                maxlength="1000"
+              ></textarea>
+              <small class="form-hint">{{ cancellationMessage.length }}/1000 karakter</small>
+            </div>
+            <div class="modal-actions">
+              <button type="button" @click="closeCancellationModal" class="btn-cancel">
+                Mégse
+              </button>
+              <button type="submit" class="btn-save btn-danger" :disabled="cancelling">
+                {{ cancelling ? 'Törlés...' : '✓ Foglalás törlése' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Booking Actions Modal -->
+    <Transition name="modal">
+      <div v-if="showBookingActionsModal && selectedBookingForActions" class="modal-overlay" @click.self="closeBookingActionsModal">
+        <div class="modal-content actions-modal">
+          <div class="modal-header">
+            <h2>⚙️ Foglalás műveletek - #{{ selectedBookingForActions.id }}</h2>
+            <button @click="closeBookingActionsModal" class="btn-close-modal">×</button>
+          </div>
+          <div class="actions-content">
+            <!-- Booking Info -->
+            <div class="booking-info-summary">
+              <div class="info-row">
+                <span class="info-label">Vendég:</span>
+                <span class="info-value">{{ selectedBookingForActions.user?.name || 'N/A' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Státusz:</span>
+                <span :class="['status-badge', selectedBookingForActions.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${selectedBookingForActions.status}`]">
+                  {{ selectedBookingForActions.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(selectedBookingForActions.status) }}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Dátum:</span>
+                <span class="info-value">{{ formatDate(selectedBookingForActions.startDate) }} - {{ formatDate(selectedBookingForActions.endDate) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Összeg:</span>
+                <span class="info-value price">{{ selectedBookingForActions.totalPrice || 'Nincs adat' }} €</span>
+              </div>
+            </div>
+
+            <!-- Actions List -->
+            <div class="actions-list">
+              <!-- Status Actions -->
+              <div v-if="selectedBookingForActions.status === 'pending'" class="action-group">
+                <h3 class="action-group-title">Státusz műveletek</h3>
+                <button
+                  @click="handleAction('accept')"
+                  class="action-btn btn-accept"
+                  :disabled="updating === selectedBookingForActions.id"
+                >
+                  ✓ Foglalás elfogadása
+                </button>
+                <button
+                  @click="handleAction('reject')"
+                  class="action-btn btn-reject"
+                  :disabled="updating === selectedBookingForActions.id"
+                >
+                  ✗ Foglalás elutasítása
+                </button>
+              </div>
+
+              <!-- Booking Management -->
+              <div v-if="selectedBookingForActions.status !== 'cancelled' && selectedBookingForActions.checkInstatus !== 'checkedOut'" class="action-group">
+                <h3 class="action-group-title">Foglalás kezelése</h3>
+                <button
+                  @click="handleAction('edit')"
+                  class="action-btn btn-edit"
+                  :disabled="updating === selectedBookingForActions.id"
+                >
+                  ✏️ Foglalás szerkesztése
+                </button>
+                <button
+                  @click="handleAction('cancel')"
+                  class="action-btn btn-danger"
+                  :disabled="updating === selectedBookingForActions.id"
+                >
+                  ❌ Foglalás törlése
+                </button>
+              </div>
+
+              <!-- Guest Management -->
+              <div v-if="selectedBookingForActions.status !== 'cancelled' && selectedBookingForActions.checkInstatus !== 'checkedOut'" class="action-group">
+                <h3 class="action-group-title">Vendégkezelés</h3>
+                <button
+                  @click="handleAction('addGuest')"
+                  class="action-btn btn-primary"
+                  :disabled="isAtCapacity(selectedBookingForActions)"
+                  :title="isAtCapacity(selectedBookingForActions) ? 'Elérte a maximális vendégkapacitást' : ''"
+                >
+                  + Vendég hozzáadása
+                </button>
+                <div v-if="selectedBookingForActions.guests && selectedBookingForActions.guests.length > 0" class="guests-list-actions">
+                  <div
+                    v-for="guest in selectedBookingForActions.guests"
+                    :key="guest.id"
+                    class="guest-action-item"
+                  >
+                    <span class="guest-name">{{ guest.name }}</span>
+                    <div class="guest-item-actions">
+                      <button
+                        @click="handleAction('editGuest', guest)"
+                        class="btn-icon btn-edit-icon"
+                        title="Vendég szerkesztése"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        @click="handleAction('deleteGuest', guest)"
+                        class="btn-icon btn-delete-icon"
+                        title="Vendég törlése"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Invoice Management -->
+              <div v-if="selectedBookingForActions.status === 'confirmed' && selectedBookingForActions.invoice" class="action-group">
+                <h3 class="action-group-title">Számla műveletek</h3>
+                <button
+                  v-if="selectedBookingForActions.invoice.status === 'draft'"
+                  @click="handleAction('editInvoice')"
+                  class="action-btn btn-edit"
+                  :disabled="invoiceLoading === selectedBookingForActions.id"
+                >
+                  ✏️ Számla szerkesztése
+                </button>
+                <button
+                  v-if="selectedBookingForActions.invoice.status === 'draft'"
+                  @click="handleAction('previewInvoice')"
+                  class="action-btn btn-primary"
+                  :disabled="invoiceLoading === selectedBookingForActions.id"
+                >
+                  📄 Számla előnézet
+                </button>
+                <button
+                  v-if="selectedBookingForActions.invoice.status === 'draft'"
+                  @click="handleAction('approveInvoice')"
+                  class="action-btn btn-accept"
+                  :disabled="invoiceLoading === selectedBookingForActions.id"
+                >
+                  ✓ Számla jóváhagyása
+                </button>
+                <button
+                  v-if="selectedBookingForActions.invoice.status === 'approved'"
+                  @click="handleAction('sendInvoice')"
+                  class="action-btn btn-primary"
+                  :disabled="invoiceLoading === selectedBookingForActions.id"
+                >
+                  📧 Számla küldése vendégnek
+                </button>
+                <button
+                  v-if="selectedBookingForActions.invoice.status === 'sent'"
+                  @click="handleAction('downloadInvoice')"
+                  class="action-btn btn-primary"
+                >
+                  📥 Számla letöltése
+                </button>
+              </div>
+
+              <!-- Payment Management -->
+              <div v-if="selectedBookingForActions.status === 'confirmed' && selectedBookingForActions.payment" class="action-group">
+                <h3 class="action-group-title">Fizetés kezelése</h3>
+                <button
+                  v-if="selectedBookingForActions.payment.status !== 'paid'"
+                  @click="handleAction('confirmPayment')"
+                  class="action-btn btn-accept"
+                  :disabled="paymentLoading === selectedBookingForActions.id"
+                >
+                  ✓ Fizetés megerősítése
+                </button>
+                <div v-else class="payment-confirmed">
+                  ✅ Fizetés megerősítve
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -760,6 +1190,8 @@ import { useAuthStore } from '../../stores/auth'
 const authStore = useAuthStore()
 const hotels = ref([])
 const selectedHotelId = ref('')
+const currentHotelIndex = ref(0)
+const showHotelCarousel = ref(false)
 const selectedHotel = computed(() => {
   if (!selectedHotelId.value) return null
   return hotels.value.find(h => h.id === selectedHotelId.value)
@@ -822,20 +1254,62 @@ const maxDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
+// Cancellation modal
+const showCancellationModal = ref(false)
+const cancellationBookingId = ref(null)
+const cancellationMessage = ref('')
+const cancelling = ref(false)
+
+// Booking actions modal
+const showBookingActionsModal = ref(false)
+const selectedBookingForActions = ref(null)
+
+// Filter state
+const activeFilter = ref('all')
+const viewMode = ref('card') // 'card' or 'table'
+
+// Computed properties for counts
 const confirmedCount = computed(() => {
-  return bookings.value.filter(b => b.status === 'confirmed').length
+  return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut').length
 })
 
 const pendingCount = computed(() => {
   return bookings.value.filter(b => b.status === 'pending').length
 })
 
+const cancelledCount = computed(() => {
+  return bookings.value.filter(b => b.status === 'cancelled').length
+})
+
+const finishedCount = computed(() => {
+  return bookings.value.filter(b => b.checkInstatus === 'checkedOut').length
+})
+
+const archivedCount = computed(() => {
+  return bookings.value.filter(b => b.status === 'cancelled' || b.checkInstatus === 'checkedOut').length
+})
+
+// Filtered bookings based on active filter
+const filteredBookings = computed(() => {
+  if (activeFilter.value === 'all') {
+    return bookings.value
+  } else if (activeFilter.value === 'pending') {
+    return bookings.value.filter(b => b.status === 'pending')
+  } else if (activeFilter.value === 'confirmed') {
+    return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut')
+  } else if (activeFilter.value === 'cancelled') {
+    return bookings.value.filter(b => b.status === 'cancelled')
+  } else if (activeFilter.value === 'finished') {
+    return bookings.value.filter(b => b.checkInstatus === 'checkedOut')
+  } else if (activeFilter.value === 'archived') {
+    return bookings.value.filter(b => b.status === 'cancelled' || b.checkInstatus === 'checkedOut')
+  }
+  return bookings.value
+})
+
 onMounted(async () => {
   await loadHotels()
-  // Auto-select first hotel if only one exists
-  if (hotels.value.length === 1) {
-    selectedHotelId.value = hotels.value[0].id
-  }
+  // loadHotels now handles hotel selection and carousel display
   await loadBookings()
 })
 
@@ -852,9 +1326,22 @@ const loadHotels = async () => {
     
     if (hotels.value.length === 0) {
       error.value = 'Nem található szálloda ehhez a felhasználóhoz'
+      showHotelCarousel.value = false
+    } else if (hotels.value.length === 1) {
+      // Auto-select if only one hotel
+      selectedHotelId.value = hotels.value[0].id
+      showHotelCarousel.value = false
+    } else if (hotels.value.length > 1) {
+      // Show carousel if multiple hotels
+      if (!selectedHotelId.value) {
+        showHotelCarousel.value = true
+      } else {
+        showHotelCarousel.value = false
+      }
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'A szálloda információk betöltése sikertelen'
+    showHotelCarousel.value = false
   } finally {
     hotelLoading.value = false
   }
@@ -864,8 +1351,84 @@ const handleHotelChange = async () => {
   await loadBookings()
 }
 
+// Hotel Carousel Functions
+const openCarousel = () => {
+  showHotelCarousel.value = true
+  if (selectedHotelId.value) {
+    const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+    if (index !== -1) {
+      currentHotelIndex.value = index
+    }
+  }
+}
+
+const closeCarousel = () => {
+  // Only allow closing if a hotel is already selected
+  if (selectedHotelId.value) {
+    showHotelCarousel.value = false
+  }
+  // Don't close if multiple hotels and none selected (required)
+}
+
+const selectHotel = async (hotelId) => {
+  selectedHotelId.value = hotelId
+  showHotelCarousel.value = false
+  await loadBookings()
+}
+
+const nextHotel = () => {
+  if (hotels.value.length === 0) return
+  // Loop: if at last hotel, go to first
+  if (currentHotelIndex.value >= hotels.value.length - 1) {
+    currentHotelIndex.value = 0
+  } else {
+    currentHotelIndex.value++
+  }
+}
+
+const previousHotel = () => {
+  if (hotels.value.length === 0) return
+  // Loop: if at first hotel, go to last
+  if (currentHotelIndex.value === 0) {
+    currentHotelIndex.value = hotels.value.length - 1
+  } else {
+    currentHotelIndex.value--
+  }
+}
+
+const goToHotel = (index) => {
+  currentHotelIndex.value = index
+}
+
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  if (imagePath.startsWith('/storage/')) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return `${baseUrl}${imagePath}`
+  }
+  return imagePath
+}
+
+const handleImageError = (event) => {
+  event.target.style.display = 'none'
+  const placeholder = event.target.nextElementSibling
+  if (placeholder && placeholder.classList.contains('hotel-image-placeholder')) {
+    placeholder.style.display = 'flex'
+  }
+}
+
 const loadBookings = async () => {
-  // If no hotel selected, show all bookings from all hotels
+  // If multiple hotels exist, hotel selection is mandatory
+  if (hotels.value.length > 1 && !selectedHotelId.value) {
+    bookings.value = []
+    loading.value = false
+    return
+  }
+
+  // If no hotel selected and only one hotel exists, show all bookings from all hotels
   if (!selectedHotelId.value) {
     loading.value = true
     error.value = ''
@@ -979,6 +1542,15 @@ const calculateNights = (startDate, endDate) => {
 }
 
 const updateBookingStatus = async (bookingId, status) => {
+  // If cancelling, show the cancellation modal first
+  if (status === 'cancelled') {
+    cancellationBookingId.value = bookingId
+    cancellationMessage.value = ''
+    showCancellationModal.value = true
+    return
+  }
+
+  // For other statuses, proceed normally
   updating.value = bookingId
   try {
     await bookingService.updateBookingStatus(bookingId, status)
@@ -992,6 +1564,33 @@ const updateBookingStatus = async (bookingId, status) => {
   } finally {
     updating.value = null
   }
+}
+
+const confirmCancellation = async () => {
+  if (!cancellationBookingId.value) return
+
+  cancelling.value = true
+  try {
+    await bookingService.updateBookingStatus(
+      cancellationBookingId.value,
+      'cancelled',
+      cancellationMessage.value.trim() || undefined
+    )
+    successMessage.value = 'Foglalás sikeresen törölve! A vendég értesítést kapott.'
+    setTimeout(() => { successMessage.value = '' }, 5000)
+    await loadBookings()
+    closeCancellationModal()
+  } catch (err) {
+    error.value = err.response?.data?.message || 'A foglalás törlése sikertelen'
+  } finally {
+    cancelling.value = false
+  }
+}
+
+const closeCancellationModal = () => {
+  showCancellationModal.value = false
+  cancellationBookingId.value = null
+  cancellationMessage.value = ''
 }
 
 const formatInvoiceStatus = (status) => {
@@ -1416,10 +2015,113 @@ const confirmPayment = async (bookingId) => {
     successMessage.value = 'Fizetés megerősítve! A QR kód e-mailben elküldve a vendégnek.'
     setTimeout(() => { successMessage.value = '' }, 5000)
     await loadBookings()
+    if (showBookingActionsModal.value) {
+      const updatedBooking = bookings.value.find(b => b.id === bookingId)
+      if (updatedBooking) {
+        selectedBookingForActions.value = updatedBooking
+      }
+    }
   } catch (err) {
     error.value = err.response?.data?.message || err.response?.data?.error || 'A fizetés megerősítése sikertelen'
   } finally {
     paymentLoading.value = null
+  }
+}
+
+// Booking Actions Modal Functions
+const openBookingActionsModal = (booking) => {
+  selectedBookingForActions.value = booking
+  showBookingActionsModal.value = true
+}
+
+const closeBookingActionsModal = () => {
+  showBookingActionsModal.value = false
+  selectedBookingForActions.value = null
+}
+
+const handleAction = async (action, data = null) => {
+  if (!selectedBookingForActions.value) return
+
+  const booking = selectedBookingForActions.value
+
+  switch (action) {
+    case 'accept':
+      await updateBookingStatus(booking.id, 'confirmed')
+      closeBookingActionsModal()
+      break
+    case 'reject':
+      await updateBookingStatus(booking.id, 'cancelled')
+      closeBookingActionsModal()
+      break
+    case 'edit':
+      closeBookingActionsModal()
+      await openEditBookingModal(booking)
+      break
+    case 'cancel':
+      closeBookingActionsModal()
+      cancellationBookingId.value = booking.id
+      cancellationMessage.value = ''
+      showCancellationModal.value = true
+      break
+    case 'addGuest':
+      closeBookingActionsModal()
+      openGuestModal(booking)
+      break
+    case 'editGuest':
+      closeBookingActionsModal()
+      openEditGuestModal(booking, data)
+      break
+    case 'deleteGuest':
+      if (confirm(`Biztosan törölni szeretné a vendéget: ${data.name}?`)) {
+        await deleteGuest(data.id, booking.id)
+        await loadBookings()
+        const updatedBooking = bookings.value.find(b => b.id === booking.id)
+        if (updatedBooking) {
+          selectedBookingForActions.value = updatedBooking
+        }
+      }
+      break
+    case 'editInvoice':
+      closeBookingActionsModal()
+      openEditInvoiceModal(booking)
+      break
+    case 'previewInvoice':
+      await previewInvoice(booking.id)
+      break
+    case 'approveInvoice':
+      if (confirm('Biztosan jóváhagyja ezt a számlát? Végleges lesz és nem szerkeszthető.')) {
+        await approveInvoice(booking.invoice.id, booking.id)
+        await loadBookings()
+        const updatedBooking = bookings.value.find(b => b.id === booking.id)
+        if (updatedBooking) {
+          selectedBookingForActions.value = updatedBooking
+        }
+      }
+      break
+    case 'sendInvoice':
+      await sendInvoice(booking.invoice.id, booking.id)
+      await loadBookings()
+      const updatedBooking = bookings.value.find(b => b.id === booking.id)
+      if (updatedBooking) {
+        selectedBookingForActions.value = updatedBooking
+      }
+      break
+    case 'downloadInvoice':
+      try {
+        const blob = await invoiceService.downloadInvoice(booking.invoice.id)
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `szamla_${booking.invoice.invoice_number}.pdf`
+        link.click()
+        window.URL.revokeObjectURL(url)
+      } catch (err) {
+        error.value = err.response?.data?.message || 'A számla letöltése sikertelen'
+      }
+      break
+    case 'confirmPayment':
+      await confirmPayment(booking.id)
+      break
   }
 }
 </script>
@@ -1438,6 +2140,23 @@ const confirmPayment = async (bookingId) => {
 
 .page-header-top {
   margin-bottom: 1rem;
+}
+
+.page-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.page-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-header-text {
+  min-width: 0;
 }
 
 .back-to-dashboard-btn {
@@ -1478,6 +2197,57 @@ const confirmPayment = async (bookingId) => {
 .page-subtitle {
   color: #7f8c8d;
   font-size: 1.1rem;
+}
+
+/* Header compact selector tweaks */
+.hotel-selector-compact.header-compact {
+  max-width: 420px;
+  margin: 0;
+  flex-shrink: 0;
+  padding: 0.625rem 0.875rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hotel-selector-compact.header-compact .hotel-compact-info {
+  gap: 0.625rem;
+}
+
+.hotel-selector-compact.header-compact .hotel-compact-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hotel-selector-compact.header-compact .hotel-compact-details {
+  gap: 0.15rem;
+}
+
+.hotel-selector-compact.header-compact .hotel-compact-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.hotel-selector-compact.header-compact .hotel-compact-location {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.hotel-selector-compact.header-compact .hotel-change-btn {
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  border-radius: 6px;
 }
 
 /* Loading State */
@@ -1997,6 +2767,12 @@ const confirmPayment = async (bookingId) => {
 
 .hotel-selector-content {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hotel-selector-label-row {
+  display: flex;
   align-items: center;
   gap: 1rem;
 }
@@ -2036,6 +2812,29 @@ const confirmPayment = async (bookingId) => {
 
 .hotel-select-dropdown:hover {
   border-color: #667eea;
+}
+
+.hotel-select-dropdown.error {
+  border-color: #e74c3c;
+  background-color: #fff5f5;
+}
+
+.hotel-select-dropdown.error:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.required-asterisk {
+  color: #e74c3c;
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+.hotel-selector-error {
+  color: #e74c3c;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
 }
 
 /* Hotel Info Card */
@@ -2098,6 +2897,69 @@ const confirmPayment = async (bookingId) => {
 .bookings-container {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* Filter Tabs */
+.bookings-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background: #f0f0f0;
+  border-color: #667eea;
+  color: #667eea;
+  transform: translateY(-1px);
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.filter-icon {
+  font-size: 1.1rem;
+}
+
+.filter-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.filter-btn:not(.active) .filter-count {
+  background: #e5e7eb;
+  color: #6b7280;
 }
 
 /* Stats Cards */
@@ -2503,6 +3365,15 @@ const confirmPayment = async (bookingId) => {
     font-size: 2rem;
   }
 
+  .page-header-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hotel-selector-compact.header-compact {
+    max-width: 100%;
+  }
+
   .bookings-grid {
     grid-template-columns: 1fr;
   }
@@ -2517,6 +3388,20 @@ const confirmPayment = async (bookingId) => {
 
   .pending-actions {
     grid-template-columns: 1fr;
+  }
+
+  .bookings-filters {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .filter-btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .filter-count {
+    display: none;
   }
 }
 
@@ -2771,15 +3656,895 @@ const confirmPayment = async (bookingId) => {
   font-size: 0.9rem;
 }
 
+/* Cancellation Modal Styles */
+.cancellation-modal {
+  max-width: 600px;
+  max-height: 90vh;
+}
+
+.cancellation-warning {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cancellation-warning p {
+  margin: 0;
+  color: #7f1d1d;
+  font-size: 0.95rem;
+}
+
+.cancellation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 120px;
+  transition: all 0.2s ease;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.5);
+}
+
+/* Bookings Table (for Archived Bookings) */
+.bookings-table-container {
+  margin-top: 2rem;
+  overflow-x: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.bookings-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.bookings-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bookings-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.bookings-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.bookings-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.bookings-table td {
+  padding: 1rem;
+  color: #2c3e50;
+}
+
+.booking-id-cell {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.guest-cell {
+  min-width: 200px;
+}
+
+.guest-info-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.guest-name-inline {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.guest-email-inline {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.price-cell {
+  font-weight: 600;
+  color: #27ae60;
+}
+
+.table-row-cancelled {
+  opacity: 0.7;
+}
+
+.table-row-finished {
+  opacity: 0.8;
+}
+
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
   }
   
   .advanced-booking-modal,
-  .super-invoice-modal {
+  .super-invoice-modal,
+  .cancellation-modal {
     width: 95%;
     max-width: 95%;
+  }
+
+  .bookings-table-container {
+    overflow-x: scroll;
+  }
+
+  .bookings-table {
+    font-size: 0.85rem;
+  }
+
+  .bookings-table th,
+  .bookings-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .actions-modal {
+    width: 95%;
+    max-width: 95%;
+  }
+
+  .view-switcher {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-switcher-buttons {
+    width: 100%;
+  }
+
+  .view-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* View Switcher */
+.view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.view-switcher-label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.view-switcher-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f8f9fa;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.view-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.view-icon {
+  font-size: 1.1rem;
+}
+
+/* Actions Cell in Table */
+.actions-cell {
+  text-align: center;
+}
+
+.btn-actions {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-actions:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Actions Modal */
+.actions-modal {
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.actions-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.booking-info-summary {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.info-value {
+  color: #7f8c8d;
+  font-size: 0.95rem;
+}
+
+.info-value.price {
+  color: #27ae60;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.action-group-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.btn-accept {
+  border-color: #27ae60;
+  color: #27ae60;
+}
+
+.action-btn.btn-accept:hover:not(:disabled) {
+  background: #27ae60;
+  color: white;
+}
+
+.action-btn.btn-reject,
+.action-btn.btn-danger {
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.action-btn.btn-reject:hover:not(:disabled),
+.action-btn.btn-danger:hover:not(:disabled) {
+  background: #e74c3c;
+  color: white;
+}
+
+.action-btn.btn-edit {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.action-btn.btn-edit:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+}
+
+.action-btn.btn-primary {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.action-btn.btn-primary:hover:not(:disabled) {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.guests-list-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.guest-action-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.guest-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.guest-item-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  padding: 0.5rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  transform: scale(1.1);
+}
+
+.btn-edit-icon:hover {
+  background: #e8f4f8;
+  border-color: #667eea;
+}
+
+.btn-delete-icon:hover {
+  background: #fee2e2;
+  border-color: #e74c3c;
+}
+
+.payment-confirmed {
+  padding: 0.875rem 1.25rem;
+  background: #d4edda;
+  border: 2px solid #27ae60;
+  border-radius: 8px;
+  color: #27ae60;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Minimal Hotel Carousel Styles */
+.hotel-carousel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.hotel-carousel-container-minimal {
+  width: 100%;
+  max-width: 500px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.hotel-carousel-header-minimal {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carousel-title-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carousel-close-btn-minimal {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.carousel-close-btn-minimal:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.hotel-carousel-wrapper-minimal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1.5rem 0;
+  background: #f8f9fa;
+  min-height: 280px;
+}
+
+.hotel-carousel-minimal {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.hotel-card-carousel-minimal {
+  display: flex;
+  transition: transform 0.3s ease;
+}
+
+.hotel-card-item-minimal {
+  min-width: 100%;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.hotel-card-item-minimal.selected {
+  opacity: 1;
+}
+
+.hotel-card-image-minimal {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hotel-cover-image-minimal {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotel-image-placeholder-minimal {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotel-icon-minimal {
+  font-size: 3rem;
+  opacity: 0.7;
+}
+
+.hotel-card-content-minimal {
+  background: white;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.hotel-card-name-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 0.25rem 0;
+}
+
+.hotel-card-location-minimal {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin: 0 0 1rem 0;
+}
+
+.hotel-select-btn-minimal {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.carousel-nav-btn-modern {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  color: #667eea;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(102, 126, 234, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.carousel-nav-btn-modern:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  transform: translateY(-50%) scale(1.15);
+  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4), 0 0 0 1px rgba(102, 126, 234, 0.2);
+}
+
+.carousel-nav-btn-modern:hover svg path {
+  stroke: white;
+}
+
+.carousel-nav-btn-modern:active {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.carousel-nav-btn-modern svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease;
+}
+
+.carousel-nav-btn-modern:hover svg {
+  transform: scale(1.1);
+}
+
+.carousel-prev-modern {
+  left: 1rem;
+}
+
+.carousel-prev-modern:hover svg {
+  transform: translateX(-2px) scale(1.1);
+}
+
+.carousel-next-modern {
+  right: 1rem;
+}
+
+.carousel-next-modern:hover svg {
+  transform: translateX(2px) scale(1.1);
+}
+
+.carousel-indicators-minimal {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+}
+
+.carousel-indicator-minimal {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid #667eea;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.carousel-indicator-minimal:hover {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.carousel-indicator-minimal.active {
+  background: #667eea;
+  transform: scale(1.2);
+}
+
+/* Compact Hotel Selector */
+.hotel-selector-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 1rem;
+}
+
+.hotel-compact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.hotel-compact-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hotel-compact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hotel-compact-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotel-compact-location {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hotel-change-btn {
+  padding: 0.625rem 1.125rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hotel-change-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.hotel-change-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.35);
+}
+
+.hotel-change-btn:active {
+  transform: translateY(0);
+}
+
+/* Fade Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .hotel-carousel-container-minimal {
+    width: 95%;
+    max-width: 95%;
+  }
+
+  .hotel-card-item-minimal {
+    padding: 0 0.75rem;
+  }
+
+  .carousel-nav-btn-modern {
+    width: 40px;
+    height: 40px;
+  }
+
+  .carousel-nav-btn-modern svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .carousel-prev-modern {
+    left: 0.5rem;
+  }
+
+  .carousel-next-modern {
+    right: 0.5rem;
+  }
+
+  .carousel-nav-btn-modern {
+    width: 40px;
+    height: 40px;
+  }
+
+  .carousel-nav-btn-modern svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .carousel-prev-modern {
+    left: 0.5rem;
+  }
+
+  .carousel-next-modern {
+    right: 0.5rem;
+  }
+
+  .hotel-card-image-minimal {
+    height: 120px;
+  }
+
+  .hotel-selector-compact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .hotel-change-btn {
+    width: 100%;
   }
 }
 </style>

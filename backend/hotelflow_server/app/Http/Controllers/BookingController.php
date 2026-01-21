@@ -426,7 +426,8 @@ public function getGuestsByBookingId($bookingId)
 function updateStatus(Request $request, $id)
 {
     $request->validate([
-        'status' => 'required|in:pending,confirmed,cancelled,completed'
+        'status' => 'required|in:pending,confirmed,cancelled,completed',
+        'cancellation_message' => 'nullable|string|max:1000'
     ]);
 
     $booking = Booking::with(['user', 'hotel', 'rooms'])->find($id);
@@ -505,7 +506,10 @@ function updateStatus(Request $request, $id)
         try {
             $booking->load(['hotel', 'user']);
             if ($booking->user && $booking->user->email) {
-                Mail::to($booking->user->email)->send(new BookingCancelledMail($booking, 'A foglalást a szálloda törölte.'));
+                $cancellationMessage = $request->cancellation_message 
+                    ? $request->cancellation_message 
+                    : 'A foglalást a szálloda törölte.';
+                Mail::to($booking->user->email)->send(new BookingCancelledMail($booking, $cancellationMessage));
             }
         } catch (\Exception $mailEx) {
             \Log::error('Foglalás törlés értesítő e-mail küldési hiba: ' . $mailEx->getMessage());

@@ -118,6 +118,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { authService } from '../services/authService'
 import TwoFactorPrompt from '../components/TwoFactorPrompt.vue'
 
 const router = useRouter()
@@ -240,19 +241,41 @@ const resendVerificationEmail = async () => {
   }
 }
 
-const handleEnable2FA = () => {
+const handleEnable2FA = async () => {
   show2FAPrompt.value = false
-  // Navigate based on role, then they can enable 2FA in profile
-  if (authStore.state.user.role === 'user') {
-    router.push('/bookings')
-  } else if (authStore.state.user.role === 'hotel') {
-    router.push('/admin/bookings')
-  } else {
-    router.push('/search')
-  }
-  // Show a toast message to remind them to enable 2FA in profile
-  if (window.showToast) {
-    window.showToast('A 2FA-t a profil beállításaiban engedélyezheted a további biztonságért', 'info')
+
+  try {
+    // Kérjünk a backendtől egy 2FA secretet + QR kódot a jelenlegi, már bejelentkezett userhez
+    const data = await authService.enable2FA()
+
+    // Vigyük át a felhasználót a 2FA beállító oldalra, ahol meg tudja erősíteni a kódot
+    router.push({
+      path: '/two-factor-auth',
+      query: {
+        setup: 'true',
+        qr_code: data.qr_code,
+        secret: data.two_factor_secret,
+        email: email.value,
+        password: password.value
+      }
+    })
+  } catch (err) {
+    // Ha valamiért nem sikerül, viselkedjünk elegánsan és jelezzük a hibát
+    if (window.showToast) {
+      window.showToast(
+        err.response?.data?.message || 'A 2FA engedélyezése sikertelen. Később a profil oldalról is megpróbálhatod.',
+        'error'
+      )
+    }
+
+    // Biztonsági fallback: navigáljunk a szerep szerinti főoldalra
+    if (authStore.state.user.role === 'user') {
+      router.push('/bookings')
+    } else if (authStore.state.user.role === 'hotel') {
+      router.push('/admin/bookings')
+    } else {
+      router.push('/search')
+    }
   }
 }
 

@@ -23,12 +23,14 @@
         <div class="form-group">
           <label>Add meg az alkalmazásból a 6 jegyű kódot</label>
           <input
+            ref="codeInputRef"
             v-model="code"
             type="text"
             maxlength="6"
             placeholder="000000"
             class="code-input"
             @input="formatCode"
+            autofocus
           />
         </div>
         <button @click="verifySetup" class="btn-verify" :disabled="code.length !== 6 || verifying">
@@ -41,6 +43,7 @@
         <div class="form-group">
           <label>Add meg az autentikációs alkalmazás 6 jegyű kódját</label>
           <input
+            ref="codeInputRef"
             v-model="code"
             type="text"
             maxlength="6"
@@ -48,6 +51,7 @@
             class="code-input"
             @input="formatCode"
             @keyup.enter="verifyCode"
+            autofocus
           />
         </div>
         <button @click="verifyCode" class="btn-verify" :disabled="code.length !== 6 || verifying">
@@ -73,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { authService } from '../services/authService'
@@ -116,6 +120,7 @@ const code = ref('')
 const error = ref('')
 const successMessage = ref('')
 const verifying = ref(false)
+const codeInputRef = ref(null)
 
 const formatCode = (e) => {
   code.value = e.target.value.replace(/\D/g, '').slice(0, 6)
@@ -140,11 +145,18 @@ const verifySetup = async () => {
   successMessage.value = ''
 
   try {
-    // Try to login with the code to verify it works
-    const result = await authStore.login(email.value, password.value, code.value)
-    
-    if (result.success) {
+    // Ha már be vagy jelentkezve (normál felhasználó / hotel admin), akkor a 2FA-t
+    // a dedikált végponttal engedélyezzük, nem újra bejelentkezéssel
+    if (authStore.state.isAuthenticated) {
+      await authService.verifyAndEnable2FA(code.value)
       successMessage.value = 'A 2FA beállítása sikeres!'
+
+      // Frissítsük a lokális user állapotot, hogy a rendszer \"emlékezzen\" rá
+      if (authStore.state.user) {
+        authStore.state.user.two_factor_enabled = true
+        localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
+      }
+
       setTimeout(() => {
         // Navigate based on role
         if (authStore.state.user?.role === 'super_admin') {
@@ -158,7 +170,26 @@ const verifySetup = async () => {
         }
       }, 1000)
     } else {
-      error.value = result.message || 'Érvénytelen kód. Kérjük, próbáld újra.'
+      // Super admin első 2FA beállítása: itt még nincs token, ezért
+      // a kódot a login folyamaton keresztül ellenőrizzük
+      const result = await authStore.login(email.value, password.value, code.value)
+
+      if (result.success) {
+        successMessage.value = 'A 2FA beállítása sikeres!'
+        setTimeout(() => {
+          if (authStore.state.user?.role === 'super_admin') {
+            router.push('/super-admin/dashboard')
+          } else if (authStore.state.user?.role === 'hotel') {
+            router.push('/admin/bookings')
+          } else if (authStore.state.user?.role === 'user') {
+            router.push('/bookings')
+          } else {
+            router.push('/search')
+          }
+        }, 1000)
+      } else {
+        error.value = result.message || 'Érvénytelen kód. Kérjük, próbáld újra.'
+      }
     }
   } catch (err) {
     error.value = err.response?.data?.message || 'Az ellenőrzés sikertelen'
@@ -207,6 +238,24 @@ const verifyCode = async () => {
 const goBack = () => {
   router.push('/login')
 }
+
+// Focus the input field when component mounts or mode changes
+const focusInput = async () => {
+  await nextTick()
+  if (codeInputRef.value) {
+    codeInputRef.value.focus()
+  }
+}
+
+// Focus on mount
+onMounted(() => {
+  focusInput()
+})
+
+// Focus when switching between setup and verification modes
+watch(setupMode, () => {
+  focusInput()
+})
 </script>
 
 <style scoped>

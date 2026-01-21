@@ -16,8 +16,12 @@ export const bookingService = {
     return response.data
   },
 
-  async updateBookingStatus(id, status) {
-    const response = await api.put(`/bookings/update-status/${id}`, { status })
+  async updateBookingStatus(id, status, cancellationMessage = null) {
+    const payload = { status }
+    if (status === 'cancelled' && cancellationMessage) {
+      payload.cancellation_message = cancellationMessage
+    }
+    const response = await api.put(`/bookings/update-status/${id}`, payload)
     return response.data
   },
 

@@ -70,6 +70,11 @@ public function updateData(Request $request, $bookingId)
         }
     }
 
+    // Automatikusan állítsuk be a státuszt "finished"-re, ha a checkInstatus "checkedOut"
+    if ($request->has('checkInstatus') && $request->input('checkInstatus') === 'checkedOut') {
+        $booking->status = 'finished';
+    }
+
     $booking->save();
 
     return response()->json(['message' => 'Booking updated successfully', 'booking' => $booking], 200);

@@ -87,7 +87,8 @@
 
         @if(!empty($reason))
             <div class="reason">
-                <strong>Megjegyzés:</strong> {{ $reason }}
+                <strong>Üzenet a szállodától:</strong>
+                <p style="margin-top: 0.5rem; margin-bottom: 0;">{{ $reason }}</p>
             </div>
         @endif
 

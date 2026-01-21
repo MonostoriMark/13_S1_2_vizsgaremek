@@ -24,10 +24,54 @@
 
     <!-- Bookings List -->
     <div v-if="bookings.length > 0" class="bookings-container">
+      <!-- Filter Buttons -->
+      <div class="bookings-filters">
+        <button
+          @click="activeFilter = 'all'"
+          :class="['filter-btn', { active: activeFilter === 'all' }]"
+        >
+          <span class="filter-icon">📋</span>
+          <span>Összes</span>
+          <span class="filter-count">({{ bookings.length }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'pending'"
+          :class="['filter-btn', { active: activeFilter === 'pending' }]"
+        >
+          <span class="filter-icon">⏳</span>
+          <span>Függőben</span>
+          <span class="filter-count">({{ pendingCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'confirmed'"
+          :class="['filter-btn', { active: activeFilter === 'confirmed' }]"
+        >
+          <span class="filter-icon">✅</span>
+          <span>Megerősítve</span>
+          <span class="filter-count">({{ confirmedCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'cancelled'"
+          :class="['filter-btn', { active: activeFilter === 'cancelled' }]"
+        >
+          <span class="filter-icon">❌</span>
+          <span>Törölve</span>
+          <span class="filter-count">({{ cancelledCount }})</span>
+        </button>
+        <button
+          @click="activeFilter = 'finished'"
+          :class="['filter-btn', { active: activeFilter === 'finished' }]"
+        >
+          <span class="filter-icon">✓</span>
+          <span>Befejezve</span>
+          <span class="filter-count">({{ finishedCount }})</span>
+        </button>
+      </div>
+
       <div class="bookings-stats">
         <div class="stat-card">
-          <div class="stat-value">{{ bookings.length }}</div>
-          <div class="stat-label">Összes foglalás</div>
+          <div class="stat-value">{{ filteredBookings.length }}</div>
+          <div class="stat-label">Kiválasztott foglalások</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ confirmedCount }}</div>
@@ -39,12 +83,62 @@
         </div>
       </div>
 
-      <div class="bookings-grid">
+      <!-- Empty State for Filtered Results -->
+      <div v-if="filteredBookings.length === 0 && !loading" class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h2>Nincs foglalás ezzel a szűrővel</h2>
+        <p>Nincs találat a kiválasztott szűrőre.</p>
+      </div>
+
+      <!-- Table View for Archived Bookings (Cancelled/Finished) -->
+      <div v-if="filteredBookings.length > 0 && (activeFilter === 'cancelled' || activeFilter === 'finished')" class="bookings-table-container">
+        <table class="bookings-table">
+          <thead>
+            <tr>
+              <th>Foglalás ID</th>
+              <th>Szálloda</th>
+              <th>Bejelentkezés</th>
+              <th>Kijelentkezés</th>
+              <th>Éjszakák</th>
+              <th>Összeg</th>
+              <th>Státusz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="booking in filteredBookings"
+              :key="booking.id"
+              :class="booking.checkInstatus === 'checkedOut' ? 'table-row-finished' : `table-row-${booking.status}`"
+            >
+              <td class="booking-id-cell">#{{ booking.id }}</td>
+              <td class="hotel-cell">
+                <div v-if="booking.hotel" class="hotel-info-inline">
+                  <div class="hotel-name-inline">{{ booking.hotel.name }}</div>
+                  <div v-if="booking.hotel.address" class="hotel-address-inline">{{ booking.hotel.address }}</div>
+                </div>
+                <span v-else>-</span>
+              </td>
+              <td>{{ formatDate(booking.startDate) }}</td>
+              <td>{{ formatDate(booking.endDate) }}</td>
+              <td>{{ calculateNights(booking.startDate, booking.endDate) }} éjszaka</td>
+              <td class="price-cell">{{ booking.totalPrice }} €</td>
+              <td>
+                <span :class="['status-badge', booking.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${booking.status}`]">
+                  {{ booking.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(booking.status) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Card View for Active Bookings (Pending/Confirmed/All) -->
+      <div v-if="filteredBookings.length > 0 && activeFilter !== 'cancelled' && activeFilter !== 'finished'" class="bookings-grid">
         <div
-          v-for="booking in bookings"
+          v-for="booking in filteredBookings"
           :key="booking.id"
           class="booking-card"
-          :class="`status-${booking.status}`"
+          :class="booking.checkInstatus === 'checkedOut' ? 'status-finished' : `status-${booking.status}`"
         >
           <!-- Booking Header -->
           <div class="booking-card-header">
@@ -52,8 +146,8 @@
               <span class="booking-label">Foglalás</span>
               <h3 class="booking-id">#{{ booking.id }}</h3>
             </div>
-            <span :class="['status-badge', `badge-${booking.status}`]">
-              {{ formatStatus(booking.status) }}
+            <span :class="['status-badge', booking.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${booking.status}`]">
+              {{ booking.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(booking.status) }}
             </span>
           </div>
 
@@ -182,7 +276,7 @@
           </div>
 
           <!-- Invoice Section (Guest) -->
-          <div v-if="booking.status === 'confirmed' && booking.invoice && booking.invoice.status !== 'draft'" class="invoice-section">
+          <div v-if="booking.status === 'confirmed' && booking.checkInstatus !== 'checkedOut' && booking.invoice && booking.invoice.status !== 'draft'" class="invoice-section">
             <h4 class="section-title">Számla</h4>
             <div class="invoice-info">
               <div class="invoice-status">
@@ -209,14 +303,14 @@
             >
               {{ deleting === booking.id ? 'Törlés...' : 'Foglalás törlése' }}
             </button>
-            <div v-else-if="booking.status === 'confirmed'" class="confirmed-badge">
+            <div v-else-if="booking.status === 'confirmed' && booking.checkInstatus !== 'checkedOut'" class="confirmed-badge">
               ✅ Megerősítve - Készen áll a bejelentkezésre
+            </div>
+            <div v-else-if="booking.checkInstatus === 'checkedOut'" class="completed-badge">
+              ✓ Befejezve
             </div>
             <div v-else-if="booking.status === 'cancelled'" class="cancelled-badge">
               ❌ Törölve
-            </div>
-            <div v-else-if="booking.status === 'finished'" class="completed-badge">
-              ✓ Befejezve
             </div>
           </div>
         </div>
@@ -292,6 +386,7 @@ const showGuestModal = ref(false)
 const currentBookingId = ref(null)
 const editingGuest = ref(null)
 const savingGuest = ref(false)
+const activeFilter = ref('all')
 const guestForm = ref({
   name: '',
   idNumber: '',
@@ -299,11 +394,34 @@ const guestForm = ref({
 })
 
 const confirmedCount = computed(() => {
-  return bookings.value.filter(b => b.status === 'confirmed').length
+  return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut').length
 })
 
 const pendingCount = computed(() => {
   return bookings.value.filter(b => b.status === 'pending').length
+})
+
+const cancelledCount = computed(() => {
+  return bookings.value.filter(b => b.status === 'cancelled').length
+})
+
+const finishedCount = computed(() => {
+  return bookings.value.filter(b => b.checkInstatus === 'checkedOut').length
+})
+
+const filteredBookings = computed(() => {
+  if (activeFilter.value === 'all') {
+    return bookings.value
+  } else if (activeFilter.value === 'pending') {
+    return bookings.value.filter(b => b.status === 'pending')
+  } else if (activeFilter.value === 'confirmed') {
+    return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut')
+  } else if (activeFilter.value === 'cancelled') {
+    return bookings.value.filter(b => b.status === 'cancelled')
+  } else if (activeFilter.value === 'finished') {
+    return bookings.value.filter(b => b.checkInstatus === 'checkedOut')
+  }
+  return bookings.value
 })
 
 onMounted(async () => {
@@ -1330,6 +1448,29 @@ const downloadInvoice = async (invoiceId, bookingId) => {
     width: 95%;
     padding: 1.5rem;
   }
+
+  .bookings-filters {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filter-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .bookings-table-container {
+    overflow-x: scroll;
+  }
+
+  .bookings-table {
+    font-size: 0.85rem;
+  }
+
+  .bookings-table th,
+  .bookings-table td {
+    padding: 0.75rem 0.5rem;
+  }
 }
 
 /* Invoice Section */
@@ -1386,5 +1527,140 @@ const downloadInvoice = async (invoiceId, bookingId) => {
 .btn-download-invoice:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Bookings Filters */
+.bookings-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #f8f9fa;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.filter-icon {
+  font-size: 1.1rem;
+}
+
+.filter-count {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* Bookings Table (for Archived Bookings) */
+.bookings-table-container {
+  margin-top: 2rem;
+  overflow-x: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.bookings-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.bookings-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bookings-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.bookings-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.bookings-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.bookings-table td {
+  padding: 1rem;
+  color: #2c3e50;
+}
+
+.booking-id-cell {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.hotel-cell {
+  min-width: 200px;
+}
+
+.hotel-info-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hotel-name-inline {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.hotel-address-inline {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.price-cell {
+  font-weight: 600;
+  color: #27ae60;
+}
+
+.table-row-cancelled {
+  opacity: 0.7;
+}
+
+.table-row-finished {
+  opacity: 0.8;
 }
 </style>
