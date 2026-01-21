@@ -87,8 +87,8 @@
             </div>
           </form>
 
-          <!-- Filter bar below search -->
-          <div class="filters-row-booking">
+          <!-- Filter bar above recommendations -->
+          <div v-if="smartRecommendations.length > 0 || recommendationsLoading" class="filters-row-booking" style="margin-top: 1.5rem;">
             <div class="filter-group-booking">
               <label for="typeFilter">Típus</label>
               <select id="typeFilter" v-model="filters.type" class="filter-select">
@@ -134,6 +134,71 @@
               </div>
             </div>
           </div>
+
+          <!-- Simple Random Recommendations -->
+          <div v-if="recommendationsLoading" class="recommendation-panel">
+            <div class="recommendations-loading">
+              <div class="loading-spinner"></div>
+              <p>Ajánlott szálláshelyek betöltése...</p>
+            </div>
+          </div>
+          
+          <div v-else-if="smartRecommendations.length > 0" class="recommendation-panel">
+            <div class="recommendations-content">
+              <div class="recommendations-header">
+                <h3 class="recommendations-title">
+                  <span class="recommendations-icon">✨</span>
+                  Ajánlott szálláshelyek
+                </h3>
+              </div>
+              
+              <div class="recommendations-grid">
+                <div
+                  v-for="hotel in filteredRecommendations"
+                  :key="hotel.id"
+                  class="recommendation-card"
+                  @click="viewRecommendedHotel(hotel)"
+                >
+                  <div class="recommendation-image-container">
+                    <img
+                      :src="getRecommendationImage(hotel)"
+                      :alt="hotel.name"
+                      @error="handleImageError"
+                      class="recommendation-image"
+                    />
+                    <div v-if="hotel.starRating" class="recommendation-rating">
+                      {{ '★'.repeat(hotel.starRating) }}
+                    </div>
+                  </div>
+                  
+                  <div class="recommendation-content">
+                    <h4 class="recommendation-name">{{ hotel.name }}</h4>
+                    <p class="recommendation-location">📍 {{ hotel.location }}</p>
+                    
+                    <div v-if="hotel.tags && hotel.tags.length > 0" class="recommendation-tags">
+                      <span
+                        v-for="tag in hotel.tags.slice(0, 3)"
+                        :key="tag.id"
+                        class="recommendation-tag"
+                      >
+                        {{ tag.name }}
+                      </span>
+                    </div>
+                    
+                    <div class="recommendation-footer">
+                      <div class="recommendation-price">
+                        <span v-if="hotel.price_per_night" class="price-amount">
+                          {{ hotel.price_per_night }} €
+                          <span class="price-period">/éjszaka</span>
+                        </span>
+                        <span v-else class="price-on-request">Ár igény esetén</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       <!-- Content Area -->
@@ -148,7 +213,7 @@
       <div v-if="error" class="error-message">{{ error }}</div>
 
       <!-- Search Results -->
-      <div v-if="hasSearched && filteredResults.length > 0" class="results-section">
+      <div v-if="hasSearched && filteredResults.length > 0" ref="resultsSection" class="results-section">
         <h2 class="section-title">Keresési eredmények ({{ filteredResults.length }})</h2>
         <div class="hotels-grid">
           <div
@@ -211,62 +276,6 @@
         </div>
       </div>
 
-      <!-- Recommended Hotels (Initial State) -->
-      <div v-if="!hasSearched && recommendedHotels.length > 0" class="recommended-section">
-        <h2 class="section-title">Ajánlott szállodák</h2>
-        <p class="section-subtitle">Fedezzen fel fantasztikus szálláshelyeket</p>
-        <div class="hotels-grid">
-          <div
-            v-for="hotel in recommendedHotels"
-            :key="hotel.id"
-            class="hotel-card"
-            @click="viewRecommendedHotel(hotel)"
-          >
-            <div class="hotel-image-container">
-              <img
-                :src="getRecommendedHotelImage(hotel)"
-                :alt="hotel.name || hotel.location"
-                @error="handleImageError"
-                class="hotel-image"
-              />
-              <div v-if="hotel.starRating" class="star-badge">
-                {{ '★'.repeat(hotel.starRating) }}
-              </div>
-            </div>
-            <div class="hotel-content">
-              <div class="hotel-header">
-                <h3 class="hotel-name">{{ hotel.name || hotel.location }}</h3>
-                <span v-if="hotel.type" class="hotel-type">{{ hotel.type }}</span>
-              </div>
-              <p v-if="hotel.description" class="hotel-description">
-                {{ truncateText(hotel.description, 100) }}
-              </p>
-              <div v-if="hotel.tags && hotel.tags.length > 0" class="hotel-tags">
-                <span
-                  v-for="(tag, idx) in hotel.tags.slice(0, 6)"
-                  :key="idx"
-                  class="tag"
-                >
-                  {{ typeof tag === 'object' ? tag.name : tag }}
-                </span>
-              </div>
-              <div class="hotel-footer">
-                <div class="price-info">
-                  <span class="price-label">Ár kezdve</span>
-                  <span class="price-amount" v-if="hotel.startingPrice">
-                    {{ hotel.startingPrice }} €
-                    <span class="price-period">/éjszaka</span>
-                  </span>
-                  <span class="price-amount" v-else>Ár igény esetén</span>
-                </div>
-                <button class="btn-view" @click.stop="viewRecommendedHotel(hotel)">
-                  Szálloda megtekintése
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Empty State (No Search Results) -->
       <div v-if="hasSearched && filteredResults.length === 0 && !loading" class="empty-state">
@@ -312,11 +321,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { searchService } from '../services/searchService'
 import { hotelService } from '../services/hotelService'
 import { tagService } from '../services/tagService'
+import { recommendationService } from '../services/recommendationService'
+import { hotelDataService } from '../services/hotelDataService'
 import { useAuthStore } from '../stores/auth'
 import { getHotelCoverImage } from '../utils/imageUtils'
 
@@ -332,11 +343,40 @@ const searchParams = ref({
 })
 
 const results = ref([])
-const recommendedHotels = ref([])
+const recommendedHotels = ref([]) // Legacy recommended hotels (for initial state)
 const error = ref('')
 const loading = ref(false)
 const hasSearched = ref(false)
 const isSticky = ref(false)
+
+// Booking.com-style recommendation system state
+const smartRecommendations = ref([]) // New intelligent recommendations (all filtered results)
+const displayedRecommendationsCount = ref(9) // Number of recommendations to display
+const recommendationsLoading = ref(false)
+const showRecommendations = ref(false)
+const recommendationParams = ref({
+  city: '',
+  check_in: '',
+  check_out: '',
+  guests: 1
+})
+let recommendationDebounceTimer = null
+
+// All hotels data (loaded once, used for client-side filtering)
+const allHotelsData = ref(null)
+const hotelsDataLoading = ref(false)
+const hotelsDataError = ref(null)
+const recommendedSectionExpanded = ref(false)
+const recommendedFilters = ref({
+  minPrice: null,
+  maxPrice: null,
+  minRating: '',
+  location: '',
+  minRooms: ''
+})
+const recommendedSortBy = ref('default')
+const recommendedCurrentPage = ref(1)
+const recommendedItemsPerPage = ref(9) // 3 columns × 3 rows
 
 // Locations from database
 const allLocations = ref([])
@@ -426,10 +466,13 @@ const scrollToSearch = () => {
   }
 }
 
+const resultsSection = ref(null)
+
 const handleSearch = async () => {
   error.value = ''
   loading.value = true
   hasSearched.value = true
+  showRecommendations.value = false // Hide recommendations when user searches
 
   try {
     const data = await searchService.search(
@@ -439,6 +482,12 @@ const handleSearch = async () => {
       searchParams.value.guests
     )
     results.value = data
+    
+    // Scroll to results after loading
+    await nextTick()
+    if (resultsSection.value && results.value.length > 0) {
+      resultsSection.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'Keresés sikertelen'
     results.value = []
@@ -446,6 +495,280 @@ const handleSearch = async () => {
     loading.value = false
   }
 }
+
+// Load all hotels data once (cached on frontend)
+const loadAllHotelsData = async () => {
+  if (allHotelsData.value) {
+    return // Already loaded
+  }
+
+  hotelsDataLoading.value = true
+  try {
+    const data = await hotelDataService.getAllHotelsWithRooms()
+    allHotelsData.value = data.hotels || []
+  } catch (error) {
+    console.error('Failed to load hotels data:', error)
+    hotelsDataError.value = error
+    allHotelsData.value = []
+  } finally {
+    hotelsDataLoading.value = false
+  }
+}
+
+// Simple: Load 10 random hotels on page load
+const loadRecommendations = async () => {
+  if (smartRecommendations.value.length > 0) return // Already loaded
+  
+  recommendationsLoading.value = true
+  
+  try {
+    const response = await recommendationService.getRecommendations({})
+    // Handle response - it should have a 'hotels' array
+    if (response && Array.isArray(response.hotels)) {
+      smartRecommendations.value = response.hotels
+    } else if (Array.isArray(response)) {
+      // Fallback: if response is directly an array
+      smartRecommendations.value = response
+    } else {
+      smartRecommendations.value = []
+    }
+  } catch (error) {
+    console.error('Failed to load recommendations:', error)
+    smartRecommendations.value = []
+  } finally {
+    recommendationsLoading.value = false
+  }
+}
+
+// Client-side filtering and ranking function
+const filterAndRankHotels = (hotels, city, checkIn, checkOut, guests) => {
+  const now = new Date()
+  
+  return hotels
+    .filter(hotel => {
+      // Filter by city
+      if (city) {
+        const cityLower = city.toLowerCase()
+        const locationMatch = hotel.location?.toLowerCase().includes(cityLower)
+        const nameMatch = hotel.name?.toLowerCase().includes(cityLower)
+        if (!locationMatch && !nameMatch) return false
+      }
+      
+      // Check availability if dates provided
+      if (checkIn && checkOut) {
+        const hasAvailableRooms = checkHotelAvailability(hotel, checkIn, checkOut, guests)
+        if (!hasAvailableRooms) return false
+      }
+      
+      return true
+    })
+    .map(hotel => {
+      // Calculate score for ranking
+      const score = calculateHotelScore(hotel, checkIn, checkOut, guests)
+      return { ...hotel, score }
+    })
+    .sort((a, b) => b.score - a.score) // Sort by score descending
+    .map(({ score, ...hotel }) => {
+      // Format for display
+      const availability = getAvailabilityInfo(hotel, checkIn, checkOut, guests)
+      return {
+        id: hotel.id,
+        name: hotel.name,
+        location: hotel.location,
+        type: hotel.type,
+        starRating: hotel.starRating,
+        description: hotel.description,
+        cover_image: hotel.cover_image,
+        price_per_night: hotel.min_price,
+        availability_status: availability.status,
+        rooms_available: availability.roomsAvailable,
+        urgency_message: availability.urgency,
+        tags: hotel.tags,
+        services: hotel.services,
+        search_params: {
+          city: hotel.location,
+          check_in: checkIn,
+          check_out: checkOut,
+          guests: guests
+        }
+      }
+    })
+}
+
+// Check if hotel has available rooms for date range
+const checkHotelAvailability = (hotel, checkIn, checkOut, guests) => {
+  if (!checkIn || !checkOut) return true
+  
+  const startDate = new Date(checkIn)
+  const endDate = new Date(checkOut)
+  
+  // Get rooms that match capacity
+  const suitableRooms = hotel.rooms.filter(room => room.capacity >= guests)
+  
+  if (suitableRooms.length === 0) return false
+  
+  // Check each room's availability
+  for (const room of suitableRooms) {
+    const isAvailable = !room.booked_in_bookings.some(booking => {
+      const bookingStart = new Date(booking.startDate)
+      const bookingEnd = new Date(booking.endDate)
+      // Check for overlap
+      return startDate < bookingEnd && endDate > bookingStart
+    })
+    
+    if (isAvailable) {
+      return true // At least one room is available
+    }
+  }
+  
+  return false
+}
+
+// Get availability information
+const getAvailabilityInfo = (hotel, checkIn, checkOut, guests) => {
+  if (!checkIn || !checkOut) {
+    return {
+      status: 'available',
+      roomsAvailable: hotel.total_rooms,
+      urgency: null
+    }
+  }
+  
+  const startDate = new Date(checkIn)
+  const endDate = new Date(checkOut)
+  const suitableRooms = hotel.rooms.filter(room => room.capacity >= guests)
+  
+  let availableCount = 0
+  for (const room of suitableRooms) {
+    const isAvailable = !room.booked_in_bookings.some(booking => {
+      const bookingStart = new Date(booking.startDate)
+      const bookingEnd = new Date(booking.endDate)
+      return startDate < bookingEnd && endDate > bookingStart
+    })
+    if (isAvailable) availableCount++
+  }
+  
+  let status = 'available'
+  let urgency = null
+  
+  if (availableCount === 0) {
+    status = 'unavailable'
+  } else if (availableCount <= 2) {
+    status = 'urgent'
+    urgency = `Csak ${availableCount} szoba maradt!`
+  } else if (availableCount <= 5) {
+    status = 'limited'
+    urgency = 'Korlátozott elérhetőség'
+  }
+  
+  return { status, roomsAvailable: availableCount, urgency }
+}
+
+// Calculate hotel score for ranking
+const calculateHotelScore = (hotel, checkIn, checkOut, guests) => {
+  let score = 0
+  
+  // 1. Availability (40%)
+  const availability = getAvailabilityInfo(hotel, checkIn, checkOut, guests)
+  if (availability.roomsAvailable > 0) {
+    const availabilityRatio = availability.roomsAvailable / Math.max(hotel.total_rooms, 1)
+    score += Math.min(availabilityRatio * 100, 100) * 0.40
+  }
+  
+  // 2. Price (25%) - lower is better
+  if (hotel.min_price > 0) {
+    // Normalize price (assuming max price of 500)
+    const normalizedPrice = Math.max(0, 1 - (hotel.min_price / 500))
+    score += normalizedPrice * 100 * 0.25
+  }
+  
+  // 3. Rating (15%)
+  score += ((hotel.starRating || 0) / 5) * 100 * 0.15
+  
+  // 4. Popularity (10%)
+  const popularityScore = Math.min((hotel.booking_count || 0) / 10, 1) * 100
+  score += popularityScore * 0.10
+  
+  // 5. Location (10%) - neutral for now
+  score += 10
+  
+  return score
+}
+
+// Computed property for filtered recommendations
+const filteredRecommendations = computed(() => {
+  let filtered = [...smartRecommendations.value]
+  
+  // Filter by type
+  if (filters.value.type) {
+    filtered = filtered.filter(hotel => hotel.type && hotel.type.toLowerCase() === filters.value.type.toLowerCase())
+  }
+  
+  // Filter by price
+  if (filters.value.minPrice !== null && filters.value.minPrice !== '') {
+    filtered = filtered.filter(hotel => {
+      const price = hotel.price_per_night || 0
+      return price >= filters.value.minPrice
+    })
+  }
+  if (filters.value.maxPrice !== null && filters.value.maxPrice !== '' && filters.value.maxPrice > 0) {
+    filtered = filtered.filter(hotel => {
+      const price = hotel.price_per_night || 0
+      return price <= filters.value.maxPrice
+    })
+  }
+  
+  // Filter by tags
+  if (filters.value.tags && filters.value.tags.length > 0) {
+    filtered = filtered.filter(hotel => {
+      if (!hotel.tags || !Array.isArray(hotel.tags)) return false
+      const hotelTagIds = hotel.tags.map(tag => tag.id || tag)
+      return filters.value.tags.some(tagId => hotelTagIds.includes(tagId))
+    })
+  }
+  
+  return filtered
+})
+
+// Load more recommendations
+const loadMoreRecommendations = () => {
+  displayedRecommendationsCount.value += 9
+}
+
+// Removed debounced loading - just load once on mount
+
+const getRecommendationImage = (hotel) => {
+  if (hotel.cover_image) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return hotel.cover_image.startsWith('/storage/') 
+      ? `${baseUrl}${hotel.cover_image}`
+      : hotel.cover_image
+  }
+  return imageFallback
+}
+
+const getAvailabilityText = (hotel) => {
+  switch (hotel.availability_status) {
+    case 'available':
+      return 'Elérhető'
+    case 'limited':
+      return `${hotel.rooms_available} szoba elérhető`
+    case 'urgent':
+      return `Csak ${hotel.rooms_available} szoba!`
+    default:
+      return 'Ellenőrizze az elérhetőséget'
+  }
+}
+
+// Track last params to prevent duplicate calls
+const lastRecommendationParams = ref('')
+
+// Removed updateRecommendationParams - no longer needed
+
+// Watch for location selection (only trigger if city changes, not on every keystroke)
+watch(() => searchParams.value.city, (newCity, oldCity) => {
+  // Removed - no longer needed
+}, { debounce: 1000 })
 
 const filteredResults = computed(() => {
   if (!results.value.length) return []
@@ -481,6 +804,183 @@ const filteredResults = computed(() => {
   })
 })
 
+const sortOptions = [
+  { value: 'default', label: 'Alapértelmezett' },
+  { value: 'price-asc', label: 'Ár: alacsony → magas' },
+  { value: 'price-desc', label: 'Ár: magas → alacsony' },
+  { value: 'rating-desc', label: 'Értékelés: magas → alacsony' },
+  { value: 'rooms-desc', label: 'Szobák száma: több → kevesebb' },
+  { value: 'name-asc', label: 'Név: A → Z' }
+]
+
+const filteredAndSortedRecommendedHotels = computed(() => {
+  let filtered = [...recommendedHotels.value]
+
+  // Apply filters
+  if (recommendedFilters.value.minPrice !== null && recommendedFilters.value.minPrice !== '') {
+    filtered = filtered.filter(hotel => {
+      const price = hotel.startingPrice || 0
+      return price >= recommendedFilters.value.minPrice
+    })
+  }
+
+  if (recommendedFilters.value.maxPrice !== null && recommendedFilters.value.maxPrice !== '') {
+    filtered = filtered.filter(hotel => {
+      const price = hotel.startingPrice || 0
+      return price <= recommendedFilters.value.maxPrice
+    })
+  }
+
+  if (recommendedFilters.value.minRating) {
+    const minRating = parseInt(recommendedFilters.value.minRating)
+    filtered = filtered.filter(hotel => {
+      const rating = hotel.starRating || 0
+      return rating >= minRating
+    })
+  }
+
+  if (recommendedFilters.value.location) {
+    const locationLower = recommendedFilters.value.location.toLowerCase()
+    filtered = filtered.filter(hotel => {
+      const hotelLocation = (hotel.location || '').toLowerCase()
+      const hotelName = (hotel.name || '').toLowerCase()
+      return hotelLocation.includes(locationLower) || hotelName.includes(locationLower)
+    })
+  }
+
+  if (recommendedFilters.value.minRooms) {
+    const minRooms = parseInt(recommendedFilters.value.minRooms)
+    filtered = filtered.filter(hotel => {
+      const roomCount = hotel.roomCount || 0
+      return roomCount >= minRooms
+    })
+  }
+
+  // Apply sorting
+  const sorted = [...filtered]
+  switch (recommendedSortBy.value) {
+    case 'price-asc':
+      sorted.sort((a, b) => (a.startingPrice || 0) - (b.startingPrice || 0))
+      break
+    case 'price-desc':
+      sorted.sort((a, b) => (b.startingPrice || 0) - (a.startingPrice || 0))
+      break
+    case 'rating-desc':
+      sorted.sort((a, b) => (b.starRating || 0) - (a.starRating || 0))
+      break
+    case 'rooms-desc':
+      sorted.sort((a, b) => (b.roomCount || 0) - (a.roomCount || 0))
+      break
+    case 'name-asc':
+      sorted.sort((a, b) => {
+        const nameA = (a.name || a.location || '').toLowerCase()
+        const nameB = (b.name || b.location || '').toLowerCase()
+        return nameA.localeCompare(nameB)
+      })
+      break
+    default:
+      // Keep original order
+      break
+  }
+
+  return sorted
+})
+
+const paginatedRecommendedHotels = computed(() => {
+  const start = (recommendedCurrentPage.value - 1) * recommendedItemsPerPage.value
+  const end = start + recommendedItemsPerPage.value
+  return filteredAndSortedRecommendedHotels.value.slice(start, end)
+})
+
+const totalRecommendedPages = computed(() => {
+  return Math.ceil(filteredAndSortedRecommendedHotels.value.length / recommendedItemsPerPage.value)
+})
+
+const hasMoreRecommendedPages = computed(() => {
+  return recommendedCurrentPage.value < totalRecommendedPages.value
+})
+
+const getVisiblePages = computed(() => {
+  const total = totalRecommendedPages.value
+  const current = recommendedCurrentPage.value
+  const pages = []
+  
+  if (total <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Always show first page
+    pages.push(1)
+    
+    if (current <= 3) {
+      // Near the start
+      for (let i = 2; i <= 4; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 2) {
+      // Near the end
+      pages.push('...')
+      for (let i = total - 3; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // In the middle
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+  
+  return pages
+})
+
+const goToRecommendedPage = (page) => {
+  if (page >= 1 && page <= totalRecommendedPages.value) {
+    recommendedCurrentPage.value = page
+    // Scroll to top of hotels grid
+    setTimeout(() => {
+      const gridElement = document.querySelector('.hotels-grid.recommended')
+      if (gridElement) {
+        gridElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
+  }
+}
+
+const loadMoreRecommendedHotels = () => {
+  if (hasMoreRecommendedPages.value) {
+    recommendedCurrentPage.value++
+  }
+}
+
+// Reset to page 1 when filters or sort changes
+watch([recommendedFilters, recommendedSortBy], () => {
+  recommendedCurrentPage.value = 1
+}, { deep: true })
+
+const toggleRecommendedSection = () => {
+  recommendedSectionExpanded.value = !recommendedSectionExpanded.value
+}
+
+const resetRecommendedFilters = () => {
+  recommendedFilters.value = {
+    minPrice: null,
+    maxPrice: null,
+    minRating: '',
+    location: '',
+    minRooms: ''
+  }
+  recommendedSortBy.value = 'default'
+  recommendedCurrentPage.value = 1
+}
+
 const viewHotel = (hotelId) => {
   // Find the hotel in search results
   const hotel = results.value.find(h => h.hotel_id === hotelId)
@@ -494,7 +994,32 @@ const viewHotel = (hotelId) => {
   router.push(`/hotel/${hotelId}`)
 }
 
+// This is the OLD function for legacy recommended hotels - keep it for backward compatibility
+const viewRecommendedHotelLegacy = (hotel) => {
+  router.push(`/hotel/${hotel.id}`)
+}
+
+// NEW function for smart recommendations - properly passes search params
 const viewRecommendedHotel = (hotel) => {
+  // Always store current search params (from searchParams, not hotel.search_params)
+  // This ensures we use the actual user input, not potentially stale data
+  const searchResults = {
+    hotel: {
+      hotel_id: hotel.id,
+      name: hotel.name,
+      location: hotel.location
+    },
+    searchParams: {
+      city: searchParams.value.city || hotel.search_params?.city || '',
+      startDate: searchParams.value.startDate || hotel.search_params?.check_in || '',
+      endDate: searchParams.value.endDate || hotel.search_params?.check_out || '',
+      guests: searchParams.value.guests || hotel.search_params?.guests || 1
+    }
+  }
+  
+  // Store in sessionStorage for hotel detail page
+  sessionStorage.setItem('searchResults', JSON.stringify(searchResults))
+  
   router.push(`/hotel/${hotel.id}`)
 }
 
@@ -572,6 +1097,9 @@ const filterLocations = () => {
 const selectLocation = (location) => {
   searchParams.value.city = location
   showLocationDropdown.value = false
+  filteredLocations.value = []
+  // Update recommendations when location is selected
+  updateRecommendationParams()
 }
 
 const handleLocationBlur = () => {
@@ -602,7 +1130,8 @@ const handleScroll = () => {
 onMounted(async () => {
   await loadTags()
   await loadLocations()
-  loadRecommendedHotels()
+  // Removed loadRecommendedHotels() - it was making individual room requests for all hotels
+  loadRecommendations() // Load 10 random hotels via optimized endpoint
   window.addEventListener('scroll', handleScroll)
   
   // Set default dates (today and tomorrow)
@@ -612,6 +1141,9 @@ onMounted(async () => {
   
   searchParams.value.startDate = today.toISOString().split('T')[0]
   searchParams.value.endDate = tomorrow.toISOString().split('T')[0]
+  
+  // Load 10 random hotels on page load
+  loadRecommendations()
 })
 
 onUnmounted(() => {
@@ -990,6 +1522,16 @@ onUnmounted(() => {
   margin-top: 2rem;
 }
 
+.hotels-grid.recommended {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.hotels-grid.recommended {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
 .hotels-grid.compact {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
@@ -1294,6 +1836,221 @@ onUnmounted(() => {
   margin-bottom: 2rem;
 }
 
+/* Advanced Recommended Section */
+.advanced-recommended-section {
+  margin-top: 3rem;
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.recommended-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.toggle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.toggle-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.toggle-btn.expanded svg {
+  transform: rotate(180deg);
+}
+
+.recommended-controls {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.filters-section,
+.sort-section {
+  margin-bottom: 1.5rem;
+}
+
+.filters-section:last-child,
+.sort-section:last-child {
+  margin-bottom: 0;
+}
+
+.filters-title,
+.sort-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.price-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-input,
+.filter-input,
+.filter-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.price-input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.filter-input:focus,
+.filter-select:focus,
+.price-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-reset-filters {
+  padding: 0.625rem 1.25rem;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-reset-filters:hover {
+  background: #5a6268;
+}
+
+.sort-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.sort-btn {
+  padding: 0.625rem 1.25rem;
+  background: white;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sort-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.sort-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+}
+
+.hotel-card.enhanced {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hotel-card.enhanced:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.room-count-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.no-results {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+/* Slide down animation */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+  max-height: 1000px;
+  overflow: hidden;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
   .search-container {
@@ -1337,6 +2094,30 @@ onUnmounted(() => {
     gap: 1.5rem;
   }
 
+  .hotels-grid.recommended {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pagination-pages {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pagination-controls {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .pagination-pages {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .hotel-footer {
     flex-direction: column;
     gap: 1rem;
@@ -1365,5 +2146,311 @@ onUnmounted(() => {
   }  .section-title {
     font-size: 1.5rem;
   }
+}
+
+/* Booking.com-style Recommendation Panel */
+.recommendation-panel {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: #f8f9fa;
+  border-radius: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.recommendations-loading {
+  padding: 2rem 0;
+}
+
+.recommendation-skeletons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.recommendation-skeleton {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+.skeleton-content {
+  padding: 1.5rem;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-title {
+  width: 70%;
+  height: 16px;
+}
+
+.skeleton-subtitle {
+  width: 50%;
+  height: 14px;
+}
+
+.skeleton-price {
+  width: 40%;
+  height: 18px;
+  margin-top: 1rem;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.recommendations-content {
+  width: 100%;
+}
+
+.recommendations-header {
+  margin-bottom: 2rem;
+}
+
+.recommendations-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recommendations-icon {
+  font-size: 1.75rem;
+}
+
+.recommendations-subtitle {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.recommendations-description {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.recommendation-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.recommendation-image-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: #e0e0e0;
+}
+
+.recommendation-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.recommendation-card:hover .recommendation-image {
+  transform: scale(1.05);
+}
+
+.recommendation-urgency {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(220, 38, 38, 0.95);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.recommendation-rating {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  color: #f39c12;
+  font-size: 0.9rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+.recommendation-content {
+  padding: 1.5rem;
+}
+
+.recommendation-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.recommendation-location {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-tag {
+  padding: 0.25rem 0.75rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.recommendation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.availability-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.availability-badge.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.availability-badge.limited {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.availability-badge.urgent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.recommendation-price {
+  text-align: right;
+}
+
+.recommendation-price .price-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.recommendation-price .price-period {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.recommendation-price .price-on-request {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.recommendations-empty {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .recommendation-panel {
+    padding: 1.5rem;
+  }
+
+  .recommendations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-skeletons {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Load More Button */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding: 1rem 0;
+}
+
+.btn-load-more {
+  padding: 0.875rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-load-more:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.btn-load-more:active {
+  transform: translateY(0);
 }
 </style>

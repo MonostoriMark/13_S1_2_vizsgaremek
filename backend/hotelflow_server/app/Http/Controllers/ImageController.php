@@ -6,6 +6,7 @@ use App\Models\Image;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Helpers\ImageResizer;
 
 class ImageController extends Controller
 {
@@ -61,7 +62,7 @@ class ImageController extends Controller
 
         try {
             $validated = $request->validate([
-                'image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:4096', // 4MB, specific mime types
+                'image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:51200', // 50MB (will be automatically resized)
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Image upload validation failed', ['errors' => $e->errors()]);
@@ -103,12 +104,12 @@ class ImageController extends Controller
         }
 
         try {
-            // fájl mentése
-            $path = $request->file('image')->store('room_images', 'public');
-
-            // Store relative path in database (e.g., /storage/room_images/xxx.jpg)
-            // This allows the frontend to construct the full URL as needed
-            $relativePath = '/storage/' . $path;
+            // Resize and save image
+            $relativePath = ImageResizer::resizeAndStore(
+                $request->file('image'),
+                'room_images',
+                'room'
+            );
 
             // új image rekord létrehozása
             $image = Image::create([

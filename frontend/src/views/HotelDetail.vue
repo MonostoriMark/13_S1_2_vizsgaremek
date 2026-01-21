@@ -84,87 +84,80 @@
                   </div>
                   <div class="plan-price">
                     <span class="price-amount">{{ plan.total_price }} €</span>
-                    <span class="price-label">Összesen</span>
+                    <span class="price-label">összesen</span>
                   </div>
                 </div>
+                
                 <div class="plan-rooms">
                   <div class="rooms-header">
-                    <span class="rooms-count">{{ plan.room_count }} {{ plan.room_count === 1 ? 'Szoba' : 'Szoba' }}</span>
+                    <span class="rooms-count">{{ plan.room_count }} {{ plan.room_count === 1 ? 'szoba' : 'szoba' }}</span>
                   </div>
                   <div v-for="room in plan.rooms" :key="room.room_id" class="room-detail">
-                    <!-- Room Image Gallery -->
-                    <div v-if="getRoomImages(room).length > 0" class="room-gallery">
+                    <div class="room-gallery">
                       <div class="room-gallery-main" @click.stop="openFullscreenGallery(room)">
                         <img 
-                          :src="getRoomImages(room)[getRoomImageIndex(room.room_id)]" 
+                          v-if="getRoomImages(room).length > 0"
+                          :src="getRoomImages(room)[getRoomImageIndex(room.room_id || room.id) || 0]" 
                           :alt="room.name"
                           @error="handleRoomImageError"
                           class="room-gallery-main-image"
                         />
+                        <div v-else class="room-image-placeholder-large">📷 Nincs kép</div>
                         <button 
                           v-if="getRoomImages(room).length > 1"
-                          @click.stop="previousRoomImage(room.room_id)"
+                          @click.stop="previousRoomImage(room.room_id || room.id)"
                           class="gallery-nav-btn gallery-prev"
-                          :disabled="getRoomImageIndex(room.room_id) === 0"
+                          :disabled="(getRoomImageIndex(room.room_id || room.id) || 0) === 0"
                         >
                           ‹
                         </button>
                         <button 
                           v-if="getRoomImages(room).length > 1"
-                          @click.stop="nextRoomImage(room.room_id)"
+                          @click.stop="nextRoomImage(room.room_id || room.id)"
                           class="gallery-nav-btn gallery-next"
-                          :disabled="getRoomImageIndex(room.room_id) === getRoomImages(room).length - 1"
+                          :disabled="(getRoomImageIndex(room.room_id || room.id) || 0) >= getRoomImages(room).length - 1"
                         >
                           ›
                         </button>
                         <div v-if="getRoomImages(room).length > 1" class="gallery-indicator">
-                          {{ getRoomImageIndex(room.room_id) + 1 }} / {{ getRoomImages(room).length }}
+                          {{ (getRoomImageIndex(room.room_id || room.id) || 0) + 1 }} / {{ getRoomImages(room).length }}
                         </div>
                         <div class="gallery-zoom-hint">
-                          <span class="zoom-icon">🔍</span> Kattintson a teljes képernyős nézetért
+                          <span class="zoom-icon">🔍</span>
+                          Kattintson a teljes képernyős megtekintéshez
                         </div>
                       </div>
-                      <!-- Thumbnail Gallery -->
                       <div v-if="getRoomImages(room).length > 1" class="room-gallery-thumbnails">
                         <div
                           v-for="(img, imgIdx) in getRoomImages(room)"
                           :key="imgIdx"
                           class="gallery-thumbnail"
-                          :class="{ 'active': getRoomImageIndex(room.room_id) === imgIdx }"
-                          @click.stop="setRoomImageIndex(room.room_id, imgIdx)"
+                          :class="{ 'active': (getRoomImageIndex(room.room_id || room.id) || 0) === imgIdx }"
+                          @click.stop="setRoomImageIndex(room.room_id || room.id, imgIdx)"
                         >
-                          <img 
-                            :src="img" 
-                            :alt="`${room.name} - Image ${imgIdx + 1}`"
-                            @error="handleRoomImageError"
-                          />
+                          <img :src="img" :alt="`${room.name} - Kép ${imgIdx + 1}`" @error="handleRoomImageError" />
                         </div>
                       </div>
                     </div>
                     <div class="room-info">
                       <h4 class="room-name">{{ room.name }}</h4>
-                      <div class="room-specs">
-                        <span class="spec-item">👥 {{ room.capacity }} vendég</span>
-                        <span class="spec-item">💰 {{ room.price }} €</span>
-                      </div>
-                      <div v-if="room.tags && room.tags.length > 0" class="room-tags">
-                        <span
-                          v-for="(tag, idx) in room.tags"
-                          :key="typeof tag === 'object' ? tag.id : idx"
-                          class="room-tag"
-                        >
-                          {{ typeof tag === 'object' ? tag.name : tag }}
+                      <p v-if="room.description" class="room-description">{{ room.description }}</p>
+                      <div class="room-details">
+                        <span class="room-capacity">👥 Kapacitás: {{ room.capacity }} fő</span>
+                        <span class="room-price">
+                          {{ room.price }} €
                         </span>
                       </div>
                     </div>
                   </div>
                 </div>
+                
                 <button
                   class="btn-select-plan"
                   :class="{ 'selected': selectedPlanIndex === index }"
                   @click.stop="confirmPlan(index)"
                 >
-                  {{ selectedPlanIndex === index ? 'Kiválasztva' : 'Csomag kiválasztása' }}
+                  {{ selectedPlanIndex === index ? '✓ Kiválasztva' : 'Kiválasztás' }}
                 </button>
               </div>
             </div>
@@ -434,11 +427,51 @@
           </div>
         </div>
 
-        <!-- No Search Results - Show Info Message -->
+        <!-- No Search Results - Show Available Rooms -->
         <div v-else class="no-search-results">
-          <div class="info-card">
-            <h2>Nincs elérhető foglalási csomag</h2>
-            <p>Kérjük, keressen szállodákat a dátumokkal, hogy lássa az elérhető csomagokat.</p>
+          <div v-if="roomsLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Szobák betöltése...</p>
+          </div>
+          <div v-else-if="availableRooms.length > 0" class="available-rooms-section">
+            <div class="info-card">
+              <h2>Elérhető szobák</h2>
+              <p>Az alábbi szobák elérhetők ebben a szállodában. Kérjük, keressen dátumokkal a pontos foglaláshoz.</p>
+              <router-link to="/search" class="btn-primary">Szállodák keresése</router-link>
+            </div>
+            
+            <div class="rooms-grid">
+              <div
+                v-for="room in availableRooms"
+                :key="room.id"
+                class="room-card"
+              >
+                <div v-if="getRoomImages(room).length > 0" class="room-image-container">
+                  <img
+                    :src="getRoomImages(room)[0]"
+                    :alt="room.name"
+                    @error="handleRoomImageError"
+                    class="room-image"
+                  />
+                </div>
+                <div class="room-content">
+                  <h3 class="room-name">{{ room.name }}</h3>
+                  <p v-if="room.description" class="room-description">
+                    {{ truncateText(room.description, 150) }}
+                  </p>
+                  <div class="room-details">
+                    <span class="room-capacity">👥 Kapacitás: {{ room.capacity }} fő</span>
+                    <span class="room-price">
+                      {{ room.pricePerNight || room.basePrice || 0 }} € / éjszaka
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="info-card">
+            <h2>Nincs elérhető szoba</h2>
+            <p>Jelenleg nincsenek elérhető szobák ebben a szállodában.</p>
             <router-link to="/search" class="btn-primary">Szállodák keresése</router-link>
           </div>
         </div>
@@ -510,6 +543,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { hotelService } from '../services/hotelService'
 import { bookingService } from '../services/bookingService'
+import { searchService } from '../services/searchService'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -530,6 +564,8 @@ const bookingError = ref('')
 const bookingSuccess = ref(false)
 const showPaymentInvoiceModal = ref(false)
 const paymentMethod = ref('bank_transfer')
+const availableRooms = ref([])
+const roomsLoading = ref(false)
 const invoiceForm = ref({
   customer_type: 'private',
   full_name: '',
@@ -597,6 +633,21 @@ onMounted(async () => {
     // Use hotel_id from search results if available, otherwise use hotel.id or route hotelId
     const servicesHotelId = searchResultsData.value?.hotel?.hotel_id || data.id || hotelId
     await loadServices(servicesHotelId)
+    
+    // If we have search params but no plans, perform a search to get plans
+    if (searchResultsData.value && searchResultsData.value.searchParams && !searchResultsData.value.hotel?.plans) {
+      const params = searchResultsData.value.searchParams
+      // Only perform search if we have valid dates
+      if (params.startDate && params.endDate) {
+        await performSearchForHotel(hotelId, params)
+      } else {
+        // If no valid dates, just load available rooms
+        await loadAvailableRooms(hotelId)
+      }
+    } else if (!searchResultsData.value) {
+      // If no search data at all, load rooms to display them
+      await loadAvailableRooms(hotelId)
+    }
   } catch (err) {
     error.value = err.response?.data?.message || 'A szálloda részleteinek betöltése sikertelen'
   } finally {
@@ -638,6 +689,56 @@ const loadServices = async (hotelId) => {
   } finally {
     servicesLoading.value = false
   }
+}
+
+const loadAvailableRooms = async (hotelId) => {
+  roomsLoading.value = true
+  try {
+    availableRooms.value = await hotelService.getRoomsByHotelId(hotelId)
+  } catch (err) {
+    console.error('Failed to load rooms:', err)
+    availableRooms.value = []
+  } finally {
+    roomsLoading.value = false
+  }
+}
+
+// Perform search to get plans when we have search params but no plans
+const performSearchForHotel = async (hotelId, searchParams) => {
+  try {
+    // Perform search with the stored search params
+    const results = await searchService.search(
+      searchParams.city || hotel.value?.location || '',
+      searchParams.startDate,
+      searchParams.endDate,
+      searchParams.guests || 1
+    )
+    
+    // Find the hotel in search results
+    const hotelResult = results.find(h => h.hotel_id === hotelId)
+    
+    if (hotelResult && hotelResult.plans) {
+      // Update searchResultsData with the full search results including plans
+      searchResultsData.value = {
+        hotel: hotelResult,
+        searchParams: searchParams
+      }
+      // Update sessionStorage
+      sessionStorage.setItem('searchResults', JSON.stringify(searchResultsData.value))
+    } else {
+      // If no plans found, fall back to loading available rooms
+      await loadAvailableRooms(hotelId)
+    }
+  } catch (err) {
+    console.error('Failed to perform search for hotel:', err)
+    // Fall back to loading available rooms
+    await loadAvailableRooms(hotelId)
+  }
+}
+
+const truncateText = (text, maxLength) => {
+  if (!text) return ''
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
 }
 
 const getHotelImage = () => {
@@ -684,6 +785,14 @@ const fullscreenGallery = ref({
   currentIndex: 0,
   roomId: null,
   roomName: ''
+})
+
+const roomGalleryModal = ref({
+  open: false,
+  plan: null,
+  room: null,
+  images: [],
+  currentIndex: 0
 })
 
 const fullscreenGalleryCurrentImage = computed(() => {
@@ -797,6 +906,42 @@ const closeFullscreenGallery = () => {
   fullscreenGallery.value.open = false
   // Restore body scroll
   document.body.style.overflow = ''
+}
+
+const openRoomGallery = (plan, room) => {
+  const images = getRoomImages(room)
+  if (images.length === 0) return
+  
+  roomGalleryModal.value = {
+    open: true,
+    plan: plan,
+    room: room,
+    images: images,
+    currentIndex: 0
+  }
+  
+  document.body.style.overflow = 'hidden'
+}
+
+const closeRoomGallery = () => {
+  roomGalleryModal.value.open = false
+  document.body.style.overflow = ''
+}
+
+const nextRoomGalleryImage = () => {
+  if (roomGalleryModal.value.currentIndex < roomGalleryModal.value.images.length - 1) {
+    roomGalleryModal.value.currentIndex++
+  }
+}
+
+const previousRoomGalleryImage = () => {
+  if (roomGalleryModal.value.currentIndex > 0) {
+    roomGalleryModal.value.currentIndex--
+  }
+}
+
+const setRoomGalleryImage = (index) => {
+  roomGalleryModal.value.currentIndex = index
 }
 
 const previousFullscreenImage = () => {
@@ -1166,12 +1311,15 @@ const getGrandTotal = () => {
 .plan-card {
   min-width: 100%;
   background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
 
 .plan-card:hover {
@@ -1182,15 +1330,16 @@ const getGrandTotal = () => {
 .plan-card.selected {
   border-color: #667eea;
   box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+  background: #f8f9ff;
 }
 
 .plan-header {
   display: flex;
   justify-content: space-between;
-  align-items: start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid #f0f0f0;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .plan-badge {
@@ -1221,7 +1370,7 @@ const getGrandTotal = () => {
 
 .price-amount {
   display: block;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #2c3e50;
 }
@@ -1234,7 +1383,7 @@ const getGrandTotal = () => {
 }
 
 .plan-rooms {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .rooms-header {
@@ -1248,13 +1397,13 @@ const getGrandTotal = () => {
 }
 
 .room-detail {
-  padding: 1.5rem;
+  padding: 1rem;
   background: #f8f9fa;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .room-gallery {
@@ -1267,8 +1416,8 @@ const getGrandTotal = () => {
 .room-gallery-main {
   position: relative;
   width: 100%;
-  height: 400px;
-  border-radius: 12px;
+  height: 220px;
+  border-radius: 8px;
   overflow: hidden;
   background: #e0e0e0;
   border: 2px solid #e0e0e0;
@@ -1295,13 +1444,13 @@ const getGrandTotal = () => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
   border: 2px solid rgba(102, 126, 234, 0.3);
   color: #667eea;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: bold;
   cursor: pointer;
   display: flex;
@@ -1325,22 +1474,22 @@ const getGrandTotal = () => {
 }
 
 .gallery-prev {
-  left: 1rem;
+  left: 0.5rem;
 }
 
 .gallery-next {
-  right: 1rem;
+  right: 0.5rem;
 }
 
 .gallery-indicator {
   position: absolute;
-  bottom: 1rem;
-  right: 1rem;
+  bottom: 0.5rem;
+  right: 0.5rem;
   background: rgba(0, 0, 0, 0.7);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
+  font-size: 0.75rem;
   font-weight: 600;
   z-index: 10;
 }
@@ -1374,11 +1523,11 @@ const getGrandTotal = () => {
 
 .gallery-thumbnail {
   flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
   overflow: hidden;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
   background: #e0e0e0;
@@ -1404,19 +1553,89 @@ const getGrandTotal = () => {
   flex: 1;
 }
 
+.room-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.25rem;
+}
+
+.room-description {
+  color: #7f8c8d;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.room-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.room-capacity {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.room-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.room-image-placeholder-large {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #bdc3c7;
+  background: #ecf0f1;
+}
+
+.btn-select-plan {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.btn-select-plan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-select-plan.selected {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  box-shadow: 0 4px 16px rgba(39, 174, 96, 0.3);
+}
+
 .gallery-zoom-hint {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0.5rem;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.7);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 16px;
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -2123,6 +2342,80 @@ const getGrandTotal = () => {
   margin-bottom: 2rem;
 }
 
+.available-rooms-section {
+  width: 100%;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.room-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.room-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.room-image-container {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.room-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-content {
+  padding: 1.5rem;
+}
+
+.room-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.room-description {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.room-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.room-capacity {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.room-price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
 .btn-primary {
   padding: 1rem 2rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -2219,12 +2512,13 @@ const getGrandTotal = () => {
     font-size: 1.5rem;
   }
 
-  .plans-carousel {
+  .plans-grid {
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
   .plan-card {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .price-amount {
@@ -2481,8 +2775,190 @@ const getGrandTotal = () => {
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
 }
 
+/* Room Gallery Modal Styles */
+.gallery-modal {
+  z-index: 2000;
+}
+
+.gallery-modal-content {
+  background: white;
+  border-radius: 16px;
+  max-width: 900px;
+  max-height: 90vh;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.gallery-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.gallery-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #2c3e50;
+}
+
+.btn-close-gallery {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.btn-close-gallery:hover {
+  background: #e5e7eb;
+  color: #2c3e50;
+}
+
+.gallery-modal-main {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  min-height: 400px;
+  max-height: 70vh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 20px 100px;
+  box-sizing: border-box;
+}
+
+.gallery-modal-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+.gallery-modal-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.gallery-modal-nav:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.gallery-modal-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gallery-modal-nav.prev {
+  left: 1rem;
+}
+
+.gallery-modal-nav.next {
+  right: 1rem;
+}
+
+.gallery-modal-indicator {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.gallery-modal-thumbnails {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+}
+
+.gallery-modal-thumbnail {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gallery-modal-thumbnail:hover {
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+.gallery-modal-thumbnail.active {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.gallery-modal-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 @media (max-width: 900px) {
   .grid-2 { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
+  
+  .plans-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .plan-card {
+    padding: 1rem;
+  }
+  
+  .gallery-modal-content {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .gallery-modal-main {
+    height: 400px;
+  }
 }
 </style>

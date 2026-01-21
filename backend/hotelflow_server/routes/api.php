@@ -133,6 +133,12 @@ Route::get('/images/{id}', [ImageController::class, 'show']);
 Route::get('/search/locations', [SearchController::class, 'getLocations']);
 Route::get('/search', [SearchController::class, 'searchWithPlans']);
 
+//RECOMMENDATION VÉGPONTOK (Booking.com-style intelligent recommendations)
+Route::get('/recommendations', [App\Http\Controllers\RecommendationController::class, 'getRecommendations']);
+
+//HOTEL DATA VÉGPONTOK (Single endpoint for all hotels with rooms - optimized for client-side filtering)
+Route::get('/hotels/all-with-rooms', [App\Http\Controllers\HotelDataController::class, 'getAllHotelsWithRooms']);
+
 //TAG VÉGPONTOK
 Route::get('/tags', [ServiceTagController::class, 'index']);
 Route::get('/tags/usage', [ServiceTagController::class, 'getUsage']);

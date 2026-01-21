@@ -33,7 +33,7 @@ export const hotelService = {
     // Get all hotels (now includes cover_image and rooms with images)
     const hotels = await this.getHotels()
     const hotelsWithDetails = await Promise.all(
-      hotels.slice(0, 6).map(async (hotel) => {
+      hotels.map(async (hotel) => {
         try {
           const rooms = await this.getRoomsByHotelId(hotel.id)
           

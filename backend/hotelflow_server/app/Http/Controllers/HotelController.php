@@ -108,7 +108,7 @@ class HotelController extends Controller
         }
 
         $validated = $request->validate([
-            'cover_image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:4096',
+            'cover_image' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:51200', // 50MB (will be automatically resized)
         ]);
 
         try {
@@ -118,11 +118,12 @@ class HotelController extends Controller
                 Storage::disk('public')->delete($oldPath);
             }
 
-            // Store new image
-            $path = $request->file('cover_image')->store('hotel_images', 'public');
-            
-            // Store relative path in database (e.g., /storage/hotel_images/xxx.jpg)
-            $relativePath = '/storage/' . $path;
+            // Resize and save image
+            $relativePath = \App\Helpers\ImageResizer::resizeAndStore(
+                $request->file('cover_image'),
+                'hotel_images',
+                'cover'
+            );
             
             $hotel->cover_image = $relativePath;
             $hotel->save();
