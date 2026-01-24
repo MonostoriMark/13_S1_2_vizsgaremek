@@ -27,6 +27,11 @@ sudo cloudflared service install eyJhIjoiMmM0OGQwYjYwY2M4MWI0YjllYjA2YzdlYThlNzM
 
 cloudflared tunnel run --token eyJhIjoiMmM0OGQwYjYwY2M4MWI0YjllYjA2YzdlYThlNzM2M2MiLCJ0IjoiNmViMGU0ZDQtYmVmYi00MmI4LTkyZDctMmEyYmE2ODQ4NzViIiwicyI6Ik16VTJaRGM0WlRFdE5HWmhOeTAwTm1FNUxXSm1ObVF0T1Rrd01HTmpNamt6TlRabCJ9
 
+sudo apt install -y mosquitto
+sudo systemctl start mosquitto
+sudo systemctl enable mosquitto
+
+
 sudo apt install -y mariadb-server mariadb-client
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
@@ -37,10 +42,9 @@ sudo apt -y install php php-cgi php-mysqli php-pear php-mbstring libapache2-mod-
 
 sudo mysql_secure_installation
 
+create database hotelflowLocal;
 
-sudo apt install -y mosquitto
-sudo systemctl start mosquitto
-sudo systemctl enable mosquitto
+
 
 
 
