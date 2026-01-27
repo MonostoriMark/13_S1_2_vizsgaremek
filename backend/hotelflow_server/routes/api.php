@@ -194,6 +194,7 @@ Route::middleware('auth:sanctum', 'role:super_admin')->prefix('super-admin')->gr
     // Bookings
     Route::get('/bookings', [SuperAdminController::class, 'getAllBookings']);
     Route::get('/bookings/{id}', [SuperAdminController::class, 'getBooking']);
+    Route::post('/bookings', [SuperAdminController::class, 'createBooking']);
     Route::put('/bookings/{id}', [SuperAdminController::class, 'updateBooking']);
     Route::delete('/bookings/{id}', [SuperAdminController::class, 'deleteBooking']);
     
@@ -209,4 +210,12 @@ Route::middleware('auth:sanctum', 'role:super_admin')->prefix('super-admin')->gr
     Route::post('/rfid-keys', [SuperAdminController::class, 'createRFIDKey']);
     Route::put('/rfid-keys/{id}', [SuperAdminController::class, 'updateRFIDKey']);
     Route::delete('/rfid-keys/{id}', [SuperAdminController::class, 'deleteRFIDKey']);
+    
+    // Devices
+    Route::get('/devices', [SuperAdminController::class, 'getAllDevices']);
+    Route::get('/devices/{id}', [SuperAdminController::class, 'getDevice']);
+    Route::post('/devices', [SuperAdminController::class, 'createDevice']);
+    Route::put('/devices/{id}', [SuperAdminController::class, 'updateDevice']);
+    Route::post('/devices/{id}/regenerate-token', [SuperAdminController::class, 'regenerateToken']);
+    Route::delete('/devices/{id}', [SuperAdminController::class, 'deleteDevice']);
 });

@@ -175,6 +175,12 @@ const router = createRouter({
       name: 'SuperAdminRFIDKeys',
       component: () => import('../views/super-admin/RFIDKeys.vue'),
       meta: { requiresAuth: true, role: 'super_admin' }
+    },
+    {
+      path: '/super-admin/devices',
+      name: 'SuperAdminDevices',
+      component: () => import('../views/super-admin/Devices.vue'),
+      meta: { requiresAuth: true, role: 'super_admin' }
     }
   ]
 })

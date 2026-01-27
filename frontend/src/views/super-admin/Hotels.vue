@@ -2,9 +2,9 @@
   <SuperAdminLayout>
     <div class="hotels-page">
       <div class="page-header">
-        <h1>Hotels Management</h1>
+        <h1>Szállodák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Hotel
+          <span>➕</span> Szálloda hozzáadása
         </button>
       </div>
 
@@ -12,8 +12,8 @@
         :data="hotels"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search hotels..."
-        empty-message="No hotels found"
+        search-placeholder="Szállodák keresése..."
+        empty-message="Nincs szálloda"
         :search-fields="['name', 'location', 'type']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
@@ -25,8 +25,8 @@
           {{ value?.name || 'N/A' }}
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -35,16 +35,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingHotel ? 'Edit Hotel' : 'Create Hotel' }}</h2>
+              <h2>{{ editingHotel ? 'Szálloda szerkesztése' : 'Új szálloda létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Owner (User) *</label>
+                <label>Tulajdonos (Felhasználó) *</label>
                 <select v-model="form.user_id" required>
-                  <option value="">Select user...</option>
+                  <option value="">Válasszon felhasználót...</option>
                   <option v-for="user in availableUsers" :key="user.id" :value="user.id">
                     {{ user.name }} ({{ user.email }})
                   </option>
@@ -52,48 +52,48 @@
               </div>
 
               <div class="form-group">
-                <label>Hotel Name *</label>
-                <input v-model="form.name" type="text" required placeholder="Enter hotel name" />
+                <label>Szálloda neve *</label>
+                <input v-model="form.name" type="text" required placeholder="Adja meg a szálloda nevét" />
               </div>
 
               <div class="form-group">
-                <label>Location/Address *</label>
-                <input v-model="form.location" type="text" required placeholder="Enter location" />
+                <label>Helyszín/Cím *</label>
+                <input v-model="form.location" type="text" required placeholder="Adja meg a helyszínt" />
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Type</label>
+                  <label>Típus</label>
                   <select v-model="form.type">
-                    <option value="">Select type</option>
-                    <option value="hotel">Hotel</option>
-                    <option value="apartment">Apartment</option>
+                    <option value="">Válasszon típust</option>
+                    <option value="hotel">Szálloda</option>
+                    <option value="apartment">Apartman</option>
                     <option value="villa">Villa</option>
-                    <option value="other">Other</option>
+                    <option value="other">Egyéb</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Star Rating</label>
+                  <label>Csillag értékelés</label>
                   <select v-model.number="form.starRating">
-                    <option :value="null">No rating</option>
-                    <option :value="1">1 Star</option>
-                    <option :value="2">2 Stars</option>
-                    <option :value="3">3 Stars</option>
-                    <option :value="4">4 Stars</option>
-                    <option :value="5">5 Stars</option>
+                    <option :value="null">Nincs értékelés</option>
+                    <option :value="1">1 csillag</option>
+                    <option :value="2">2 csillag</option>
+                    <option :value="3">3 csillag</option>
+                    <option :value="4">4 csillag</option>
+                    <option :value="5">5 csillag</option>
                   </select>
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Description</label>
-                <textarea v-model="form.description" rows="4" placeholder="Enter hotel description"></textarea>
+                <label>Leírás</label>
+                <textarea v-model="form.description" rows="4" placeholder="Adja meg a szálloda leírását"></textarea>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -103,10 +103,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Hotel"
-        :message="`Are you sure you want to delete this hotel? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szálloda törlése"
+        :message="`Biztosan törölni szeretné ezt a szállodát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -146,12 +146,12 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Hotel Name', sortable: true },
-  { key: 'location', label: 'Location', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'starRating', label: 'Rating', sortable: true },
-  { key: 'user', label: 'Owner' },
-  { key: 'description', label: 'Description' }
+  { key: 'name', label: 'Szálloda neve', sortable: true },
+  { key: 'location', label: 'Helyszín', sortable: true },
+  { key: 'type', label: 'Típus', sortable: true },
+  { key: 'starRating', label: 'Értékelés', sortable: true },
+  { key: 'user', label: 'Tulajdonos' },
+  { key: 'description', label: 'Leírás' }
 ]
 
 const loadHotels = async () => {
@@ -160,7 +160,7 @@ const loadHotels = async () => {
     const data = await superAdminService.getAllHotels()
     hotels.value = data
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -206,10 +206,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteHotel(hotelToDelete.value.id)
-    showToast('Hotel deleted successfully', 'success')
+    showToast('Szálloda sikeresen törölve', 'success')
     await loadHotels()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete hotel', 'error')
+    showToast(err.response?.data?.message || 'A szálloda törlése sikertelen', 'error')
   } finally {
     hotelToDelete.value = null
   }
@@ -222,15 +222,15 @@ const handleSubmit = async () => {
   try {
     if (editingHotel.value) {
       await superAdminService.updateHotel(editingHotel.value.id, form.value)
-      showToast('Hotel updated successfully', 'success')
+      showToast('Szálloda sikeresen frissítve', 'success')
     } else {
       await superAdminService.createHotel(form.value)
-      showToast('Hotel created successfully', 'success')
+      showToast('Szálloda sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadHotels()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save hotel'
+    error.value = err.response?.data?.message || 'A szálloda mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false

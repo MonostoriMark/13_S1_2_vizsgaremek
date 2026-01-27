@@ -2,9 +2,9 @@
   <SuperAdminLayout>
     <div class="users-page">
       <div class="page-header">
-        <h1>Users Management</h1>
+        <h1>Felhasználók kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add User
+          <span>➕</span> Felhasználó hozzáadása
         </button>
       </div>
 
@@ -12,14 +12,14 @@
         :data="users"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search users..."
-        empty-message="No users found"
+        search-placeholder="Felhasználók keresése..."
+        empty-message="Nincs felhasználó"
         :search-fields="['name', 'email', 'role']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
       >
         <template #cell-role="{ value }">
-          <span class="role-badge" :class="`role-${value}`">{{ value }}</span>
+          <span class="role-badge" :class="`role-${value}`">{{ value === 'user' ? 'Felhasználó' : value === 'hotel' ? 'Szálloda admin' : 'Super admin' }}</span>
         </template>
         <template #cell-isVerified="{ value }">
           <span class="verified-badge" :class="{ verified: value, unverified: !value }">
@@ -32,8 +32,8 @@
           </span>
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -42,71 +42,71 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingUser ? 'Edit User' : 'Create User' }}</h2>
+              <h2>{{ editingUser ? 'Felhasználó szerkesztése' : 'Új felhasználó létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Full Name *</label>
-                <input v-model="form.name" type="text" required placeholder="Enter full name" />
+                <label>Teljes név *</label>
+                <input v-model="form.name" type="text" required placeholder="Adja meg a teljes nevet" />
               </div>
 
               <div class="form-group">
-                <label>Email Address *</label>
-                <input v-model="form.email" type="email" required placeholder="Enter email address" />
+                <label>Email cím *</label>
+                <input v-model="form.email" type="email" required placeholder="Adja meg az email címet" />
               </div>
 
               <div class="form-group">
-                <label>Role *</label>
+                <label>Szerepkör *</label>
                 <select v-model="form.role" required>
-                  <option value="user">User</option>
-                  <option value="hotel">Hotel Admin</option>
-                  <option value="super_admin">Super Admin</option>
+                  <option value="user">Felhasználó</option>
+                  <option value="hotel">Szálloda admin</option>
+                  <option value="super_admin">Super admin</option>
                 </select>
               </div>
 
               <div class="form-group">
-                <label>Password {{ editingUser ? '(leave blank to keep current)' : '*' }}</label>
+                <label>Jelszó {{ editingUser ? '(hagyja üresen a jelenlegi megtartásához)' : '*' }}</label>
                 <input 
                   v-model="form.password" 
                   type="password" 
                   :required="!editingUser"
-                  placeholder="Enter password"
+                  placeholder="Adja meg a jelszót"
                   :minlength="8"
                 />
               </div>
 
               <div class="form-group">
-                <label>Email Verified</label>
+                <label>Email megerősítve</label>
                 <label class="switch">
                   <input v-model="form.isVerified" type="checkbox" />
                   <span class="slider"></span>
-                  <span class="switch-label">{{ form.isVerified ? 'Verified' : 'Not Verified' }}</span>
+                  <span class="switch-label">{{ form.isVerified ? 'Megerősítve' : 'Nincs megerősítve' }}</span>
                 </label>
               </div>
 
               <div class="form-section">
-                <h3 class="section-title">Invoice Information</h3>
+                <h3 class="section-title">Számlázási információk</h3>
                 <div class="form-group">
-                  <label>Tax Number</label>
-                  <input v-model="form.tax_number" type="text" placeholder="Enter tax number" />
+                  <label>Adószám</label>
+                  <input v-model="form.tax_number" type="text" placeholder="Adja meg az adószámot" />
                 </div>
                 <div class="form-group">
-                  <label>Bank Account</label>
-                  <input v-model="form.bank_account" type="text" placeholder="Enter bank account" />
+                  <label>Bankszámla</label>
+                  <input v-model="form.bank_account" type="text" placeholder="Adja meg a bankszámlát" />
                 </div>
                 <div class="form-group">
-                  <label>EU Tax Number</label>
-                  <input v-model="form.eu_tax_number" type="text" placeholder="Enter EU tax number" />
+                  <label>EU adószám</label>
+                  <input v-model="form.eu_tax_number" type="text" placeholder="Adja meg az EU adószámot" />
                 </div>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -116,10 +116,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete User"
-        :message="`Are you sure you want to delete user ${userToDelete?.name}? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Felhasználó törlése"
+        :message="`Biztosan törölni szeretné a ${userToDelete?.name} felhasználót? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -160,12 +160,12 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Name', sortable: true },
+  { key: 'name', label: 'Név', sortable: true },
   { key: 'email', label: 'Email', sortable: true },
-  { key: 'role', label: 'Role', sortable: true },
-  { key: 'isVerified', label: 'Verified' },
+  { key: 'role', label: 'Szerepkör', sortable: true },
+  { key: 'isVerified', label: 'Megerősítve' },
   { key: 'two_factor_enabled', label: '2FA' },
-  { key: 'created_at', label: 'Created', sortable: true }
+  { key: 'created_at', label: 'Létrehozva', sortable: true }
 ]
 
 const loadUsers = async () => {
@@ -177,7 +177,7 @@ const loadUsers = async () => {
       created_at: user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'
     }))
   } catch (err) {
-    showToast('Failed to load users', 'error')
+    showToast('A felhasználók betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -214,10 +214,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteUser(userToDelete.value.id)
-    showToast('User deleted successfully', 'success')
+    showToast('Felhasználó sikeresen törölve', 'success')
     await loadUsers()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete user', 'error')
+    showToast(err.response?.data?.message || 'A felhasználó törlése sikertelen', 'error')
   } finally {
     userToDelete.value = null
   }
@@ -244,16 +244,16 @@ const handleSubmit = async () => {
 
     if (editingUser.value) {
       await superAdminService.updateUser(editingUser.value.id, data)
-      showToast('User updated successfully', 'success')
+      showToast('Felhasználó sikeresen frissítve', 'success')
     } else {
       await superAdminService.createUser(data)
-      showToast('User created successfully', 'success')
+      showToast('Felhasználó sikeresen létrehozva', 'success')
     }
 
     closeModal()
     await loadUsers()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save user'
+    error.value = err.response?.data?.message || 'A felhasználó mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false

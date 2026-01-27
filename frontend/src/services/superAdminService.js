@@ -122,6 +122,11 @@ export const superAdminService = {
     return response.data
   },
 
+  async createBooking(data) {
+    const response = await api.post('/super-admin/bookings', data)
+    return response.data
+  },
+
   async updateBooking(id, data) {
     const response = await api.put(`/super-admin/bookings/${id}`, data)
     return response.data
@@ -176,6 +181,37 @@ export const superAdminService = {
 
   async deleteRFIDKey(id) {
     const response = await api.delete(`/super-admin/rfid-keys/${id}`)
+    return response.data
+  },
+
+  // Devices
+  async getAllDevices() {
+    const response = await api.get('/super-admin/devices')
+    return response.data
+  },
+
+  async getDevice(id) {
+    const response = await api.get(`/super-admin/devices/${id}`)
+    return response.data
+  },
+
+  async createDevice(data) {
+    const response = await api.post('/super-admin/devices', data)
+    return response.data
+  },
+
+  async updateDevice(id, data) {
+    const response = await api.put(`/super-admin/devices/${id}`, data)
+    return response.data
+  },
+
+  async regenerateDeviceToken(id) {
+    const response = await api.post(`/super-admin/devices/${id}/regenerate-token`)
+    return response.data
+  },
+
+  async deleteDevice(id) {
+    const response = await api.delete(`/super-admin/devices/${id}`)
     return response.data
   }
 }

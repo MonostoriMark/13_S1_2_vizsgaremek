@@ -89,7 +89,8 @@ const menuItems = [
   { path: '/super-admin/services', label: 'Szolgáltatások', icon: '✨' },
   { path: '/super-admin/bookings', label: 'Foglalások', icon: '📅' },
   { path: '/super-admin/invoices', label: 'Számlák', icon: '🧾' },
-  { path: '/super-admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' }
+  { path: '/super-admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' },
+  { path: '/super-admin/devices', label: 'Eszköz regisztráció', icon: '📱' }
 ]
 
 const pageTitle = computed(() => {

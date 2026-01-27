@@ -12,6 +12,10 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\RFIDKey;
 use App\Models\RFIDAssignment;
+use App\Models\Device;
+use Illuminate\Support\Facades\DB;
+use App\Models\BookingPayment;
+use App\Models\BookingInvoiceDetail;
 
 class SuperAdminController extends Controller
 {
@@ -343,6 +347,139 @@ class SuperAdminController extends Controller
         return response()->json($booking, 200);
     }
 
+    public function createBooking(Request $request)
+    {
+        $validated = $request->validate([
+            'users_id' => ['required', 'exists:users,id'],
+            'hotels_id' => ['required', 'exists:hotels,id'],
+            'startDate' => ['required', 'date'],
+            'endDate' => ['required', 'date', 'after_or_equal:startDate'],
+            'rooms' => ['required', 'array', 'min:1'],
+            'rooms.*.id' => ['required', 'exists:rooms,id'],
+            'rooms.*.guests' => ['required', 'integer', 'min:1'],
+            'services' => ['nullable', 'array'],
+            'services.*' => ['exists:services,id'],
+            'status' => ['sometimes', 'in:pending,confirmed,cancelled,finished'],
+            'payment_method' => ['sometimes', 'in:bank_transfer'],
+            'invoice_details' => ['sometimes', 'array'],
+            'invoice_details.customer_type' => ['sometimes', 'in:private,business'],
+            'invoice_details.full_name' => ['sometimes', 'string', 'max:255'],
+            'invoice_details.email' => ['sometimes', 'email', 'max:255'],
+            'invoice_details.company_name' => ['nullable', 'string', 'max:255'],
+            'invoice_details.tax_number' => ['nullable', 'string', 'max:255'],
+            'invoice_details.country' => ['nullable', 'string', 'max:255'],
+            'invoice_details.city' => ['nullable', 'string', 'max:255'],
+            'invoice_details.postal_code' => ['nullable', 'string', 'max:50'],
+            'invoice_details.address_line' => ['nullable', 'string', 'max:255'],
+            'invoice_details.note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Create booking
+            $booking = Booking::create([
+                'users_id' => $validated['users_id'],
+                'hotels_id' => $validated['hotels_id'],
+                'startDate' => $validated['startDate'],
+                'endDate' => $validated['endDate'],
+                'checkInToken' => str()->random(32),
+                'status' => $validated['status'] ?? 'pending',
+                'totalPrice' => 0,
+            ]);
+
+            // Load rooms and validate
+            $requestedRoomIds = collect($validated['rooms'])->pluck('id')->toArray();
+            $rooms = Room::whereIn('id', $requestedRoomIds)
+                ->where('hotels_id', $validated['hotels_id'])
+                ->get()
+                ->keyBy('id');
+
+            if ($rooms->count() !== count($requestedRoomIds)) {
+                DB::rollBack();
+                return response()->json(['message' => 'One or more rooms not found or do not belong to the selected hotel'], 400);
+            }
+
+            // Check availability
+            $nights = \Carbon\Carbon::parse($validated['startDate'])->diffInDays($validated['endDate']);
+            $overlappingRooms = DB::table('bookingsRelation')
+                ->join('bookings', 'bookingsRelation.booking_id', '=', 'bookings.id')
+                ->whereIn('bookingsRelation.rooms_id', $requestedRoomIds)
+                ->whereIn('bookings.status', ['pending', 'confirmed'])
+                ->where('bookings.startDate', '<', $validated['endDate'])
+                ->where('bookings.endDate', '>', $validated['startDate'])
+                ->distinct()
+                ->pluck('bookingsRelation.rooms_id')
+                ->toArray();
+
+            if (!empty($overlappingRooms)) {
+                DB::rollBack();
+                return response()->json(['message' => 'One or more rooms are not available for the selected dates'], 400);
+            }
+
+            // Calculate total price and sync rooms
+            $totalPrice = 0;
+            $roomIds = [];
+
+            foreach ($validated['rooms'] as $roomData) {
+                $room = $rooms->get($roomData['id']);
+                if (!$room) {
+                    DB::rollBack();
+                    return response()->json(['message' => "Room not found: ID {$roomData['id']}"], 400);
+                }
+
+                $roomIds[] = $room->id;
+                $roomPrice = ($room->basePrice ?? 0) + ($room->pricePerNight * $nights);
+                $totalPrice += $roomPrice;
+            }
+
+            $booking->rooms()->sync($roomIds);
+
+            // Add services if provided
+            if (!empty($validated['services'])) {
+                $validServices = Service::whereIn('id', $validated['services'])
+                    ->where('hotels_id', $validated['hotels_id'])
+                    ->pluck('id')
+                    ->toArray();
+
+                if (count($validServices) !== count($validated['services'])) {
+                    DB::rollBack();
+                    return response()->json(['message' => 'One or more services do not belong to the selected hotel'], 400);
+                }
+
+                $booking->services()->sync($validServices);
+                $servicesPrice = Service::whereIn('id', $validServices)->sum('price');
+                $totalPrice += $servicesPrice;
+            }
+
+            // Update total price
+            $booking->totalPrice = $totalPrice;
+            $booking->save();
+
+            // Store payment and invoice details if provided
+            if (isset($validated['payment_method'])) {
+                BookingPayment::firstOrCreate(
+                    ['booking_id' => $booking->id],
+                    ['method' => $validated['payment_method'], 'status' => 'pending']
+                );
+            }
+
+            if (isset($validated['invoice_details'])) {
+                BookingInvoiceDetail::firstOrCreate(
+                    ['booking_id' => $booking->id],
+                    $validated['invoice_details']
+                );
+            }
+
+            DB::commit();
+
+            $booking->load(['user', 'hotel', 'rooms', 'services', 'guests', 'invoice']);
+            return response()->json($booking, 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create booking: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function updateBooking(Request $request, $id)
     {
         $validated = $request->validate([
@@ -496,6 +633,115 @@ class SuperAdminController extends Controller
         return response()->json(['message' => 'RFID key deleted'], 200);
     }
 
+    // ========== DEVICES MANAGEMENT ==========
+    public function getAllDevices()
+    {
+        $devices = Device::with('hotel')->get();
+        return response()->json($devices, 200);
+    }
+
+    public function getDevice($id)
+    {
+        $device = Device::with('hotel')->find($id);
+        if (!$device) {
+            return response()->json(['message' => 'Device not found'], 404);
+        }
+        return response()->json($device, 200);
+    }
+
+    public function createDevice(Request $request)
+    {
+        $validated = $request->validate([
+            'hotels_id' => ['required', 'exists:hotels,id', 'unique:devices,hotels_id'],
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Check if hotel already has a device
+        $existingDevice = Device::where('hotels_id', $validated['hotels_id'])->first();
+        if ($existingDevice) {
+            return response()->json(['message' => 'Hotel already has a registered device'], 409);
+        }
+
+        // Generate lifetime token
+        $token = Device::generateToken();
+
+        $device = Device::create([
+            'hotels_id' => $validated['hotels_id'],
+            'name' => $validated['name'],
+            'token' => $token,
+            'is_active' => false, // Requires admin review
+        ]);
+
+        $device->load('hotel');
+        
+        // Return device with token (only shown once during creation)
+        return response()->json([
+            'device' => $device,
+            'token' => $token, // Show token only on creation
+            'message' => 'Device registered successfully. Please save the token securely.'
+        ], 201);
+    }
+
+    public function updateDevice(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'is_active' => ['sometimes', 'boolean'],
+            'hotels_id' => ['sometimes', 'exists:hotels,id', 'unique:devices,hotels_id,' . $id],
+        ]);
+
+        $device = Device::find($id);
+        if (!$device) {
+            return response()->json(['message' => 'Device not found'], 404);
+        }
+
+        if (isset($validated['name'])) $device->name = $validated['name'];
+        if (isset($validated['is_active'])) $device->is_active = $validated['is_active'];
+        if (isset($validated['hotels_id'])) {
+            // Check if new hotel already has a device
+            $existingDevice = Device::where('hotels_id', $validated['hotels_id'])
+                ->where('id', '!=', $id)
+                ->first();
+            if ($existingDevice) {
+                return response()->json(['message' => 'Hotel already has a registered device'], 409);
+            }
+            $device->hotels_id = $validated['hotels_id'];
+        }
+
+        $device->save();
+        $device->load('hotel');
+        return response()->json($device, 200);
+    }
+
+    public function regenerateToken($id)
+    {
+        $device = Device::find($id);
+        if (!$device) {
+            return response()->json(['message' => 'Device not found'], 404);
+        }
+
+        // Generate new token
+        $token = Device::generateToken();
+        $device->token = $token;
+        $device->save();
+
+        return response()->json([
+            'device' => $device,
+            'token' => $token, // Show token only on regeneration
+            'message' => 'Token regenerated successfully. Please save the new token securely.'
+        ], 200);
+    }
+
+    public function deleteDevice($id)
+    {
+        $device = Device::find($id);
+        if (!$device) {
+            return response()->json(['message' => 'Device not found'], 404);
+        }
+        $device->delete();
+        return response()->json(['message' => 'Device deleted'], 200);
+    }
+
     // ========== DASHBOARD STATS ==========
     public function getDashboardStats()
     {
@@ -507,6 +753,7 @@ class SuperAdminController extends Controller
             'total_bookings' => Booking::count(),
             'total_invoices' => Invoice::count(),
             'total_rfid_keys' => RFIDKey::count(),
+            'total_devices' => Device::count(),
             'pending_bookings' => Booking::where('status', 'pending')->count(),
             'confirmed_bookings' => Booking::where('status', 'confirmed')->count(),
             'recent_bookings' => Booking::with(['user', 'hotel'])

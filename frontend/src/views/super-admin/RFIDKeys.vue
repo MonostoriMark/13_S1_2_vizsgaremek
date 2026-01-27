@@ -2,9 +2,9 @@
   <SuperAdminLayout>
     <div class="rfid-keys-page">
       <div class="page-header">
-        <h1>RFID Keys Management</h1>
+        <h1>RFID kulcsok kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add RFID Key
+          <span>➕</span> RFID kulcs hozzáadása
         </button>
       </div>
 
@@ -12,8 +12,8 @@
         :data="rfidKeys"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search RFID keys..."
-        empty-message="No RFID keys found"
+        search-placeholder="RFID kulcsok keresése..."
+        empty-message="Nincs RFID kulcs"
         :search-fields="['rfidKey', 'hotel.name']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
@@ -23,12 +23,12 @@
         </template>
         <template #cell-isUsed="{ value }">
           <span class="status-badge" :class="{ 'status-used': value, 'status-available': !value }">
-            {{ value ? 'Assigned' : 'Available' }}
+            {{ value ? 'Hozzárendelve' : 'Elérhető' }}
           </span>
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -37,16 +37,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>{{ editingKey ? 'Edit RFID Key' : 'Create RFID Key' }}</h2>
+              <h2>{{ editingKey ? 'RFID kulcs szerkesztése' : 'Új RFID kulcs létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Hotel *</label>
+                <label>Szálloda *</label>
                 <select v-model="form.hotels_id" required>
-                  <option value="">Select hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in availableHotels" :key="hotel.id" :value="hotel.id">
                     {{ hotel.name }} - {{ hotel.location }}
                   </option>
@@ -54,23 +54,23 @@
               </div>
 
               <div class="form-group">
-                <label>RFID Key (UID) *</label>
-                <input v-model="form.rfidKey" type="text" required placeholder="Enter RFID key UID" />
+                <label>RFID kulcs (UID) *</label>
+                <input v-model="form.rfidKey" type="text" required placeholder="Adja meg az RFID kulcs UID-ját" />
               </div>
 
               <div class="form-group">
-                <label>Status</label>
+                <label>Státusz</label>
                 <label class="switch">
                   <input v-model="form.isUsed" type="checkbox" />
                   <span class="slider"></span>
-                  <span class="switch-label">{{ form.isUsed ? 'Assigned' : 'Available' }}</span>
+                  <span class="switch-label">{{ form.isUsed ? 'Hozzárendelve' : 'Elérhető' }}</span>
                 </label>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -80,10 +80,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete RFID Key"
-        :message="`Are you sure you want to delete this RFID key? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="RFID kulcs törlése"
+        :message="`Biztosan törölni szeretné ezt az RFID kulcsot? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -120,9 +120,9 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'rfidKey', label: 'RFID Key (UID)', sortable: true },
-  { key: 'hotel', label: 'Hotel' },
-  { key: 'isUsed', label: 'Status', sortable: true }
+  { key: 'rfidKey', label: 'RFID kulcs (UID)', sortable: true },
+  { key: 'hotel', label: 'Szálloda' },
+  { key: 'isUsed', label: 'Státusz', sortable: true }
 ]
 
 const loadRFIDKeys = async () => {
@@ -131,7 +131,7 @@ const loadRFIDKeys = async () => {
     const data = await superAdminService.getAllRFIDKeys()
     rfidKeys.value = data
   } catch (err) {
-    showToast('Failed to load RFID keys', 'error')
+    showToast('Az RFID kulcsok betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -174,10 +174,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteRFIDKey(keyToDelete.value.id)
-    showToast('RFID key deleted successfully', 'success')
+    showToast('RFID kulcs sikeresen törölve', 'success')
     await loadRFIDKeys()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete RFID key', 'error')
+    showToast(err.response?.data?.message || 'Az RFID kulcs törlése sikertelen', 'error')
   } finally {
     keyToDelete.value = null
   }
@@ -190,15 +190,15 @@ const handleSubmit = async () => {
   try {
     if (editingKey.value) {
       await superAdminService.updateRFIDKey(editingKey.value.id, form.value)
-      showToast('RFID key updated successfully', 'success')
+      showToast('RFID kulcs sikeresen frissítve', 'success')
     } else {
       await superAdminService.createRFIDKey(form.value)
-      showToast('RFID key created successfully', 'success')
+      showToast('RFID kulcs sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadRFIDKeys()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save RFID key'
+    error.value = err.response?.data?.message || 'Az RFID kulcs mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
