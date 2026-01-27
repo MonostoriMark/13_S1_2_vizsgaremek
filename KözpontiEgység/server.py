@@ -3,8 +3,8 @@ import DbFetcher
 
 app = FastAPI()
 
-@app.get("/38")
+@app.get("/44")
 async def root():
-    print("Végpont elérve: /38")
+    print("Végpont elérve: /44")
     await DbFetcher.fetchDb()
     return {"status": "ok", "message": "asd"}

@@ -1,6 +1,8 @@
 import pymysql
 import json
 from post import put_request_example
+import serial
+import time
 
 # MySQL KONFIGURÁCIÓ
 db_config = {
@@ -13,11 +15,11 @@ db_config = {
 
 
 RFID_LOCKER_MAP = {
-    "HUOHDSPHI": (0, 0),
-    "123456": (0, 1)
+    "F4E4C928": (0, 0),
+    "HBIASDOGF12": (0, 1)
 }
 
-SERIAL_PORT = "COM4"   # Windows: COM3
+SERIAL_PORT = "/dev/ttyACM0"   # Windows: COM3
 BAUDRATE = 9600
 
 def get_arduino():
