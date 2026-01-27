@@ -72,6 +72,16 @@ void displayText(String msg) {
     }
   }
 
+  def clear_lcd(ser):
+    if not ser:
+        print("⚠️ Arduino nem elérhető")
+        return False
+
+    ser.write("CLEAR\n".encode())
+    response = ser.readline().decode().strip()
+    print("Arduino válasz:", response)
+    return response == "DISPLAY_OK"
+
   Serial.println("DISPLAY_OK");
 }
 
