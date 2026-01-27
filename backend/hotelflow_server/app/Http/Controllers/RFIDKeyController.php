@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\RFIDKey;
 use App\Models\RFIDAssignment;
+use App\Models\RFIDConnection;
 use App\Models\Booking;
 use App\Models\Hotel;
 use App\Models\Room;
@@ -302,13 +303,32 @@ class RFIDKeyController extends Controller
 
         DB::beginTransaction();
         try {
+            // Get booking dates for reservation period
+            $booking = Booking::find($request->booking_id);
+            $reservedFrom = $booking ? \Carbon\Carbon::parse($booking->startDate)->toDateString() : null;
+            $reservedTo = $booking ? \Carbon\Carbon::parse($booking->endDate)->toDateString() : null;
+
             // Create assignment
             $assignment = RFIDAssignment::create([
                 'rfid_key_id' => $key->id,
                 'booking_id' => $request->booking_id,
                 'room_id' => $request->room_id,
+                'reserved_from' => $reservedFrom,
+                'reserved_to' => $reservedTo,
                 'assigned_at' => now()
             ]);
+
+            // Create or update RFID connection (links RFID key to room)
+            RFIDConnection::updateOrCreate(
+                [
+                    'rfidKeys_id' => $key->rfidKey,
+                    'rooms_id' => $request->room_id
+                ],
+                [
+                    'rfidKeys_id' => $key->rfidKey,
+                    'rooms_id' => $request->room_id
+                ]
+            );
 
             // Update key isUsed flag
             $key->isUsed = true;

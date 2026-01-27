@@ -209,6 +209,7 @@ public function store(Request $request)
         foreach ($roomIds as $index => $roomId) {
             $rfidKey = $availableRfidKeys->get($index);
 
+            // Create RFID assignment
             RFIDAssignment::create([
                 'rfid_key_id' => $rfidKey->id,
                 'booking_id' => $booking->id,
@@ -218,6 +219,19 @@ public function store(Request $request)
                 'assigned_at' => now(),
                 'released_at' => null,
             ]);
+
+            // Create or update RFID connection (links RFID key to room)
+            // This is what the device endpoint uses to know which key opens which room
+            RFIDConnection::updateOrCreate(
+                [
+                    'rfidKeys_id' => $rfidKey->rfidKey, // Use the rfidKey string value
+                    'rooms_id' => $roomId
+                ],
+                [
+                    'rfidKeys_id' => $rfidKey->rfidKey,
+                    'rooms_id' => $roomId
+                ]
+            );
         }
 
 

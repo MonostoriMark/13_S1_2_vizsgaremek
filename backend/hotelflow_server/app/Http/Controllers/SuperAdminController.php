@@ -12,6 +12,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\RFIDKey;
 use App\Models\RFIDAssignment;
+use App\Models\RFIDConnection;
 use App\Models\Device;
 use Illuminate\Support\Facades\DB;
 use App\Models\BookingPayment;
@@ -433,6 +434,56 @@ class SuperAdminController extends Controller
             }
 
             $booking->rooms()->sync($roomIds);
+
+            // Assign RFID keys to rooms (if available)
+            $requestedStart = \Carbon\Carbon::parse($validated['startDate'])->toDateString();
+            $requestedEnd = \Carbon\Carbon::parse($validated['endDate'])->toDateString();
+
+            // Find available RFID keys (keys that don't have overlapping assignments)
+            // This allows reuse of keys outside their booking dates (past or future)
+            $availableRfidKeys = RFIDKey::where('hotels_id', $validated['hotels_id'])
+                ->whereDoesntHave('assignments', function ($q) use ($requestedStart, $requestedEnd) {
+                    $q->whereNull('released_at')
+                        ->whereNotNull('reserved_from')
+                        ->whereNotNull('reserved_to')
+                        ->where('reserved_from', '<', $requestedEnd)
+                        ->where('reserved_to', '>', $requestedStart);
+                })
+                ->take(count($roomIds))
+                ->get();
+
+            // Only assign if we have enough keys (don't fail if we don't have enough)
+            if ($availableRfidKeys->count() >= count($roomIds)) {
+                foreach ($roomIds as $index => $roomId) {
+                    $rfidKey = $availableRfidKeys->get($index);
+                    
+                    if ($rfidKey) {
+                        // Create RFID assignment
+                        RFIDAssignment::create([
+                            'rfid_key_id' => $rfidKey->id,
+                            'booking_id' => $booking->id,
+                            'room_id' => $roomId,
+                            'reserved_from' => $requestedStart,
+                            'reserved_to' => $requestedEnd,
+                            'assigned_at' => now(),
+                            'released_at' => null,
+                        ]);
+
+                        // Create or update RFID connection (links RFID key to room)
+                        // This is what the device endpoint uses to know which key opens which room
+                        RFIDConnection::updateOrCreate(
+                            [
+                                'rfidKeys_id' => $rfidKey->rfidKey,
+                                'rooms_id' => $roomId
+                            ],
+                            [
+                                'rfidKeys_id' => $rfidKey->rfidKey,
+                                'rooms_id' => $roomId
+                            ]
+                        );
+                    }
+                }
+            }
 
             // Add services if provided
             if (!empty($validated['services'])) {

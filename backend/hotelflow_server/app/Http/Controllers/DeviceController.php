@@ -123,14 +123,16 @@ class DeviceController extends Controller
             ->whereIn('booking_id', $bookings->pluck('id'))
             ->get();
 
+        // Get RFID connections - which RFID key is linked to which room
         $rfidConnections = RFIDConnection::join('rfidKeys', 'rfidKeyConnection.rfidKeys_id', '=', 'rfidKeys.rfidKey')
             ->join('rooms', 'rfidKeyConnection.rooms_id', '=', 'rooms.id')
             ->where('rooms.hotels_id', $hotelId)
-            ->get([
-                'rfidKeys.rfidKey as key', // maga az RFID kód
-                'rooms.id as roomId',       // szoba azonosítója
-                'rooms.name as roomName'    // opcionális, ha kell a szoba neve
-            ]);
+            ->select(
+                'rfidKeys.rfidKey as key',  // The RFID key code
+                'rooms.id as roomId',        // Room ID
+                'rooms.name as roomName'     // Room name
+            )
+            ->get();
 
         return response()->json([
             'bookings' => $bookings,
