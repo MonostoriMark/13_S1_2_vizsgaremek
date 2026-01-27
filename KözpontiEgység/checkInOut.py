@@ -11,11 +11,39 @@ db_config = {
     'cursorclass': pymysql.cursors.DictCursor  # DictCursor a könnyebb kezeléshez
 }
 
+
 RFID_LOCKER_MAP = {
     "HUOHDSPHI": (0, 0),
     "123456": (0, 1)
 }
 
+SERIAL_PORT = "COM4"   # Windows: COM3
+BAUDRATE = 9600
+
+def get_arduino():
+    try:
+        ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=2)
+        time.sleep(2)  # Arduino reset
+        return ser
+    except serial.SerialException as e:
+        print("⚠️ Arduino nem elérhető:", e)
+        return None
+
+def open_locker(ser, locker_id: int):
+    if not ser:
+        print("⚠️ Nincs soros kapcsolat, szekrény nem nyitható.")
+        return False
+
+    cmd = f"OPEN;{locker_id}\n"
+    ser.write(cmd.encode())
+
+    response = ser.readline().decode().strip()
+    print("Arduino válasz:", response)
+
+    return response.startswith("OK")
+
+def locker_id_from_matrix(row, col, cols=1):
+    return row * cols + col
 
 def check_in_out(auth_token: str):
     conn = None
@@ -74,7 +102,7 @@ def check_in_out(auth_token: str):
 
         print("Aktuális státusz:", status)
 
-        
+        arduino = get_arduino()
 
         # -----------------------------
         # CHECK-IN / CHECK-OUT logika
@@ -90,7 +118,7 @@ def check_in_out(auth_token: str):
             """, (booking_id,))
 
 
-            # -----------------------------
+           # -----------------------------
             # FOGLALÁSHOZ TARTOZÓ SZOBÁK
             # -----------------------------
             cursor.execute("""
@@ -129,12 +157,18 @@ def check_in_out(auth_token: str):
                     # -----------------------------
                     if rfid_key in RFID_LOCKER_MAP:
                         row, col = RFID_LOCKER_MAP[rfid_key]
+
+                        locker_id = locker_id_from_matrix(row, col)
+
                         print(
                             f"Szoba {room_id} | "
-                            f"RFID {rfid_key} → Szekrény [{row}][{col}]"
+                            f"RFID {rfid_key} → Szekrény [{row}][{col}] (ID={locker_id})"
                         )
-                    else:
-                        print(f"⚠️ RFID {rfid_key} nincs benne a szekrény mátrixban!")
+
+                        if open_locker(arduino, locker_id):
+                            print(f"✅ Szekrény {locker_id} nyitva")
+                        else:
+                            print(f"❌ Szekrény {locker_id} nem nyílt")
 
 
         else:
@@ -145,6 +179,47 @@ def check_in_out(auth_token: str):
                     checkOutTime=NOW()
                 WHERE id=%s
             """, (booking_id,))
+
+            # -----------------------------
+            # SZEKRÉNY(ek) NYITÁSA A KÁRTYA VISSZAVÉTELÉHEZ
+            # -----------------------------
+            cursor.execute("""
+                SELECT rooms_id
+                FROM relations
+                WHERE booking_id = %s
+            """, (booking_id,))
+            rooms = cursor.fetchall()
+
+            if rooms:
+                print("\nSzekrények nyitása a kártya visszaadásához:")
+                for room in rooms:
+                    room_id = room["rooms_id"]
+
+                    cursor.execute("""
+                        SELECT rfidKey
+                        FROM rfidConnections
+                        WHERE roomId = %s
+                    """, (room_id,))
+                    rfid = cursor.fetchone()
+
+                    if not rfid:
+                        print(f"⚠️ Nincs RFID kulcs a(z) {room_id} szobához!")
+                        continue
+
+                    rfid_key = rfid["rfidKey"]
+
+                    if rfid_key in RFID_LOCKER_MAP:
+                        row, col = RFID_LOCKER_MAP[rfid_key]
+                        locker_id = locker_id_from_matrix(row, col)
+
+                        print(f"Szoba {room_id} | RFID {rfid_key} → Szekrény ID={locker_id}")
+
+                        if open_locker(arduino, locker_id):
+                            print(f"✅ Szekrény {locker_id} nyitva")
+                        else:
+                            print(f"❌ Szekrény {locker_id} nem nyílt")
+                    else:
+                        print(f"⚠️ RFID {rfid_key} nincs a szekrény mátrixban!")
 
         conn.commit()
 
@@ -188,3 +263,5 @@ def check_in_out(auth_token: str):
             cursor.close()
         if conn:
             conn.close()
+        if 'arduino' in locals() and arduino:
+            arduino.close()

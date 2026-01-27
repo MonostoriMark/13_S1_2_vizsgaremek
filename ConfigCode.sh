@@ -1,17 +1,13 @@
 sudo apt update && sudo apt upgrade -y
 
 
-
 cd /Documents/
 git clone https://github.com/MonostoriMark/13_S1_2_vizsgaremek.git
 
 
-
 sudo apt install -y python3-pip
 python3 -m pip install --upgrade pip
-python3 -m pip install pyzbar picamera2 pymysql requests fastapi uvicorn paho-mqtt myqtt.client
-
-
+python3 -m pip install pyzbar picamera2 pymysql requests fastapi uvicorn paho-mqtt myqtt.client serial
 
 
 sudo apt install -y mosquitto
