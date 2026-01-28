@@ -132,6 +132,7 @@ import ImageUpload from '../../components/ImageUpload.vue'
 import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const hotels = ref([])
@@ -300,6 +301,9 @@ const closeModal = () => {
   resetForm()
   error.value = ''
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
 
 const resetForm = () => {
   form.value = {

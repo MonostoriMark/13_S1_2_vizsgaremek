@@ -107,6 +107,7 @@ import { ref, onMounted, computed } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import Toast from '../../components/Toast.vue'
 import { tagService } from '../../services/tagService'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const tags = ref([])
 const tagUsage = ref({ hotel_tags: [], room_tags: [] })
@@ -171,6 +172,9 @@ const closeModal = () => {
   tagForm.value.name = ''
   error.value = ''
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
 
 const handleSubmit = async () => {
   if (!tagForm.value.name.trim()) {

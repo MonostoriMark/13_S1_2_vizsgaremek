@@ -87,8 +87,8 @@
             </div>
           </form>
 
-          <!-- Filter bar above recommendations -->
-          <div v-if="smartRecommendations.length > 0 || recommendationsLoading" class="filters-row-booking" style="margin-top: 1.5rem;">
+          <!-- Filter bar above recommendations (hide after a search is started) -->
+          <div v-if="!hasSearched && (smartRecommendations.length > 0 || recommendationsLoading)" class="filters-row-booking" style="margin-top: 1.5rem;">
             <div class="filter-group-booking">
               <label for="typeFilter">Típus</label>
               <select id="typeFilter" v-model="filters.type" class="filter-select">
@@ -135,15 +135,15 @@
             </div>
           </div>
 
-          <!-- Simple Random Recommendations -->
-          <div v-if="recommendationsLoading" class="recommendation-panel">
+          <!-- Simple Random Recommendations (hide after a search is started) -->
+          <div v-if="!hasSearched && recommendationsLoading" class="recommendation-panel">
             <div class="recommendations-loading">
               <div class="loading-spinner"></div>
               <p>Ajánlott szálláshelyek betöltése...</p>
             </div>
           </div>
           
-          <div v-else-if="smartRecommendations.length > 0" class="recommendation-panel">
+          <div v-else-if="!hasSearched && smartRecommendations.length > 0" class="recommendation-panel">
             <div class="recommendations-content">
               <div class="recommendations-header">
                 <h3 class="recommendations-title">

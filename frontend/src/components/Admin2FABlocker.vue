@@ -49,8 +49,9 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+import { defineProps, defineEmits, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const router = useRouter()
 
@@ -68,6 +69,10 @@ const handleEnable2FA = () => {
   // The layout will handle navigation and auto-open 2FA setup
   router.push('/admin/users')
 }
+
+// Lock body scroll when blocker is visible
+const isVisible = computed(() => props.visible)
+useBodyScrollLock(isVisible)
 </script>
 
 <style scoped>

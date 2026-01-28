@@ -38,7 +38,8 @@ public function store(Request $request)
         'services.*' => 'exists:services,id',
 
         // Payment + invoice details (captured before sending booking request)
-        'payment_method' => 'sometimes|in:bank_transfer',
+        // NOTE: "card" is a simulated card payment (no real PSP integration).
+        'payment_method' => 'sometimes|in:bank_transfer,card',
         'invoice_details' => 'sometimes|array',
         'invoice_details.customer_type' => 'sometimes|in:private,business',
         'invoice_details.full_name' => 'sometimes|string|max:255',
@@ -149,13 +150,18 @@ public function store(Request $request)
         $booking->rooms()->sync($roomIds);
 
         // -------------------------
-        // Store payment method (pending) + invoice details snapshot
+        // Store payment method + payment status snapshot
         // -------------------------
+        // - bank_transfer: pending (paid later by hotel admin confirmation)
+        // - card: simulated as "paid" immediately
         $paymentMethod = $request->input('payment_method', 'bank_transfer');
-        BookingPayment::firstOrCreate(
-            ['booking_id' => $booking->id],
-            ['method' => $paymentMethod, 'status' => 'pending']
-        );
+        $paymentAttrs = ['method' => $paymentMethod, 'status' => 'pending'];
+        if ($paymentMethod === 'card') {
+            $paymentAttrs['status'] = 'paid';
+            $paymentAttrs['confirmed_at'] = now();
+            $paymentAttrs['confirmed_by_user_id'] = $booking->users_id;
+        }
+        BookingPayment::firstOrCreate(['booking_id' => $booking->id], $paymentAttrs);
 
         $details = $request->input('invoice_details');
         if (is_array($details)) {
@@ -471,15 +477,22 @@ function updateStatus(Request $request, $id)
             // Reload booking with all relationships for email
             $booking->load(['hotel', 'user', 'rooms.hotel', 'services']);
             
-            // Ensure payment status exists and is pending
-            BookingPayment::firstOrCreate(
+            // Ensure payment record exists (do not overwrite method/status if already set)
+            $payment = BookingPayment::firstOrCreate(
                 ['booking_id' => $booking->id],
                 ['method' => 'bank_transfer', 'status' => 'pending']
             );
 
-            // Notify guest (no QR yet)
-            Mail::to($booking->user->email)
-                ->send(new BookingConfirmedPendingPaymentMail($booking));
+            // If payment is already marked as paid (e.g. simulated card payment),
+            // send the QR code email immediately; otherwise keep payment-gated flow.
+            if ($payment->status === 'paid') {
+                Mail::to($booking->user->email)
+                    ->send(new BookingConfirmationMail($booking));
+            } else {
+                // Notify guest (no QR yet)
+                Mail::to($booking->user->email)
+                    ->send(new BookingConfirmedPendingPaymentMail($booking));
+            }
 
             // -------------------------
             // Generate invoice preview (draft)

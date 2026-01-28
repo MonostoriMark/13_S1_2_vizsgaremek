@@ -214,6 +214,7 @@ import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
 import { tagService } from '../../services/tagService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const hotels = ref([])
@@ -373,6 +374,9 @@ const closeModal = () => {
   }
   coverImagePreview.value = null
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
 
 const loadTags = async () => {
   try {

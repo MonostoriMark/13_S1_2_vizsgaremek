@@ -42,12 +42,23 @@
 
             <div class="form-group">
               <label>New Password</label>
-              <input 
-                v-model="form.password" 
-                type="password" 
-                placeholder="Leave blank to keep current password"
-                :minlength="8"
-              />
+              <div class="input-wrapper-password">
+                <input 
+                  v-model="form.password" 
+                  :type="showPassword ? 'text' : 'password'"
+                  placeholder="Leave blank to keep current password"
+                  :minlength="8"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showPassword = !showPassword"
+                  :aria-label="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  :title="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                >
+                  {{ showPassword ? 'Elrejt' : 'Mutat' }}
+                </button>
+              </div>
               <small class="form-hint">Minimum 8 characters. Leave blank to keep current password.</small>
             </div>
 
@@ -186,12 +197,23 @@
               <p class="warning-text">⚠️ Disabling 2FA will reduce the security of your account.</p>
               <div class="form-group">
                 <label>Enter your password to confirm</label>
-                <input
-                  v-model="disablePassword"
-                  type="password"
-                  placeholder="Enter your password"
-                  class="form-input"
-                />
+                <div class="input-wrapper-password">
+                  <input
+                    v-model="disablePassword"
+                    :type="showDisablePassword ? 'text' : 'password'"
+                    placeholder="Enter your password"
+                    class="form-input"
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    @click="showDisablePassword = !showDisablePassword"
+                    :aria-label="showDisablePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                    :title="showDisablePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  >
+                    {{ showDisablePassword ? 'Elrejt' : 'Mutat' }}
+                  </button>
+                </div>
               </div>
               <div class="modal-footer-2fa">
                 <button @click="close2FADisable" class="btn-secondary">Cancel</button>
@@ -207,7 +229,7 @@
       <!-- Delete Account Modal -->
       <Transition name="modal">
         <div v-if="showDeleteAccountModal" class="modal-overlay" @click.self="closeDeleteAccountModal">
-          <div class="modal-content-2fa">
+          <div class="modal-content-2fa" @click.stop>
             <div class="modal-header-2fa">
               <h3>Delete Account</h3>
               <button class="modal-close" @click="closeDeleteAccountModal">×</button>
@@ -217,12 +239,23 @@
               <p class="warning-text">⚠️ This action cannot be undone. This will permanently delete your account and remove all of your data from our servers.</p>
               <div class="form-group">
                 <label>Enter your password to confirm</label>
-                <input
-                  v-model="deleteAccountPassword"
-                  type="password"
-                  placeholder="Enter your password"
-                  class="form-input"
-                />
+                <div class="input-wrapper-password">
+                  <input
+                    v-model="deleteAccountPassword"
+                    :type="showDeletePassword ? 'text' : 'password'"
+                    placeholder="Enter your password"
+                    class="form-input"
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    @click="showDeletePassword = !showDeletePassword"
+                    :aria-label="showDeletePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                    :title="showDeletePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  >
+                    {{ showDeletePassword ? 'Elrejt' : 'Mutat' }}
+                  </button>
+                </div>
               </div>
               <div class="modal-footer-2fa">
                 <button @click="closeDeleteAccountModal" class="btn-secondary">Cancel</button>
@@ -248,6 +281,7 @@ import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
 import { authService } from '../../services/authService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const router = useRouter()
 
@@ -275,6 +309,9 @@ const showDeleteAccountModal = ref(false)
 const deleteAccountPassword = ref('')
 const deletingAccount = ref(false)
 const deleteAccountError = ref('')
+const showPassword = ref(false)
+const showDisablePassword = ref(false)
+const showDeletePassword = ref(false)
 
 const form = ref({
   name: '',
@@ -619,6 +656,9 @@ const closeDeleteAccountModal = () => {
   deleteAccountPassword.value = ''
   deleteAccountError.value = ''
 }
+
+// Lock body scroll when any modal is open
+useBodyScrollLock([showDeleteAccountModal, show2FASetup, show2FADisable])
 
 onMounted(async () => {
   await loadUserData()
@@ -1226,5 +1266,39 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.input-wrapper-password {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 4;
+  color: #667eea;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.password-toggle:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #764ba2;
+}
+
+.password-toggle:focus {
+  outline: none;
+  background: rgba(102, 126, 234, 0.15);
 }
 </style>

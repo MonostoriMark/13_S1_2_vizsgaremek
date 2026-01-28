@@ -532,6 +532,7 @@ import { bookingService } from '../services/bookingService'
 import { guestService } from '../services/guestService'
 import { invoiceService } from '../services/invoiceService'
 import { useAuthStore } from '../stores/auth'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const bookings = ref([])
@@ -583,6 +584,9 @@ const filteredBookings = computed(() => {
   }
   return bookings.value
 })
+
+// Lock body scroll when any modal is open
+useBodyScrollLock([showGuestModal, showBookingActionsModal])
 
 onMounted(async () => {
   await loadBookings()

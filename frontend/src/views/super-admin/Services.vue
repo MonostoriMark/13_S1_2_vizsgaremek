@@ -99,6 +99,7 @@ import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import Toast from '../../components/Toast.vue'
 import { superAdminService } from '../../services/superAdminService'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const services = ref([])
 const availableHotels = ref([])
@@ -213,6 +214,9 @@ const closeModal = () => {
   resetForm()
   error.value = ''
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
 
 const resetForm = () => {
   form.value = {

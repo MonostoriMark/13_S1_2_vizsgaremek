@@ -1,7 +1,7 @@
 <template>
   <Transition name="modal">
     <div v-if="visible" class="modal-overlay" @click.self="handleSkip">
-      <div class="modal-content">
+      <div class="modal-content" @click.stop>
         <div class="modal-header">
           <div class="security-icon">🔐</div>
           <h2>Kétfaktoros hitelesítés engedélyezése</h2>
@@ -33,7 +33,8 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+import { defineProps, defineEmits, computed } from 'vue'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const props = defineProps({
   visible: {
@@ -51,6 +52,10 @@ const handleEnable = () => {
 const handleSkip = () => {
   emit('skip')
 }
+
+// Lock body scroll when modal is visible
+const isVisible = computed(() => props.visible)
+useBodyScrollLock(isVisible)
 </script>
 
 <style scoped>

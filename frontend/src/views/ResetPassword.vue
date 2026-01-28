@@ -36,12 +36,21 @@
               <input
                 id="password"
                 v-model="password"
-                type="password"
+                :type="showPassword ? 'text' : 'password'"
                 required
                 minlength="8"
                 placeholder="Adja meg az új jelszavát (min. 8 karakter)"
                 class="glass-input"
               />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showPassword = !showPassword"
+                :aria-label="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                :title="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+              >
+                {{ showPassword ? 'Elrejt' : 'Mutat' }}
+              </button>
               <div class="input-glow"></div>
             </div>
           </div>
@@ -53,12 +62,21 @@
               <input
                 id="confirmPassword"
                 v-model="confirmPassword"
-                type="password"
+                :type="showConfirmPassword ? 'text' : 'password'"
                 required
                 minlength="8"
                 placeholder="Erősítse meg az új jelszavát"
                 class="glass-input"
               />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showConfirmPassword = !showConfirmPassword"
+                :aria-label="showConfirmPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                :title="showConfirmPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+              >
+                {{ showConfirmPassword ? 'Elrejt' : 'Mutat' }}
+              </button>
               <div class="input-glow"></div>
             </div>
           </div>
@@ -115,6 +133,8 @@ const confirmPassword = ref('')
 const error = ref('')
 const successMessage = ref('')
 const loading = ref(false)
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 // Get token from route params
 const token = route.params.token || route.query.token
@@ -352,6 +372,36 @@ const handleSubmit = async () => {
   background: white;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 4;
+  color: #667eea;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.password-toggle:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #764ba2;
+}
+
+.password-toggle:focus {
+  outline: none;
+  background: rgba(102, 126, 234, 0.15);
 }
 
 .input-glow {

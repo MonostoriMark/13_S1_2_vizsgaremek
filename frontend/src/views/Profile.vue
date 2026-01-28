@@ -153,12 +153,23 @@
                       <p class="warning-text">⚠️ A 2FA letiltása csökkenti a fiók biztonságát.</p>
                       <div class="form-group">
                         <label>Adja meg a jelszavát a megerősítéshez</label>
-                        <input
-                          v-model="disablePassword"
-                          type="password"
-                          placeholder="Adja meg a jelszavát"
-                          class="form-input"
-                        />
+                        <div class="input-wrapper-password">
+                          <input
+                            v-model="disablePassword"
+                            :type="showDisablePassword ? 'text' : 'password'"
+                            placeholder="Adja meg a jelszavát"
+                            class="form-input"
+                          />
+                          <button
+                            type="button"
+                            class="password-toggle"
+                            @click="showDisablePassword = !showDisablePassword"
+                            :aria-label="showDisablePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                            :title="showDisablePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                          >
+                            {{ showDisablePassword ? 'Elrejt' : 'Mutat' }}
+                          </button>
+                        </div>
                       </div>
                       <div class="modal-footer-2fa">
                         <button @click="close2FADisable" class="btn-secondary">Mégse</button>
@@ -179,26 +190,48 @@
             
             <div class="form-group">
               <label for="password">Új jelszó</label>
-              <input
-                id="password"
-                v-model="formData.password"
-                type="password"
-                class="form-input"
-                placeholder="Adja meg az új jelszót (min. 8 karakter)"
-                :minlength="8"
-              />
+              <div class="input-wrapper-password">
+                <input
+                  id="password"
+                  v-model="formData.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  class="form-input"
+                  placeholder="Adja meg az új jelszót (min. 8 karakter)"
+                  :minlength="8"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showPassword = !showPassword"
+                  :aria-label="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  :title="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                >
+                  {{ showPassword ? 'Elrejt' : 'Mutat' }}
+                </button>
+              </div>
             </div>
 
             <div class="form-group">
               <label for="confirmPassword">Új jelszó megerősítése</label>
-              <input
-                id="confirmPassword"
-                v-model="formData.confirmPassword"
-                type="password"
-                class="form-input"
-                placeholder="Erősítse meg az új jelszót"
-                :minlength="8"
-              />
+              <div class="input-wrapper-password">
+                <input
+                  id="confirmPassword"
+                  v-model="formData.confirmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  class="form-input"
+                  placeholder="Erősítse meg az új jelszót"
+                  :minlength="8"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                  :aria-label="showConfirmPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  :title="showConfirmPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                >
+                  {{ showConfirmPassword ? 'Elrejt' : 'Mutat' }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -207,7 +240,7 @@
             <p class="section-description">Visszafordíthatatlan és destruktív műveletek</p>
             
             <div class="form-group">
-              <button @click="showDeleteAccountModal = true" class="btn-delete-account">
+              <button type="button" @click="showDeleteAccountModal = true" class="btn-delete-account">
                 <span class="delete-icon">🗑️</span>
                 Fiókom törlése
               </button>
@@ -231,7 +264,7 @@
     <!-- Delete Account Modal -->
     <Transition name="modal">
       <div v-if="showDeleteAccountModal" class="modal-overlay" @click.self="closeDeleteAccountModal">
-        <div class="modal-content-2fa">
+        <div class="modal-content-2fa" @click.stop>
           <div class="modal-header-2fa">
             <h3>Fiók törlése</h3>
             <button class="modal-close" @click="closeDeleteAccountModal">×</button>
@@ -241,12 +274,23 @@
             <p class="warning-text">⚠️ Ez a művelet nem vonható vissza. Ez véglegesen törli a fiókját és eltávolítja az összes adatát a szervereinkről.</p>
             <div class="form-group">
               <label>Adja meg a jelszavát a megerősítéshez</label>
-              <input
-                v-model="deleteAccountPassword"
-                type="password"
-                placeholder="Adja meg a jelszavát"
-                class="form-input"
-              />
+              <div class="input-wrapper-password">
+                <input
+                  v-model="deleteAccountPassword"
+                  :type="showDeletePassword ? 'text' : 'password'"
+                  placeholder="Adja meg a jelszavát"
+                  class="form-input"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  @click="showDeletePassword = !showDeletePassword"
+                  :aria-label="showDeletePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  :title="showDeletePassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                >
+                  {{ showDeletePassword ? 'Elrejt' : 'Mutat' }}
+                </button>
+              </div>
             </div>
             <div class="modal-footer-2fa">
               <button @click="closeDeleteAccountModal" class="btn-secondary">Mégse</button>
@@ -263,10 +307,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { authService } from '../services/authService'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -292,6 +337,15 @@ const twoFAQRCode = ref('')
 const twoFASecret = ref('')
 const twoFACode = ref('')
 const disablePassword = ref('')
+// Account deletion state
+const showDeleteAccountModal = ref(false)
+const deleteAccountPassword = ref('')
+const deletingAccount = ref(false)
+const deleteAccountError = ref('')
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+const showDisablePassword = ref(false)
+const showDeletePassword = ref(false)
 
 // Slideshow
 const slideshowImages = [
@@ -598,12 +652,6 @@ const close2FADisable = () => {
   formData.value.two_factor_enabled = true
 }
 
-// Account Deletion
-const showDeleteAccountModal = ref(false)
-const deleteAccountPassword = ref('')
-const deletingAccount = ref(false)
-const deleteAccountError = ref('')
-
 const confirmDeleteAccount = async () => {
   if (!deleteAccountPassword.value) {
     deleteAccountError.value = 'Kérjük, adja meg a jelszavát'
@@ -635,6 +683,9 @@ const closeDeleteAccountModal = () => {
   deleteAccountPassword.value = ''
   deleteAccountError.value = ''
 }
+
+// Lock body scroll when any modal is open
+useBodyScrollLock([showDeleteAccountModal, show2FASetup, show2FADisable])
 </script>
 
 <style scoped>
@@ -1207,6 +1258,40 @@ const closeDeleteAccountModal = () => {
   border-color: #667eea;
   background: white;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-wrapper-password {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 4;
+  color: #667eea;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.password-toggle:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #764ba2;
+}
+
+.password-toggle:focus {
+  outline: none;
+  background: rgba(102, 126, 234, 0.15);
 }
 
 .form-actions {

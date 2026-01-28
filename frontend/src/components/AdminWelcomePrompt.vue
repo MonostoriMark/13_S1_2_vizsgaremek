@@ -49,7 +49,8 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+import { defineProps, defineEmits, computed } from 'vue'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -86,6 +87,10 @@ const emit = defineEmits(['dismiss', 'primary', 'action'])
 const handleDismiss = () => {
   emit('dismiss')
 }
+
+// Lock body scroll when modal is visible
+const isVisible = computed(() => props.visible)
+useBodyScrollLock(isVisible)
 
 const handlePrimary = () => {
   emit('primary')

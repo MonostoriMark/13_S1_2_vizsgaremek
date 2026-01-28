@@ -223,6 +223,7 @@ import Toast from '../../components/Toast.vue'
 import { rfidKeyService } from '../../services/rfidKeyService'
 import { adminService } from '../../services/adminService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const hotels = ref([])
@@ -473,6 +474,9 @@ const closeModal = () => {
   resetForm()
   error.value = ''
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock([showModal, showAssignModal])
 
 const closeAssignModal = () => {
   showAssignModal.value = false

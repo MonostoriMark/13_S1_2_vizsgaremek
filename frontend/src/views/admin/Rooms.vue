@@ -492,6 +492,9 @@ const closeModal = () => {
   error.value = ''
 }
 
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
+
 const loadTags = async () => {
   try {
     const [tagsData, usageData] = await Promise.all([

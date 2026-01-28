@@ -69,13 +69,24 @@
 
               <div class="form-group">
                 <label>Jelszó {{ editingUser ? '(hagyja üresen a jelenlegi megtartásához)' : '*' }}</label>
-                <input 
-                  v-model="form.password" 
-                  type="password" 
-                  :required="!editingUser"
-                  placeholder="Adja meg a jelszót"
-                  :minlength="8"
-                />
+                <div class="input-wrapper-password">
+                  <input 
+                    v-model="form.password" 
+                    :type="showPassword ? 'text' : 'password'"
+                    :required="!editingUser"
+                    placeholder="Adja meg a jelszót"
+                    :minlength="8"
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    @click="showPassword = !showPassword"
+                    :aria-label="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                    :title="showPassword ? 'Jelszó elrejtése' : 'Jelszó megjelenítése'"
+                  >
+                    {{ showPassword ? 'Elrejt' : 'Mutat' }}
+                  </button>
+                </div>
               </div>
 
               <div class="form-group">
@@ -136,6 +147,7 @@ import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import Toast from '../../components/Toast.vue'
 import { superAdminService } from '../../services/superAdminService'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const users = ref([])
 const loading = ref(true)
@@ -146,6 +158,7 @@ const userToDelete = ref(null)
 const saving = ref(false)
 const error = ref('')
 const toast = ref(null)
+const showPassword = ref(false)
 
 const form = ref({
   name: '',
@@ -266,6 +279,9 @@ const closeModal = () => {
   resetForm()
   error.value = ''
 }
+
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
 
 const resetForm = () => {
   form.value = {
@@ -604,5 +620,39 @@ onMounted(async () => {
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+}
+
+.input-wrapper-password {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 4;
+  color: #667eea;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.password-toggle:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #764ba2;
+}
+
+.password-toggle:focus {
+  outline: none;
+  background: rgba(102, 126, 234, 0.15);
 }
 </style>

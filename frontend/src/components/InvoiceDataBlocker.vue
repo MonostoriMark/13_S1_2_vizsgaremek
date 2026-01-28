@@ -20,7 +20,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const router = useRouter()
 
@@ -37,6 +39,10 @@ const handleComplete = () => {
   router.push('/admin/users')
   emit('complete')
 }
+
+// Lock body scroll when blocker is visible
+const isVisible = computed(() => props.visible)
+useBodyScrollLock(isVisible)
 </script>
 
 <style scoped>

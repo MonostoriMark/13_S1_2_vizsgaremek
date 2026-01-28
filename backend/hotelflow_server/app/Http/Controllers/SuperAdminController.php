@@ -361,7 +361,8 @@ class SuperAdminController extends Controller
             'services' => ['nullable', 'array'],
             'services.*' => ['exists:services,id'],
             'status' => ['sometimes', 'in:pending,confirmed,cancelled,finished'],
-            'payment_method' => ['sometimes', 'in:bank_transfer'],
+            // NOTE: "card" is a simulated card payment (no real PSP integration).
+            'payment_method' => ['sometimes', 'in:bank_transfer,card'],
             'invoice_details' => ['sometimes', 'array'],
             'invoice_details.customer_type' => ['sometimes', 'in:private,business'],
             'invoice_details.full_name' => ['sometimes', 'string', 'max:255'],
@@ -508,10 +509,13 @@ class SuperAdminController extends Controller
 
             // Store payment and invoice details if provided
             if (isset($validated['payment_method'])) {
-                BookingPayment::firstOrCreate(
-                    ['booking_id' => $booking->id],
-                    ['method' => $validated['payment_method'], 'status' => 'pending']
-                );
+                $attrs = ['method' => $validated['payment_method'], 'status' => 'pending'];
+                if ($validated['payment_method'] === 'card') {
+                    $attrs['status'] = 'paid';
+                    $attrs['confirmed_at'] = now();
+                    $attrs['confirmed_by_user_id'] = $booking->users_id;
+                }
+                BookingPayment::firstOrCreate(['booking_id' => $booking->id], $attrs);
             }
 
             if (isset($validated['invoice_details'])) {
