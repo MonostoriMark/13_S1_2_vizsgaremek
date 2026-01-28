@@ -62,6 +62,20 @@ export const rfidKeyService = {
     return response.data
   },
 
+  // Get active manual (crew) assignments for a key
+  async getManualAssignments(keyId) {
+    const response = await api.get(`/rfid-keys/${keyId}/manual-assignments`)
+    return response.data
+  },
+
+  // Remove a single manual assignment from a key
+  async deleteManualAssignment(keyId, assignmentId) {
+    const response = await api.delete(
+      `/rfid-keys/${keyId}/manual-assignments/${assignmentId}`
+    )
+    return response.data
+  },
+
   // Get RFID key assignments for calendar view
   async getCalendarEvents(params = {}) {
     const response = await api.get('/rfid-keys/calendar', { params })

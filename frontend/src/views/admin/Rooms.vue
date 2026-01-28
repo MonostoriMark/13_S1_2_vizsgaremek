@@ -8,15 +8,123 @@
         </button>
       </div>
 
-      <div class="hotel-selector card">
-        <h3>Szálloda kiválasztása</h3>
-        <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
-          <option value="">Válasszon szállodát...</option>
-          <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
-          </option>
-        </select>
+      <!-- Compact hotel selector (like bookings supervision) -->
+      <div v-if="selectedHotel" class="hotel-selector-compact header-compact">
+        <div class="hotel-compact-info">
+          <div class="hotel-compact-icon">🏨</div>
+          <div class="hotel-compact-details">
+            <div class="hotel-compact-name">
+              {{ selectedHotel.name || `Szálloda #${selectedHotel.id}` }}
+            </div>
+            <div class="hotel-compact-location">
+              📍 {{ selectedHotel.location || 'Helyszín nincs megadva' }}
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="hotels.length > 1"
+          @click="openHotelCarousel"
+          class="hotel-change-btn"
+          title="Szálloda váltása"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 4V10H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Váltás</span>
+        </button>
       </div>
+
+      <!-- If no hotel is yet selected (initial load), we simply hide the selector;
+           the first hotel will be auto-selected in script once data arrives. -->
+
+      <!-- Minimal hotel carousel overlay (shared pattern with bookings) -->
+      <Transition name="fade">
+        <div
+          v-if="hotels.length > 1 && showHotelCarousel"
+          class="hotel-carousel-overlay"
+          @click.self="closeHotelCarousel"
+        >
+          <div class="hotel-carousel-container-minimal">
+            <div class="hotel-carousel-header-minimal">
+              <h3 class="carousel-title-minimal">🏨 Szálloda kiválasztása</h3>
+              <button @click="closeHotelCarousel" class="carousel-close-btn-minimal">×</button>
+            </div>
+
+            <div class="hotel-carousel-wrapper-minimal">
+              <button
+                @click="previousHotel"
+                class="carousel-nav-btn-modern carousel-prev-modern"
+                title="Előző szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div class="hotel-carousel-minimal">
+                <div
+                  class="hotel-card-carousel-minimal"
+                  :style="{ transform: `translateX(-${currentHotelIndex * 100}%)` }"
+                >
+                  <div
+                    v-for="hotel in hotels"
+                    :key="hotel.id"
+                    class="hotel-card-item-minimal"
+                    @click="selectHotelFromCarousel(hotel.id)"
+                    :class="{ selected: selectedHotelId === hotel.id }"
+                  >
+                    <div class="hotel-card-image-minimal">
+                      <img
+                        v-if="hotel.cover_image"
+                        :src="getImageUrl(hotel.cover_image)"
+                        :alt="hotel.name || 'Hotel'"
+                        class="hotel-cover-image-minimal"
+                        @error="handleImageError"
+                      />
+                      <div v-else class="hotel-image-placeholder-minimal">
+                        <span class="hotel-icon-minimal">🏨</span>
+                      </div>
+                    </div>
+                    <div class="hotel-card-content-minimal">
+                      <h4 class="hotel-card-name-minimal">
+                        {{ hotel.name || `Szálloda #${hotel.id}` }}
+                      </h4>
+                      <p class="hotel-card-location-minimal">
+                        📍 {{ hotel.location || 'Helyszín nincs megadva' }}
+                      </p>
+                      <button class="hotel-select-btn-minimal">
+                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás →' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="nextHotel"
+                class="carousel-nav-btn-modern carousel-next-modern"
+                title="Következő szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 18L15 12L9 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="carousel-indicators-minimal">
+              <button
+                v-for="(hotel, index) in hotels"
+                :key="hotel.id"
+                @click="goToHotel(index)"
+                class="carousel-indicator-minimal"
+                :class="{ active: currentHotelIndex === index }"
+              ></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <div v-if="selectedHotel">
         <DataTable
@@ -189,6 +297,8 @@ const authStore = useAuthStore()
 const hotels = ref([])
 const rooms = ref([])
 const loading = ref(true)
+const showHotelCarousel = ref(false)
+const currentHotelIndex = ref(0)
 const showModal = ref(false)
 const showDeleteDialog = ref(false)
 const editingRoom = ref(null)
@@ -230,10 +340,14 @@ const loadHotels = async () => {
     const data = await adminService.getHotels()
     hotels.value = data.filter(h => h.user_id === authStore.state.user?.id)
     
-    // Auto-select if only one hotel
-    if (hotels.value.length === 1) {
+    // Auto-select first hotel if none selected yet
+    if (hotels.value.length > 0 && !selectedHotelId.value) {
       selectedHotelId.value = hotels.value[0].id
+      currentHotelIndex.value = 0
       await loadRooms()
+    } else if (selectedHotelId.value) {
+      const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+      if (index >= 0) currentHotelIndex.value = index
     }
   } catch (err) {
     showToast('A szállodák betöltése sikertelen', 'error')
@@ -242,11 +356,61 @@ const loadHotels = async () => {
 
 const handleHotelChange = async () => {
   if (selectedHotelId.value) {
+    const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+    if (index >= 0) currentHotelIndex.value = index
     await loadRooms()
   } else {
     rooms.value = []
     loading.value = false
   }
+}
+
+// Hotel carousel helpers (shared UX with bookings supervision)
+const openHotelCarousel = () => {
+  if (!hotels.value.length) return
+  const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+  currentHotelIndex.value = index >= 0 ? index : 0
+  showHotelCarousel.value = true
+}
+
+const closeHotelCarousel = () => {
+  showHotelCarousel.value = false
+}
+
+const selectHotelFromCarousel = async (hotelId) => {
+  selectedHotelId.value = hotelId
+  await loadRooms()
+  const index = hotels.value.findIndex(h => h.id === hotelId)
+  if (index >= 0) currentHotelIndex.value = index
+  showHotelCarousel.value = false
+}
+
+const previousHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value - 1 + hotels.value.length) % hotels.value.length
+}
+
+const nextHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value + 1) % hotels.value.length
+}
+
+const goToHotel = (index) => {
+  if (index < 0 || index >= hotels.value.length) return
+  currentHotelIndex.value = index
+}
+
+const getImageUrl = (relativePath) => {
+  if (!relativePath) return ''
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''
+  if (relativePath.startsWith('http')) return relativePath
+  return `${baseUrl}${relativePath}`
+}
+
+const handleImageError = (event) => {
+  event.target.style.display = 'none'
 }
 
 const loadRooms = async () => {
@@ -599,6 +763,320 @@ onUnmounted(() => {
 <style scoped>
 .rooms-page {
   max-width: 1400px;
+}
+
+/* Shared compact hotel selector + carousel styles (aligned with bookings list) */
+.hotel-selector-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 1rem;
+}
+
+.hotel-selector-compact.header-compact {
+  max-width: 420px;
+  margin: 0 0 2rem 0;
+  flex-shrink: 0;
+  padding: 0.625rem 0.875rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hotel-compact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.hotel-compact-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hotel-compact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hotel-compact-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotel-compact-location {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hotel-change-btn {
+  padding: 0.625rem 1.125rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hotel-change-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.35);
+}
+
+.hotel-change-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hotel-carousel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.hotel-carousel-container-minimal {
+  width: 100%;
+  max-width: 500px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.hotel-carousel-header-minimal {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carousel-title-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carousel-close-btn-minimal {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.carousel-close-btn-minimal:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.hotel-carousel-wrapper-minimal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1.5rem 0;
+  background: #f8f9fa;
+  min-height: 280px;
+}
+
+.hotel-carousel-minimal {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.hotel-card-carousel-minimal {
+  display: flex;
+  transition: transform 0.4s ease;
+}
+
+.hotel-card-item-minimal {
+  min-width: 100%;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: #10b981;
+}
+
+.hotel-card-image-minimal {
+  width: 100%;
+  max-width: 360px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotel-cover-image-minimal {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotel-image-placeholder-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #adb5bd;
+  font-size: 2.5rem;
+}
+
+.hotel-card-content-minimal {
+  text-align: center;
+}
+
+.hotel-card-name-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #2c3e50;
+}
+
+.hotel-card-location-minimal {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 0.75rem;
+}
+
+.hotel-select-btn-minimal {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: #667eea;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.carousel-nav-btn-modern {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.85);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+}
+
+.carousel-nav-btn-modern:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.carousel-prev-modern {
+  margin-left: 1rem;
+}
+
+.carousel-next-modern {
+  margin-right: 1rem;
+}
+
+.carousel-indicators-minimal {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.carousel-indicator-minimal {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.carousel-indicator-minimal.active {
+  width: 18px;
+  background: #4f46e5;
 }
 
 .page-header {

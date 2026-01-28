@@ -565,12 +565,49 @@ class SuperAdminController extends Controller
 
     public function deleteBooking($id)
     {
-        $booking = Booking::find($id);
+        $booking = Booking::with('rooms')->find($id);
         if (!$booking) {
             return response()->json(['message' => 'Booking not found'], 404);
         }
-        $booking->delete();
-        return response()->json(['message' => 'Booking deleted'], 200);
+
+        DB::beginTransaction();
+        try {
+            // Release all active RFID assignments for this booking
+            $assignments = RFIDAssignment::where('booking_id', $booking->id)
+                ->whereNull('released_at')
+                ->get();
+
+            foreach ($assignments as $assignment) {
+                $assignment->released_at = now();
+                $assignment->save();
+            }
+
+            // Backward-compat: release legacy room<->key connections if any exist,
+            // and mark keys as not used, similar to BookingController::deleteBooking
+            foreach ($booking->rooms as $room) {
+                $rfidConnection = RFIDConnection::where('rooms_id', $room->id)->first();
+                if ($rfidConnection) {
+                    $rfidKey = RFIDKey::where('rfidKey', $rfidConnection->rfidKeys_id)->first();
+                    if ($rfidKey) {
+                        $rfidKey->isUsed = false;
+                        $rfidKey->save();
+                    }
+                    $rfidConnection->delete();
+                }
+            }
+
+            $booking->delete();
+
+            DB::commit();
+
+            return response()->json(['message' => 'Booking deleted'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to delete booking',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // ========== INVOICES MANAGEMENT ==========

@@ -127,7 +127,10 @@ class RFIDKeyController extends Controller
 
             $query = RFIDAssignment::whereHas('rfidKey', function ($q) use ($hotel) {
                 $q->where('hotels_id', $hotel->id);
-            })->with(['rfidKey', 'booking.user', 'room']);
+            })
+            // Only active assignments (not yet released)
+            ->whereNull('released_at')
+            ->with(['rfidKey', 'booking.user', 'room']);
 
             if ($start) {
                 $query->whereDate('reserved_to', '>=', $start);
@@ -542,6 +545,120 @@ class RFIDKeyController extends Controller
     }
 
     /**
+     * List active manual (crew) assignments for a given RFID key.
+     */
+    public function manualAssignments($id)
+    {
+        $user = auth()->user();
+        $hotel = Hotel::where('user_id', $user->id)->first();
+
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        $key = RFIDKey::where('id', $id)
+            ->where('hotels_id', $hotel->id)
+            ->first();
+
+        if (!$key) {
+            return response()->json(['message' => 'RFID key not found'], 404);
+        }
+
+        // Only crew cards have manual room assignments
+        if (($key->type ?? 'guest') !== 'crew') {
+            return response()->json([
+                'error' => 'Csak személyzeti kártyákhoz tartoznak manuális hozzárendelések'
+            ], 400);
+        }
+
+        $assignments = RFIDAssignment::where('rfid_key_id', $key->id)
+            ->whereNull('booking_id')        // manual assignments only
+            ->whereNull('released_at')       // only active
+            ->with('room')
+            ->orderBy('reserved_from')
+            ->get()
+            ->map(function ($assignment) {
+                return [
+                    'id' => $assignment->id,
+                    'room_id' => $assignment->room_id,
+                    'room_name' => optional($assignment->room)->name,
+                    'reserved_from' => optional($assignment->reserved_from)->toDateString(),
+                    'reserved_to' => optional($assignment->reserved_to)->toDateString(),
+                ];
+            });
+
+        return response()->json(['assignments' => $assignments], 200);
+    }
+
+    /**
+     * Remove a single manual assignment from a crew RFID key.
+     */
+    public function deleteManualAssignment($id, $assignmentId)
+    {
+        $user = auth()->user();
+        $hotel = Hotel::where('user_id', $user->id)->first();
+
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        $key = RFIDKey::where('id', $id)
+            ->where('hotels_id', $hotel->id)
+            ->first();
+
+        if (!$key) {
+            return response()->json(['message' => 'RFID key not found'], 404);
+        }
+
+        // Only crew cards have manual room assignments
+        if (($key->type ?? 'guest') !== 'crew') {
+            return response()->json([
+                'error' => 'Csak személyzeti kártyák manuális hozzárendelései módosíthatók'
+            ], 400);
+        }
+
+        $assignment = RFIDAssignment::where('id', $assignmentId)
+            ->where('rfid_key_id', $key->id)
+            ->whereNull('booking_id')      // manual assignment
+            ->whereNull('released_at')     // still active
+            ->first();
+
+        if (!$assignment) {
+            return response()->json(['message' => 'Hozzárendelés nem található vagy már fel van oldva'], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Mark this assignment as released
+            $assignment->released_at = now();
+            $assignment->save();
+
+            // Remove only this specific key-room mapping from device connections
+            RFIDConnection::where('rfidKeys_id', $key->rfidKey)
+                ->where('rooms_id', $assignment->room_id)
+                ->delete();
+
+            // If there are no other active assignments (manual or booking-based),
+            // mark key as not used
+            $stillActive = RFIDAssignment::where('rfid_key_id', $key->id)
+                ->whereNull('released_at')
+                ->exists();
+
+            if (!$stillActive) {
+                $key->isUsed = false;
+                $key->save();
+            }
+
+            DB::commit();
+
+            return response()->json(['message' => 'Hozzárendelés sikeresen eltávolítva'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Nem sikerült eltávolítani a hozzárendelést'], 500);
+        }
+    }
+
+    /**
      * Release RFID key from assignment
      */
     public function release($id)
@@ -561,9 +678,12 @@ class RFIDKeyController extends Controller
             return response()->json(['message' => 'RFID key not found'], 404);
         }
 
-        $assignment = $key->activeAssignment;
+        // Find all active assignments for this key (booking-based and manual)
+        $assignments = RFIDAssignment::where('rfid_key_id', $key->id)
+            ->whereNull('released_at')
+            ->get();
 
-        if (!$assignment) {
+        if ($assignments->isEmpty()) {
             return response()->json([
                 'error' => 'RFID key is not currently assigned'
             ], 400);
@@ -571,11 +691,18 @@ class RFIDKeyController extends Controller
 
         DB::beginTransaction();
         try {
-            // Release assignment
-            $assignment->released_at = now();
-            $assignment->save();
+            // Mark all assignments as released
+            foreach ($assignments as $assignment) {
+                $assignment->released_at = now();
+                $assignment->save();
+            }
 
-            // Update key isUsed flag
+            // For master / crew keys, also remove all RFIDConnections so devices
+            // no longer receive this key-room mapping. For guest keys this is
+            // also safe and keeps connections in sync with assignments.
+            RFIDConnection::where('rfidKeys_id', $key->rfidKey)->delete();
+
+            // Update key usage flag
             $key->isUsed = false;
             $key->save();
 

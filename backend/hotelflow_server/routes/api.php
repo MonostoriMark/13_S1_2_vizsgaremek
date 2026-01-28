@@ -81,12 +81,14 @@ Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
     Route::get('/rfid-keys/bookings', [RFIDKeyController::class, 'getAvailableBookings']);
     Route::get('/rfid-keys/calendar', [RFIDKeyController::class, 'calendarAssignments']);
     Route::get('/rfid-keys/{id}', [RFIDKeyController::class, 'show']);
+    Route::get('/rfid-keys/{id}/manual-assignments', [RFIDKeyController::class, 'manualAssignments']);
     Route::post('/rfid-keys', [RFIDKeyController::class, 'store']);
     Route::patch('/rfid-keys/{id}', [RFIDKeyController::class, 'update']);
     Route::delete('/rfid-keys/{id}', [RFIDKeyController::class, 'destroy']);
     Route::post('/rfid-keys/{id}/assign', [RFIDKeyController::class, 'assign']);
     Route::post('/rfid-keys/{id}/assign-room', [RFIDKeyController::class, 'assignToRoom']);
     Route::post('/rfid-keys/{id}/release', [RFIDKeyController::class, 'release']);
+    Route::delete('/rfid-keys/{id}/manual-assignments/{assignmentId}', [RFIDKeyController::class, 'deleteManualAssignment']);
 });
 
 //IDE MÉG JÖN EGY ELÉRHETŐSÉG ELLENŐRZÉS VÉGPONT

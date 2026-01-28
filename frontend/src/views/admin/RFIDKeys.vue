@@ -8,16 +8,123 @@
         </button>
       </div>
 
-      <!-- Hotel selector -->
-      <div class="hotel-selector card">
-        <h3>Szálloda kiválasztása</h3>
-        <select v-model="selectedHotelId" @change="handleHotelChange" class="hotel-select">
-          <option value="">Válasszon szállodát...</option>
-          <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
-          </option>
-        </select>
+      <!-- Compact hotel selector (like bookings supervision) -->
+      <div v-if="selectedHotel" class="hotel-selector-compact header-compact">
+        <div class="hotel-compact-info">
+          <div class="hotel-compact-icon">🏨</div>
+          <div class="hotel-compact-details">
+            <div class="hotel-compact-name">
+              {{ selectedHotel.name || `Szálloda #${selectedHotel.id}` }}
+            </div>
+            <div class="hotel-compact-location">
+              📍 {{ selectedHotel.location || 'Helyszín nincs megadva' }}
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="hotels.length > 1"
+          @click="openHotelCarousel"
+          class="hotel-change-btn"
+          title="Szálloda váltása"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 4V10H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Váltás</span>
+        </button>
       </div>
+
+      <!-- If no hotel is yet selected (initial load), we simply hide the selector;
+           the first hotel will be auto-selected in script once data arrives. -->
+
+      <!-- Minimal hotel carousel overlay (shared pattern with bookings) -->
+      <Transition name="fade">
+        <div
+          v-if="hotels.length > 1 && showHotelCarousel"
+          class="hotel-carousel-overlay"
+          @click.self="closeHotelCarousel"
+        >
+          <div class="hotel-carousel-container-minimal">
+            <div class="hotel-carousel-header-minimal">
+              <h3 class="carousel-title-minimal">🏨 Szálloda kiválasztása</h3>
+              <button @click="closeHotelCarousel" class="carousel-close-btn-minimal">×</button>
+            </div>
+
+            <div class="hotel-carousel-wrapper-minimal">
+              <button
+                @click="previousHotel"
+                class="carousel-nav-btn-modern carousel-prev-modern"
+                title="Előző szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div class="hotel-carousel-minimal">
+                <div
+                  class="hotel-card-carousel-minimal"
+                  :style="{ transform: `translateX(-${currentHotelIndex * 100}%)` }"
+                >
+                  <div
+                    v-for="hotel in hotels"
+                    :key="hotel.id"
+                    class="hotel-card-item-minimal"
+                    @click="selectHotelFromCarousel(hotel.id)"
+                    :class="{ selected: selectedHotelId === hotel.id }"
+                  >
+                    <div class="hotel-card-image-minimal">
+                      <img
+                        v-if="hotel.cover_image"
+                        :src="getImageUrl(hotel.cover_image)"
+                        :alt="hotel.name || 'Hotel'"
+                        class="hotel-cover-image-minimal"
+                        @error="handleImageError"
+                      />
+                      <div v-else class="hotel-image-placeholder-minimal">
+                        <span class="hotel-icon-minimal">🏨</span>
+                      </div>
+                    </div>
+                    <div class="hotel-card-content-minimal">
+                      <h4 class="hotel-card-name-minimal">
+                        {{ hotel.name || `Szálloda #${hotel.id}` }}
+                      </h4>
+                      <p class="hotel-card-location-minimal">
+                        📍 {{ hotel.location || 'Helyszín nincs megadva' }}
+                      </p>
+                      <button class="hotel-select-btn-minimal">
+                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás →' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="nextHotel"
+                class="carousel-nav-btn-modern carousel-next-modern"
+                title="Következő szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 18L15 12L9 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="carousel-indicators-minimal">
+              <button
+                v-for="(hotel, index) in hotels"
+                :key="hotel.id"
+                @click="goToHotel(index)"
+                class="carousel-indicator-minimal"
+                :class="{ active: currentHotelIndex === index }"
+              ></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Calendar view - primary content -->
       <div v-if="selectedHotel" class="calendar-section card">
@@ -106,7 +213,7 @@
               <span class="legend-label">{{ item.uid }}</span>
             </span>
             <span class="legend-item legend-help">
-              Vigye az egeret egy pontra a foglalás részleteinek megtekintéséhez.
+              Vigye az egeret egy pontra a foglalás részleteinek megtekintéséhez, majd kattintson a gombra a foglalás megnyitásához.
             </span>
           </div>
 
@@ -128,6 +235,15 @@
             <div class="tooltip-row">
               <span class="tooltip-label">Időszak:</span>
               <span>{{ hoveredEvent.reserved_from }} → {{ hoveredEvent.reserved_to }}</span>
+            </div>
+            <div class="tooltip-actions" v-if="hoveredEvent.booking_id">
+              <button
+                type="button"
+                class="btn-link"
+                @click="goToBooking(hoveredEvent.booking_id)"
+              >
+                Foglalás megnyitása
+              </button>
             </div>
           </div>
         </div>
@@ -274,6 +390,32 @@
 
               <div class="key-info">
                 <p><strong>UID:</strong> {{ keyToAssign?.uid }}</p>
+                <p v-if="keyToAssign?.name"><strong>Név:</strong> {{ keyToAssign.name }}</p>
+              </div>
+
+              <!-- Existing manual assignments for this crew card -->
+              <div class="existing-assignments" v-if="keyToAssign && keyToAssign.type === 'crew'">
+                <h3 class="section-title">Aktív hozzárendelések</h3>
+                <div v-if="crewAssignmentsLoading" class="assignments-loading">
+                  Hozzárendelések betöltése...
+                </div>
+                <div v-else-if="!crewAssignments.length" class="assignments-empty">
+                  Jelenleg nincs aktív manuális hozzárendelés ehhez a kártyához.
+                </div>
+                <ul v-else class="assignments-list">
+                  <li
+                    v-for="assignment in crewAssignments"
+                    :key="assignment.id"
+                    class="assignment-item"
+                  >
+                    <div class="assignment-main">
+                      <span class="assignment-room">{{ assignment.room_name || 'Ismeretlen szoba' }}</span>
+                      <span class="assignment-dates">
+                        {{ assignment.reserved_from }} → {{ assignment.reserved_to }}
+                      </span>
+                    </div>
+                  </li>
+                </ul>
               </div>
 
               <div class="form-group">
@@ -372,6 +514,7 @@
 
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
@@ -381,11 +524,14 @@ import { adminService } from '../../services/adminService'
 import { useAuthStore } from '../../stores/auth'
 import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const hotels = ref([])
 const keys = ref([])
 const typeFilter = ref('all')
 const loading = ref(false)
+const showHotelCarousel = ref(false)
+const currentHotelIndex = ref(0)
 const showModal = ref(false)
 const showAssignModal = ref(false)
 const showDeleteDialog = ref(false)
@@ -394,6 +540,8 @@ const editingKey = ref(null)
 const keyToAssign = ref(null)
 const keyToDelete = ref(null)
 const keyToRelease = ref(null)
+const crewAssignments = ref([])
+const crewAssignmentsLoading = ref(false)
 const saving = ref(false)
 const assigning = ref(false)
 const error = ref('')
@@ -494,6 +642,13 @@ const hideEventTooltip = () => {
   hoveredEvent.value = null
 }
 
+const goToBooking = (bookingId) => {
+  if (!bookingId) return
+  // Navigate to admin bookings list, passing the booking ID as a query param
+  // The bookings page can use this to scroll/filter to the specific booking.
+  router.push({ name: 'AdminBookings', query: { highlight: bookingId } })
+}
+
 const formatEventTooltip = (event) => {
   const from = event.reserved_from || ''
   const to = event.reserved_to || ''
@@ -540,6 +695,7 @@ const columns = [
   { key: 'uid', label: 'UID', sortable: true },
   { key: 'name', label: 'Név / leírás', sortable: true },
   { key: 'type', label: 'Típus', sortable: true },
+  { key: 'status', label: 'Státusz', sortable: true },
   { key: 'created_at', label: 'Létrehozva', type: 'date' }
 ]
 
@@ -561,9 +717,16 @@ const loadHotels = async () => {
     const data = await adminService.getHotels()
     hotels.value = data.filter(h => h.user_id === authStore.state.user?.id)
     
-    // Auto-select if only one hotel
-    if (hotels.value.length === 1) {
+    // Auto-select first hotel if none selected yet
+    if (hotels.value.length > 0 && !selectedHotelId.value) {
       selectedHotelId.value = hotels.value[0].id
+      currentHotelIndex.value = 0
+      await loadKeys()
+      await loadCalendar()
+      await loadHotelRooms()
+    } else if (selectedHotelId.value) {
+      const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+      if (index >= 0) currentHotelIndex.value = index
       await loadKeys()
       await loadCalendar()
       await loadHotelRooms()
@@ -578,6 +741,8 @@ const loadHotels = async () => {
 
 const handleHotelChange = async () => {
   if (selectedHotelId.value) {
+    const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+    if (index >= 0) currentHotelIndex.value = index
     await loadKeys()
     await loadCalendar()
     await loadHotelRooms()
@@ -586,6 +751,56 @@ const handleHotelChange = async () => {
     calendarEvents.value = []
     loading.value = false
   }
+}
+
+// Hotel carousel helpers (shared UX with bookings supervision)
+const openHotelCarousel = () => {
+  if (!hotels.value.length) return
+  const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+  currentHotelIndex.value = index >= 0 ? index : 0
+  showHotelCarousel.value = true
+}
+
+const closeHotelCarousel = () => {
+  showHotelCarousel.value = false
+}
+
+const selectHotelFromCarousel = async (hotelId) => {
+  selectedHotelId.value = hotelId
+  const index = hotels.value.findIndex(h => h.id === hotelId)
+  if (index >= 0) currentHotelIndex.value = index
+  await loadKeys()
+  await loadCalendar()
+  await loadHotelRooms()
+  showHotelCarousel.value = false
+}
+
+const previousHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value - 1 + hotels.value.length) % hotels.value.length
+}
+
+const nextHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value + 1) % hotels.value.length
+}
+
+const goToHotel = (index) => {
+  if (index < 0 || index >= hotels.value.length) return
+  currentHotelIndex.value = index
+}
+
+const getImageUrl = (relativePath) => {
+  if (!relativePath) return ''
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''
+  if (relativePath.startsWith('http')) return relativePath
+  return `${baseUrl}${relativePath}`
+}
+
+const handleImageError = (event) => {
+  event.target.style.display = 'none'
 }
 
 const loadHotelRooms = async () => {
@@ -709,6 +924,18 @@ const openAssignModal = async (key) => {
     await loadHotelRooms()
   }
 
+  // Load existing manual assignments for this crew key
+  try {
+    crewAssignmentsLoading.value = true
+    const data = await rfidKeyService.getManualAssignments(key.id)
+    crewAssignments.value = data.assignments || []
+  } catch (err) {
+    console.error('Failed to load manual assignments for key', err)
+    crewAssignments.value = []
+  } finally {
+    crewAssignmentsLoading.value = false
+  }
+
   showAssignModal.value = true
 }
 
@@ -719,18 +946,37 @@ const confirmAssign = async () => {
   assignError.value = ''
 
   try {
+    // Ha a kártya már használatban van, először feloldjuk a meglévő hozzárendeléseket,
+    // majd az új beállításokkal újra hozzárendeljük.
+    if (keyToAssign.value.isUsed) {
+      await rfidKeyService.releaseKey(keyToAssign.value.id)
+    }
+
+    // Név módosítása, ha crew kártya és van megadott név
+    if (keyToAssign.value.type === 'crew' && typeof keyToAssign.value.name !== 'undefined') {
+      await rfidKeyService.updateKey(keyToAssign.value.id, {
+        name: keyToAssign.value.name
+      })
+    }
+
+    // Új hozzárendelések létrehozása (szobák + dátumok)
     await rfidKeyService.assignKeyToRoom(keyToAssign.value.id, {
       room_ids: assignForm.value.room_ids,
       start_date: assignForm.value.start_date,
       end_date: assignForm.value.lifetime ? null : assignForm.value.end_date,
       lifetime: assignForm.value.lifetime
     })
-    showToast('RFID kulcs sikeresen hozzárendelve a szobához', 'success')
-    closeAssignModal()
+
+    showToast('Hozzárendelés sikeresen frissítve', 'success')
+
+    // Frissítjük a táblázatot és a naptárat
     await loadKeys()
     await loadCalendar()
+
+    closeAssignModal()
   } catch (err) {
-    assignError.value = err.response?.data?.error || err.response?.data?.message || 'A hozzárendelés sikertelen'
+    assignError.value =
+      err.response?.data?.error || err.response?.data?.message || 'A hozzárendelés frissítése sikertelen'
   } finally {
     assigning.value = false
   }
@@ -814,6 +1060,7 @@ const closeAssignModal = () => {
   keyToAssign.value = null
   resetAssignForm()
   assignError.value = ''
+  crewAssignments.value = []
 }
 
 const resetForm = () => {
@@ -865,6 +1112,320 @@ onUnmounted(() => {
 .rfid-keys-page {
   max-width: 1400px;
   padding: 1.5rem 1.25rem 2rem;
+}
+
+/* Shared compact hotel selector + carousel styles (aligned with bookings list) */
+.hotel-selector-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 1rem;
+}
+
+.hotel-selector-compact.header-compact {
+  max-width: 420px;
+  margin: 0 0 2rem 0;
+  flex-shrink: 0;
+  padding: 0.625rem 0.875rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hotel-compact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.hotel-compact-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hotel-compact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hotel-compact-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotel-compact-location {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hotel-change-btn {
+  padding: 0.625rem 1.125rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hotel-change-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.35);
+}
+
+.hotel-change-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hotel-carousel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.hotel-carousel-container-minimal {
+  width: 100%;
+  max-width: 500px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.hotel-carousel-header-minimal {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carousel-title-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carousel-close-btn-minimal {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.carousel-close-btn-minimal:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.hotel-carousel-wrapper-minimal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1.5rem 0;
+  background: #f8f9fa;
+  min-height: 280px;
+}
+
+.hotel-carousel-minimal {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.hotel-card-carousel-minimal {
+  display: flex;
+  transition: transform 0.4s ease;
+}
+
+.hotel-card-item-minimal {
+  min-width: 100%;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: #10b981;
+}
+
+.hotel-card-image-minimal {
+  width: 100%;
+  max-width: 360px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotel-cover-image-minimal {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotel-image-placeholder-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #adb5bd;
+  font-size: 2.5rem;
+}
+
+.hotel-card-content-minimal {
+  text-align: center;
+}
+
+.hotel-card-name-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #2c3e50;
+}
+
+.hotel-card-location-minimal {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 0.75rem;
+}
+
+.hotel-select-btn-minimal {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: #667eea;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.carousel-nav-btn-modern {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.85);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+}
+
+.carousel-nav-btn-modern:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.carousel-prev-modern {
+  margin-left: 1rem;
+}
+
+.carousel-next-modern {
+  margin-right: 1rem;
+}
+
+.carousel-indicators-minimal {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.carousel-indicator-minimal {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.carousel-indicator-minimal.active {
+  width: 18px;
+  background: #4f46e5;
 }
 
 .page-header {
@@ -1377,6 +1938,81 @@ onUnmounted(() => {
 
 .room-chip input {
   margin: 0;
+}
+
+.existing-assignments {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.existing-assignments .section-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.assignments-loading,
+.assignments-empty {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.assignments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.assignment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.assignment-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.assignment-room {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.assignment-dates {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.btn-small-danger {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: 999px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-small-danger:hover {
+  background: #b91c1c;
 }
 
 .modal-footer {
