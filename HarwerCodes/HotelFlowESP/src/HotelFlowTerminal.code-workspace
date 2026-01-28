@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../HotelFlowTerminal"
+		},
+		{
+			"name": "HotelFlowESP",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}
