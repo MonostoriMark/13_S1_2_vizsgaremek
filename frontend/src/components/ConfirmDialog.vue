@@ -1,7 +1,7 @@
 <template>
   <Transition name="modal">
     <div v-if="isVisible" class="modal-overlay" @click.self="handleCancel">
-      <div class="modal-content">
+      <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>{{ title }}</h3>
         </div>
@@ -21,6 +21,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useBodyScrollLock } from '../composables/useBodyScrollLock'
 
 const props = defineProps({
   visible: {
@@ -57,6 +58,9 @@ const isVisible = ref(props.visible)
 watch(() => props.visible, (newVal) => {
   isVisible.value = newVal
 })
+
+// Lock body scroll when modal is visible
+useBodyScrollLock(isVisible)
 
 const handleConfirm = () => {
   emit('confirm')

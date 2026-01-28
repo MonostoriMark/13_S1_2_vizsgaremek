@@ -56,6 +56,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | Base URL of the frontend application (used for links in emails, redirects,
+    | etc.). Set this to your LAN / public address, e.g. http://192.168.1.10:5173
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Invoice PDF Formatting (Hungary)
+    |--------------------------------------------------------------------------
+    |
+    | Currency printed on invoices and (optional) conversion rate if your
+    | internal amounts are stored in EUR. Defaults match a Hungary-focused setup.
+    |
+    */
+
+    'invoice_currency' => env('INVOICE_CURRENCY', 'HUF'),
+    'invoice_eur_to_huf_rate' => (float) env('INVOICE_EUR_TO_HUF_RATE', 383.63),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

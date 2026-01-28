@@ -9,12 +9,30 @@ const api = axios.create({
   }
 })
 
-// Request interceptor to add auth token
+// Request interceptor to handle FormData (don't set Content-Type for FormData)
+api.interceptors.request.use(
+  (config) => {
+    // If data is FormData, let browser set Content-Type with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Request interceptor to add auth token (merged with FormData handler above)
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    // If data is FormData, let browser set Content-Type with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
     }
     return config
   },

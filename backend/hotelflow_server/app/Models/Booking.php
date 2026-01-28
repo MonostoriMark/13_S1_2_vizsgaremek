@@ -19,6 +19,10 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'users_id');
     }
 
+    public function hotel() {
+        return $this->belongsTo(Hotel::class, 'hotels_id');
+    }
+
     public function rooms() {
         return $this->belongsToMany(Room::class, 'bookingsRelation', 'booking_id', 'rooms_id');
     }
@@ -29,5 +33,27 @@ class Booking extends Model
 
     public function services() {
         return $this->belongsToMany(Service::class, 'servicesRelation', 'bookings_id', 'services_id');
+    }
+
+    public function rfidAssignments() {
+        return $this->hasMany(RFIDAssignment::class);
+    }
+
+    public function activeRfidAssignments() {
+        return $this->hasMany(RFIDAssignment::class)->whereNull('released_at');
+    }
+
+    public function invoice() {
+        return $this->hasOne(Invoice::class, 'booking_id');
+    }
+
+    public function payment()
+    {
+        return $this->hasOne(BookingPayment::class, 'booking_id');
+    }
+
+    public function invoiceDetails()
+    {
+        return $this->hasOne(BookingInvoiceDetail::class, 'booking_id');
     }
 }

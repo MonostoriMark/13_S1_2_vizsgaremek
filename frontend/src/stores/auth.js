@@ -13,31 +13,64 @@ const storedUser = localStorage.getItem('auth_user')
 
 if (storedToken && storedUser) {
   state.token = storedToken
-  state.user = JSON.parse(storedUser)
+  const user = JSON.parse(storedUser)
+  state.user = {
+    ...user,
+    two_factor_enabled: user.two_factor_enabled || false
+  }
   state.isAuthenticated = true
 }
 
 export const useAuthStore = () => {
-  const login = async (email, password) => {
+  const login = async (email, password, twoFactorCode = null) => {
     try {
-      const data = await authService.login(email, password)
+      const data = await authService.login(email, password, twoFactorCode)
+      
+      // Check if 2FA is required
+      if (data.requires_2fa) {
+        return {
+          success: false,
+          requires_2fa: true,
+          message: data.message || 'Two-factor authentication code required'
+        }
+      }
+
+      // Check if 2FA setup is required (first time)
+      if (data.requires_2fa_setup) {
+        return {
+          success: false,
+          requires_2fa_setup: true,
+          two_factor_secret: data.two_factor_secret,
+          qr_code: data.qr_code,
+          message: data.message || 'Please set up two-factor authentication'
+        }
+      }
+
+      // Normal login success
       state.token = data.token
       state.user = {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role
+        role: data.role,
+        isVerified: data.isVerified !== undefined ? data.isVerified : true,
+        two_factor_enabled: data.two_factor_enabled || false
       }
       state.isAuthenticated = true
       
       localStorage.setItem('auth_token', data.token)
       localStorage.setItem('auth_user', JSON.stringify(state.user))
       
-      return { success: true }
+      return { 
+        success: true,
+        show_2fa_prompt: data.show_2fa_prompt || false
+      }
     } catch (error) {
+      const responseData = error.response?.data || {}
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message: responseData.message || 'Login failed',
+        email_verified: responseData.email_verified !== false
       }
     }
   }
@@ -45,19 +78,16 @@ export const useAuthStore = () => {
   const registerUser = async (name, email, password) => {
     try {
       const data = await authService.registerUser(name, email, password)
-      state.token = data.token
-      state.user = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role
+      
+      // DO NOT authenticate user - they must verify email first
+      // Do not set token, user, or isAuthenticated
+      // Do not store in localStorage
+      
+      return { 
+        success: true,
+        message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
+        requiresVerification: true // Always require verification
       }
-      state.isAuthenticated = true
-      
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('auth_user', JSON.stringify(state.user))
-      
-      return { success: true }
     } catch (error) {
       return {
         success: false,
@@ -66,22 +96,19 @@ export const useAuthStore = () => {
     }
   }
 
-  const registerHotel = async (name, email, password, location, type, starRating) => {
+  const registerHotel = async (name, email, password, hotelName, location, type, starRating) => {
     try {
-      const data = await authService.registerHotel(name, email, password, location, type, starRating)
-      state.token = data.token
-      state.user = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role
+      const data = await authService.registerHotel(name, email, password, hotelName, location, type, starRating)
+      
+      // DO NOT authenticate user - they must verify email first
+      // Do not set token, user, or isAuthenticated
+      // Do not store in localStorage
+      
+      return { 
+        success: true,
+        message: data.message || 'Regisztráció sikeres! Kérjük, erősítsd meg az e-mail címedet.',
+        requiresVerification: true // Always require verification
       }
-      state.isAuthenticated = true
-      
-      localStorage.setItem('auth_token', data.token)
-      localStorage.setItem('auth_user', JSON.stringify(state.user))
-      
-      return { success: true }
     } catch (error) {
       return {
         success: false,
@@ -106,12 +133,34 @@ export const useAuthStore = () => {
     }
   }
 
+  const updateUser = async (userId, userData) => {
+    try {
+      const data = await authService.updateUser(userId, userData)
+      // Update local state
+      if (state.user && state.user.id === userId) {
+        state.user = {
+          ...state.user,
+          name: data.name || state.user.name,
+          email: data.email || state.user.email
+        }
+        localStorage.setItem('auth_user', JSON.stringify(state.user))
+      }
+      return { success: true, data }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to update user'
+      }
+    }
+  }
+
   return {
     state,
     login,
     registerUser,
     registerHotel,
-    logout
+    logout,
+    updateUser
   }
 }
 

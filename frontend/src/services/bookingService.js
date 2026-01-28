@@ -16,25 +16,38 @@ export const bookingService = {
     return response.data
   },
 
-  async updateBookingStatus(id, status) {
-    const response = await api.put(`/bookings/update-status/${id}`, { status })
+  async updateBookingStatus(id, status, cancellationMessage = null) {
+    const payload = { status }
+    if (status === 'cancelled' && cancellationMessage) {
+      payload.cancellation_message = cancellationMessage
+    }
+    const response = await api.put(`/bookings/update-status/${id}`, payload)
+    return response.data
+  },
+
+  async confirmPayment(bookingId) {
+    const response = await api.post(`/bookings/${bookingId}/confirm-payment`)
     return response.data
   },
 
   // For hotel admins - get bookings for their hotel
-  // Note: This endpoint only returns confirmed bookings
-  // For pending bookings, a backend extension would be needed
+  // This endpoint returns ALL bookings (pending, confirmed, cancelled, finished)
   async getBookingsByHotelId(hotelId) {
     try {
-      const response = await api.get(`/devices/bookings/${hotelId}`)
+      const response = await api.get(`/bookings/hotel/${hotelId}`)
       return response.data
     } catch (error) {
       // Handle 404 (no bookings) gracefully
       if (error.response?.status === 404) {
-        return { bookings: [], rooms: [], relations: [] }
+        return { bookings: [] }
       }
       throw error
     }
+  },
+
+  async updateBooking(bookingId, bookingData) {
+    const response = await api.put(`/bookings/update/${bookingId}`, bookingData)
+    return response.data
   }
 }
 

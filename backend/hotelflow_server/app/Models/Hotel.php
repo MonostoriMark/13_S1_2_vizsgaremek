@@ -12,9 +12,11 @@ class Hotel extends Model
     protected $fillable = [
         'user_id',
         'location',
+        'name',
         'description',
         'type',
         'starRating',
+        'cover_image',
         'createdAt'
     ];
 

@@ -105,16 +105,58 @@ export const adminService = {
 
   // Images
   async uploadImage(file, roomIds = []) {
-    const formData = new FormData()
-    formData.append('image', file)
-    formData.append('rooms', JSON.stringify(roomIds))
+    if (!file) {
+      throw new Error('No file provided')
+    }
 
-    const response = await api.post('/images', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    // Check if file is actually a File object
+    if (!(file instanceof File) && !(file instanceof Blob)) {
+      console.error('Invalid file object:', file, 'Type:', typeof file)
+      throw new Error('Invalid file object provided. Expected File or Blob.')
+    }
+
+    if (!roomIds || roomIds.length === 0) {
+      throw new Error('At least one room ID is required')
+    }
+
+    const formData = new FormData()
+    
+    // Append file with correct field name
+    formData.append('image', file, file.name || 'image.jpg')
+    
+    // Send each room ID separately for Laravel to parse as array
+    // Laravel expects rooms[0], rooms[1], etc. format
+    roomIds.forEach((roomId, index) => {
+      const roomIdInt = parseInt(roomId)
+      if (isNaN(roomIdInt)) {
+        console.error('Invalid room ID:', roomId)
+        throw new Error(`Invalid room ID: ${roomId}`)
       }
+      formData.append(`rooms[${index}]`, roomIdInt)
     })
-    return response.data
+
+    // Debug: Verify FormData contents
+    console.log('Uploading image:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      roomIds: roomIds,
+      hasFile: file instanceof File
+    })
+
+    // Verify FormData has the image
+    if (!formData.has('image')) {
+      throw new Error('Failed to append image to FormData')
+    }
+
+    // Don't set Content-Type header - let browser set it with boundary
+    try {
+      const response = await api.post('/images', formData)
+      return response.data
+    } catch (error) {
+      console.error('Upload API error:', error.response?.data || error.message)
+      throw error
+    }
   },
 
   async linkImage(imageId, roomIds) {
@@ -147,6 +189,29 @@ export const adminService = {
 
   async getImageById(id) {
     const response = await api.get(`/images/${id}`)
+    return response.data
+  },
+
+  // Admin profile update (including invoice fields)
+  async updateAdminProfile(data) {
+    const response = await api.put('/auth/admin/profile', data)
+    return response.data
+  },
+
+  // Hotel cover image upload
+  async uploadHotelCoverImage(hotelId, file) {
+    if (!file) {
+      throw new Error('No file provided')
+    }
+
+    if (!(file instanceof File) && !(file instanceof Blob)) {
+      throw new Error('Invalid file object provided. Expected File or Blob.')
+    }
+
+    const formData = new FormData()
+    formData.append('cover_image', file, file.name || 'cover.jpg')
+
+    const response = await api.post(`/hotels/${hotelId}/cover-image`, formData)
     return response.data
   }
 }

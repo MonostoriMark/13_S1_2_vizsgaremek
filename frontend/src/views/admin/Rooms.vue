@@ -2,29 +2,137 @@
   <AdminLayout>
     <div class="rooms-page">
       <div class="page-header">
-        <h1>Rooms Management</h1>
-        <button @click="openCreateModal" class="btn-primary" :disabled="!selectedHotel">
-          <span>➕</span> Add Room
+        <h1>Szobák kezelése</h1>
+        <button @click="openCreateModal" class="btn-primary">
+          <span>➕</span> Szoba hozzáadása
         </button>
       </div>
 
-      <div v-if="!selectedHotel" class="hotel-selector card">
-        <h3>Select Hotel</h3>
-        <select v-model="selectedHotelId" @change="loadRooms" class="hotel-select">
-          <option value="">Choose a hotel...</option>
-          <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-            {{ hotel.location || hotel.user?.name || `Hotel #${hotel.id}` }}
-          </option>
-        </select>
+      <!-- Compact hotel selector (like bookings supervision) -->
+      <div v-if="selectedHotel" class="hotel-selector-compact header-compact">
+        <div class="hotel-compact-info">
+          <div class="hotel-compact-icon">🏨</div>
+          <div class="hotel-compact-details">
+            <div class="hotel-compact-name">
+              {{ selectedHotel.name || `Szálloda #${selectedHotel.id}` }}
+            </div>
+            <div class="hotel-compact-location">
+              📍 {{ selectedHotel.location || 'Helyszín nincs megadva' }}
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="hotels.length > 1"
+          @click="openHotelCarousel"
+          class="hotel-change-btn"
+          title="Szálloda váltása"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 4V10H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14L18.36 18.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Váltás</span>
+        </button>
       </div>
 
-      <div v-else>
+      <!-- If no hotel is yet selected (initial load), we simply hide the selector;
+           the first hotel will be auto-selected in script once data arrives. -->
+
+      <!-- Minimal hotel carousel overlay (shared pattern with bookings) -->
+      <Transition name="fade">
+        <div
+          v-if="hotels.length > 1 && showHotelCarousel"
+          class="hotel-carousel-overlay"
+          @click.self="closeHotelCarousel"
+        >
+          <div class="hotel-carousel-container-minimal">
+            <div class="hotel-carousel-header-minimal">
+              <h3 class="carousel-title-minimal">🏨 Szálloda kiválasztása</h3>
+              <button @click="closeHotelCarousel" class="carousel-close-btn-minimal">×</button>
+            </div>
+
+            <div class="hotel-carousel-wrapper-minimal">
+              <button
+                @click="previousHotel"
+                class="carousel-nav-btn-modern carousel-prev-modern"
+                title="Előző szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 18L9 12L15 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div class="hotel-carousel-minimal">
+                <div
+                  class="hotel-card-carousel-minimal"
+                  :style="{ transform: `translateX(-${currentHotelIndex * 100}%)` }"
+                >
+                  <div
+                    v-for="hotel in hotels"
+                    :key="hotel.id"
+                    class="hotel-card-item-minimal"
+                    @click="selectHotelFromCarousel(hotel.id)"
+                    :class="{ selected: selectedHotelId === hotel.id }"
+                  >
+                    <div class="hotel-card-image-minimal">
+                      <img
+                        v-if="hotel.cover_image"
+                        :src="getImageUrl(hotel.cover_image)"
+                        :alt="hotel.name || 'Hotel'"
+                        class="hotel-cover-image-minimal"
+                        @error="handleImageError"
+                      />
+                      <div v-else class="hotel-image-placeholder-minimal">
+                        <span class="hotel-icon-minimal">🏨</span>
+                      </div>
+                    </div>
+                    <div class="hotel-card-content-minimal">
+                      <h4 class="hotel-card-name-minimal">
+                        {{ hotel.name || `Szálloda #${hotel.id}` }}
+                      </h4>
+                      <p class="hotel-card-location-minimal">
+                        📍 {{ hotel.location || 'Helyszín nincs megadva' }}
+                      </p>
+                      <button class="hotel-select-btn-minimal">
+                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás →' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="nextHotel"
+                class="carousel-nav-btn-modern carousel-next-modern"
+                title="Következő szálloda"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 18L15 12L9 6" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="carousel-indicators-minimal">
+              <button
+                v-for="(hotel, index) in hotels"
+                :key="hotel.id"
+                @click="goToHotel(index)"
+                class="carousel-indicator-minimal"
+                :class="{ active: currentHotelIndex === index }"
+              ></button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <div v-if="selectedHotel">
         <DataTable
           :data="rooms"
           :columns="columns"
           :loading="loading"
-          search-placeholder="Search rooms..."
-          empty-message="No rooms found"
+          search-placeholder="Szobák keresése..."
+          empty-message="Nem található szoba"
           :search-fields="['name', 'description']"
           :on-edit="handleEdit"
           :on-delete="handleDelete"
@@ -33,11 +141,11 @@
             €{{ parseFloat(value || 0).toFixed(2) }}
           </template>
           <template #cell-capacity="{ value }">
-            {{ value }} guests
+            {{ value }} vendég
           </template>
           <template #actions="{ row }">
-            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+            <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+            <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
           </template>
         </DataTable>
       </div>
@@ -47,45 +155,55 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingRoom ? 'Edit Room' : 'Create Room' }}</h2>
+              <h2>{{ editingRoom ? 'Szoba szerkesztése' : 'Szoba létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
-              <div class="form-group">
-                <label>Room Name/Number *</label>
-                <input v-model="form.name" type="text" required placeholder="e.g., Room 101" />
+              <div v-if="!editingRoom" class="form-group">
+                <label>Szálloda kiválasztása *</label>
+                <select v-model="form.hotelId" required class="form-select">
+                  <option value="">Válasszon szállodát...</option>
+                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+                  </option>
+                </select>
               </div>
 
               <div class="form-group">
-                <label>Description *</label>
+                <label>Szoba neve/száma *</label>
+                <input v-model="form.name" type="text" required placeholder="pl. 101-es szoba" />
+              </div>
+
+              <div class="form-group">
+                <label>Leírás *</label>
                 <textarea
                   v-model="form.description"
                   rows="3"
                   required
-                  placeholder="Enter room description"
+                  placeholder="Adja meg a szoba leírását"
                 ></textarea>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Capacity (guests) *</label>
+                  <label>Kapacitás (vendég) *</label>
                   <input v-model.number="form.capacity" type="number" min="1" required />
                 </div>
                 <div class="form-group">
-                  <label>Price Per Night (€) *</label>
+                  <label>Ár/éjszaka (€) *</label>
                   <input v-model.number="form.pricePerNight" type="number" min="0" step="0.01" required />
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Base Price (€) *</label>
+                <label>Alapár (€) *</label>
                 <input v-model.number="form.basePrice" type="number" min="0" step="0.01" required />
               </div>
 
               <div class="form-group">
-                <label>Room Images</label>
+                <label>Szoba képek</label>
                 <ImageUpload
                   v-model="form.images"
                   :max-files="10"
@@ -93,10 +211,54 @@
                 />
               </div>
 
+              <!-- Tags Section -->
+              <div v-if="editingRoom" class="form-group">
+                <label>Tags</label>
+                <div class="tags-section">
+                  <div v-if="currentRoomTags.length > 0" class="current-tags">
+                    <div
+                      v-for="tag in currentRoomTags"
+                      :key="tag.id"
+                      class="tag-chip room"
+                    >
+                      <span>{{ tag.name }}</span>
+                      <button
+                        type="button"
+                        @click="removeTagFromRoom(tag.id)"
+                        class="tag-remove"
+                        :disabled="savingTags"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="no-tags">Nincs hozzárendelt címke</div>
+                  
+                  <div class="add-tags-section">
+                    <label class="add-tags-label">Címkék hozzáadása</label>
+                    <div class="available-tags">
+                      <button
+                        v-for="tag in availableTagsForRoom"
+                        :key="tag.id"
+                        type="button"
+                        @click="addTagToRoom(tag.id)"
+                        class="tag-option"
+                        :disabled="savingTags"
+                      >
+                        + {{ tag.name }}
+                      </button>
+                    </div>
+                    <p v-if="availableTagsForRoom.length === 0" class="no-available-tags">
+                      Nincs elérhető címke. Hozzon létre címkéket a Címkék kezelése oldalon.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -106,10 +268,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Room"
-        :message="`Are you sure you want to delete this room? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szoba törlése"
+        :message="`Biztosan törölni szeretné ezt a szobát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -120,19 +282,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import ImageUpload from '../../components/ImageUpload.vue'
 import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
+import { tagService } from '../../services/tagService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const hotels = ref([])
 const rooms = ref([])
 const loading = ref(true)
+const showHotelCarousel = ref(false)
+const currentHotelIndex = ref(0)
 const showModal = ref(false)
 const showDeleteDialog = ref(false)
 const editingRoom = ref(null)
@@ -142,11 +308,18 @@ const toast = ref(null)
 const roomToDelete = ref(null)
 const selectedHotelId = ref(null)
 
+// Tags management
+const allTags = ref([])
+const tagUsage = ref({ hotel_tags: [], room_tags: [] })
+const currentRoomTags = ref([])
+const savingTags = ref(false)
+
 const selectedHotel = computed(() => {
   return hotels.value.find(h => h.id === selectedHotelId.value)
 })
 
 const form = ref({
+  hotelId: null,
   name: '',
   description: '',
   capacity: 1,
@@ -156,10 +329,10 @@ const form = ref({
 })
 
 const columns = [
-  { key: 'name', label: 'Room Name', sortable: true },
-  { key: 'description', label: 'Description' },
-  { key: 'capacity', label: 'Capacity', sortable: true },
-  { key: 'pricePerNight', label: 'Price/Night', sortable: true, type: 'currency' }
+  { key: 'name', label: 'Szoba neve', sortable: true },
+  { key: 'description', label: 'Leírás' },
+  { key: 'capacity', label: 'Kapacitás', sortable: true },
+  { key: 'pricePerNight', label: 'Ár/éjszaka', sortable: true, type: 'currency' }
 ]
 
 const loadHotels = async () => {
@@ -167,14 +340,77 @@ const loadHotels = async () => {
     const data = await adminService.getHotels()
     hotels.value = data.filter(h => h.user_id === authStore.state.user?.id)
     
-    // Auto-select if only one hotel
-    if (hotels.value.length === 1) {
+    // Auto-select first hotel if none selected yet
+    if (hotels.value.length > 0 && !selectedHotelId.value) {
       selectedHotelId.value = hotels.value[0].id
+      currentHotelIndex.value = 0
       await loadRooms()
+    } else if (selectedHotelId.value) {
+      const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+      if (index >= 0) currentHotelIndex.value = index
     }
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
   }
+}
+
+const handleHotelChange = async () => {
+  if (selectedHotelId.value) {
+    const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+    if (index >= 0) currentHotelIndex.value = index
+    await loadRooms()
+  } else {
+    rooms.value = []
+    loading.value = false
+  }
+}
+
+// Hotel carousel helpers (shared UX with bookings supervision)
+const openHotelCarousel = () => {
+  if (!hotels.value.length) return
+  const index = hotels.value.findIndex(h => h.id === selectedHotelId.value)
+  currentHotelIndex.value = index >= 0 ? index : 0
+  showHotelCarousel.value = true
+}
+
+const closeHotelCarousel = () => {
+  showHotelCarousel.value = false
+}
+
+const selectHotelFromCarousel = async (hotelId) => {
+  selectedHotelId.value = hotelId
+  await loadRooms()
+  const index = hotels.value.findIndex(h => h.id === hotelId)
+  if (index >= 0) currentHotelIndex.value = index
+  showHotelCarousel.value = false
+}
+
+const previousHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value - 1 + hotels.value.length) % hotels.value.length
+}
+
+const nextHotel = () => {
+  if (!hotels.value.length) return
+  currentHotelIndex.value =
+    (currentHotelIndex.value + 1) % hotels.value.length
+}
+
+const goToHotel = (index) => {
+  if (index < 0 || index >= hotels.value.length) return
+  currentHotelIndex.value = index
+}
+
+const getImageUrl = (relativePath) => {
+  if (!relativePath) return ''
+  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''
+  if (relativePath.startsWith('http')) return relativePath
+  return `${baseUrl}${relativePath}`
+}
+
+const handleImageError = (event) => {
+  event.target.style.display = 'none'
 }
 
 const loadRooms = async () => {
@@ -182,9 +418,13 @@ const loadRooms = async () => {
 
   loading.value = true
   try {
-    rooms.value = await adminService.getRoomsByHotelId(selectedHotelId.value)
+    const roomsData = await adminService.getRoomsByHotelId(selectedHotelId.value)
+    rooms.value = roomsData.map(room => ({
+      ...room,
+      tags: room.tags || room.serviceTags || []
+    }))
   } catch (err) {
-    showToast('Failed to load rooms', 'error')
+    showToast('A szobák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -192,7 +432,7 @@ const loadRooms = async () => {
 
 const openCreateModal = () => {
   if (!selectedHotel.value) {
-    showToast('Please select a hotel first', 'warning')
+    showToast('Kérjük, először válasszon szállodát', 'warning')
     return
   }
   editingRoom.value = null
@@ -211,14 +451,43 @@ const handleEdit = async (room) => {
     images: []
   }
 
-  // Load room images
+    // Load room images
   try {
     const images = await adminService.getRoomImages(room.id)
-    form.value.images = images.map(img => ({ id: img.id, url: img.url }))
+    // Convert image URLs to full URLs for display
+    form.value.images = images.map(img => {
+      let imageUrl = img.url
+      if (imageUrl && imageUrl.startsWith('/storage/')) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        imageUrl = `${baseUrl}${imageUrl}`
+      }
+      return { id: img.id, url: imageUrl }
+    })
   } catch (err) {
     console.error('Failed to load room images:', err)
   }
 
+  // Load room tags - ensure we have proper tag objects
+  if (room.tags && Array.isArray(room.tags)) {
+    // Normalize tags - handle both object format and string format
+    currentRoomTags.value = room.tags.map(tag => {
+      if (typeof tag === 'object' && tag !== null) {
+        return tag // Already an object with id, name, etc.
+      }
+      return { id: null, name: tag } // String format, convert to object
+    })
+  } else if (room.serviceTags && Array.isArray(room.serviceTags)) {
+    currentRoomTags.value = room.serviceTags.map(tag => {
+      if (typeof tag === 'object' && tag !== null) {
+        return tag
+      }
+      return { id: null, name: tag }
+    })
+  } else {
+    currentRoomTags.value = []
+  }
+
+  await loadTags()
   showModal.value = true
 }
 
@@ -232,7 +501,7 @@ const confirmDelete = async () => {
 
   try {
     await adminService.deleteRoom(roomToDelete.value.id)
-    showToast('Room deleted successfully', 'success')
+    showToast('Szoba sikeresen törölve', 'success')
     await loadRooms()
   } catch (err) {
     showToast(err.response?.data?.message || 'Failed to delete room', 'error')
@@ -242,25 +511,107 @@ const confirmDelete = async () => {
 }
 
 const handleImageUpload = async (imageObj) => {
-  if (!selectedHotel.value) return
+  // Resolve/reject the promise if it exists
+  const resolvePromise = imageObj._uploadPromise?.resolve
+  const rejectPromise = imageObj._uploadPromise?.reject
 
   try {
+    if (!selectedHotel.value) {
+      const error = 'Please select a hotel first'
+      showToast(error, 'warning')
+      imageObj.uploading = false
+      if (rejectPromise) rejectPromise(new Error(error))
+      return
+    }
+
     const roomId = editingRoom.value?.id
-    if (roomId) {
-      // Upload image and link to room
-      const result = await adminService.uploadImage(imageObj.file, [roomId])
+    if (!roomId) {
+      const error = 'Please select or create a room first. Images can only be uploaded when editing an existing room.'
+      showToast(error, 'warning')
+      imageObj.uploading = false
+      if (rejectPromise) rejectPromise(new Error(error))
+      return
+    }
+
+    // Check if file exists
+    if (!imageObj.file) {
+      const error = 'No file found in image object'
+      console.error('ImageObj:', imageObj)
+      throw new Error(error)
+    }
+
+    // Verify file is a File object
+    if (!(imageObj.file instanceof File) && !(imageObj.file instanceof Blob)) {
+      console.error('Invalid file type:', typeof imageObj.file, imageObj.file)
+      throw new Error('Invalid file object. Please try selecting the image again.')
+    }
+
+    console.log('Uploading file:', {
+      name: imageObj.file.name,
+      size: imageObj.file.size,
+      type: imageObj.file.type,
+      roomId: roomId
+    })
+
+    // Upload image and link to room
+    const result = await adminService.uploadImage(imageObj.file, [roomId])
+    if (result && result.image) {
+      // Convert relative URL to full URL for display
+      let imageUrl = result.image.url
+      if (imageUrl && imageUrl.startsWith('/storage/')) {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+        imageUrl = `${baseUrl}${imageUrl}`
+      }
       imageObj.id = result.image.id
-      imageObj.url = result.image.url
-      imageObj.preview = result.image.url
+      imageObj.url = imageUrl
+      imageObj.preview = imageUrl
+      imageObj.progress = 100
+      imageObj.uploading = false
+      showToast('Kép sikeresen feltöltve', 'success')
+      if (resolvePromise) resolvePromise()
+    } else {
+      throw new Error('Invalid response from server')
     }
   } catch (err) {
-    showToast('Failed to upload image', 'error')
-    throw err
+    imageObj.uploading = false
+    imageObj.error = err.message || 'Upload failed'
+    
+    // Extract detailed error message
+    let errorMessage = 'Failed to upload image'
+    if (err.response?.data) {
+      if (err.response.data.errors) {
+        // Laravel validation errors
+        const errors = err.response.data.errors
+        const errorText = Object.values(errors).flat().join(', ')
+        errorMessage = errorText || err.response.data.message || errorMessage
+      } else if (err.response.data.message) {
+        errorMessage = err.response.data.message
+      }
+    } else if (err.message) {
+      errorMessage = err.message
+    }
+    
+    showToast(errorMessage, 'error')
+    console.error('Image upload error:', err.response?.data || err)
+    
+    // Reject the promise
+    if (rejectPromise) {
+      rejectPromise(err)
+    } else {
+      // Re-throw so the component can handle it
+      throw err
+    }
   }
 }
 
 const handleSubmit = async () => {
-  if (!selectedHotel.value) {
+  if (!editingRoom.value && !form.value.hotelId) {
+    showToast('Please select a hotel', 'warning')
+    return
+  }
+
+  const hotelId = editingRoom.value ? selectedHotel.value?.id : form.value.hotelId
+  if (!hotelId) {
     showToast('Please select a hotel', 'warning')
     return
   }
@@ -277,21 +628,21 @@ const handleSubmit = async () => {
         pricePerNight: form.value.pricePerNight,
         basePrice: form.value.basePrice
       })
-      showToast('Room updated successfully', 'success')
+      showToast('Szoba sikeresen frissítve', 'success')
     } else {
-      await adminService.createRoom(selectedHotel.value.id, {
+      await adminService.createRoom(hotelId, {
         name: form.value.name,
         description: form.value.description,
         capacity: form.value.capacity,
         pricePerNight: form.value.pricePerNight,
         basePrice: form.value.basePrice
       })
-      showToast('Room created successfully', 'success')
+      showToast('Szoba sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadRooms()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save room'
+    error.value = err.response?.data?.message || 'A szoba mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -301,12 +652,82 @@ const handleSubmit = async () => {
 const closeModal = () => {
   showModal.value = false
   editingRoom.value = null
+  currentRoomTags.value = []
   resetForm()
   error.value = ''
 }
 
+// Lock body scroll when modal is open
+useBodyScrollLock(showModal)
+
+const loadTags = async () => {
+  try {
+    const [tagsData, usageData] = await Promise.all([
+      tagService.getAllTags(),
+      tagService.getTagUsage()
+    ])
+    allTags.value = tagsData
+    tagUsage.value = usageData
+  } catch (err) {
+    console.error('Failed to load tags:', err)
+  }
+}
+
+const availableTagsForRoom = computed(() => {
+  // Filter out tags that are already used on hotels (exclusivity)
+  return allTags.value.filter(tag => {
+    // Don't show tags already assigned to this room
+    if (currentRoomTags.value.some(t => t.id === tag.id)) {
+      return false
+    }
+    // Don't show tags that are used on any hotel
+    return !tagUsage.value.hotel_tags.includes(tag.id)
+  })
+})
+
+const addTagToRoom = async (tagId) => {
+  if (!editingRoom.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.addTagsToRoom(editingRoom.value.id, [tagId])
+    const tag = allTags.value.find(t => t.id === tagId)
+    if (tag) {
+      currentRoomTags.value.push(tag)
+    }
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Címke sikeresen hozzáadva', 'success')
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to add tag'
+    showToast(message, 'error')
+  } finally {
+    savingTags.value = false
+  }
+}
+
+const removeTagFromRoom = async (tagId) => {
+  if (!editingRoom.value) return
+  
+  savingTags.value = true
+  try {
+    await tagService.removeTagFromRoom(editingRoom.value.id, tagId)
+    currentRoomTags.value = currentRoomTags.value.filter(t => t.id !== tagId)
+    // Update tag usage
+    const usage = await tagService.getTagUsage()
+    tagUsage.value = usage
+    showToast('Címke sikeresen eltávolítva', 'success')
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to remove tag', 'error')
+  } finally {
+    savingTags.value = false
+  }
+}
+
 const resetForm = () => {
   form.value = {
+    hotelId: null,
     name: '',
     description: '',
     capacity: 1,
@@ -324,14 +745,338 @@ const showToast = (message, type) => {
   }
 }
 
-onMounted(() => {
-  loadHotels()
+const handleHotelsUpdated = async () => {
+  await loadHotels()
+}
+
+onMounted(async () => {
+  await loadHotels()
+  await loadTags()
+  window.addEventListener('hotels-updated', handleHotelsUpdated)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hotels-updated', handleHotelsUpdated)
 })
 </script>
 
 <style scoped>
 .rooms-page {
   max-width: 1400px;
+}
+
+/* Shared compact hotel selector + carousel styles (aligned with bookings list) */
+.hotel-selector-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  gap: 1rem;
+}
+
+.hotel-selector-compact.header-compact {
+  max-width: 420px;
+  margin: 0 0 2rem 0;
+  flex-shrink: 0;
+  padding: 0.625rem 0.875rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hotel-compact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.hotel-compact-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.hotel-compact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.hotel-compact-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hotel-compact-location {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hotel-change-btn {
+  padding: 0.625rem 1.125rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hotel-change-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.35);
+}
+
+.hotel-change-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hotel-carousel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.hotel-carousel-container-minimal {
+  width: 100%;
+  max-width: 500px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.hotel-carousel-header-minimal {
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carousel-title-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.carousel-close-btn-minimal {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.carousel-close-btn-minimal:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.hotel-carousel-wrapper-minimal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1.5rem 0;
+  background: #f8f9fa;
+  min-height: 280px;
+}
+
+.hotel-carousel-minimal {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.hotel-card-carousel-minimal {
+  display: flex;
+  transition: transform 0.4s ease;
+}
+
+.hotel-card-item-minimal {
+  min-width: 100%;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: #10b981;
+}
+
+.hotel-card-image-minimal {
+  width: 100%;
+  max-width: 360px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hotel-cover-image-minimal {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hotel-image-placeholder-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #adb5bd;
+  font-size: 2.5rem;
+}
+
+.hotel-card-content-minimal {
+  text-align: center;
+}
+
+.hotel-card-name-minimal {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: #2c3e50;
+}
+
+.hotel-card-location-minimal {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 0.75rem;
+}
+
+.hotel-select-btn-minimal {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: #667eea;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.carousel-nav-btn-modern {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.85);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+}
+
+.carousel-nav-btn-modern:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.carousel-prev-modern {
+  margin-left: 1rem;
+}
+
+.carousel-next-modern {
+  margin-right: 1rem;
+}
+
+.carousel-indicators-minimal {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.carousel-indicator-minimal {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.carousel-indicator-minimal.active {
+  width: 18px;
+  background: #4f46e5;
 }
 
 .page-header {
@@ -489,6 +1234,121 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+/* Tags Section */
+.tags-section {
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #f8f9fa;
+}
+
+.current-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  min-height: 2rem;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.tag-chip.room {
+  background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+}
+
+.tag-remove {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.tag-remove:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tag-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-tags {
+  color: #7f8c8d;
+  font-style: italic;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+.add-tags-section {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+}
+
+.add-tags-label {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.available-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-option {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 2px solid #06b6d4;
+  color: #06b6d4;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tag-option:hover:not(:disabled) {
+  background: #06b6d4;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+}
+
+.tag-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.no-available-tags {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 0.5rem;
 }
 
 .modal-footer {

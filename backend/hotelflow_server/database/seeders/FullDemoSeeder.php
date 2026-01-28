@@ -44,93 +44,105 @@ class FullDemoSeeder extends Seeder
                     'role' => 'hotel',
                 ]);
             }
+
+            // Kézi felhasználók
             User::create([
                 'name' => 'Monostori Márk',
                 'email' => 'monostorimark05@gmail.com',
                 'password' => bcrypt('password'),
                 'role' => 'user',
             ]);
-             $user = User::create([
-            'name' => 'Hotel Admin',
-            'email' => 'hoteladmin@example.com',
-            'password' => bcrypt('password'),
-            'role' => 'hotel',
-        ]);
+            User::create([
+                'name' => 'Admin',
+                'email' => 'optikartofficial@gmail.com',
+                'password' => bcrypt('Gum55NDx'),
+                'role' => 'super_admin',
+                'isVerified' => true,
+            ]);
 
-        // 2️⃣ Hotel létrehozása ehhez a userhez
-        $hotel = Hotel::create([
-            'user_id' => $user->id,
-            'location' => 'Budapest, Hungary',
-            'description' => 'Egy szép hotel a város szívében.',
-            'type' => 'hotel',
-            'starRating' => 4,
-        ]);
-
-        // 3️⃣ Pár szoba létrehozása a hotelhez
-        $rooms = [
-            [
-                'hotels_id' => $hotel->id,
-                'name' => 'Standard Room',
-                'description' => 'Kényelmes, klasszikus szoba két fő részére.',
-                'pricePerNight' => 10000,
-                'capacity' => 2,
-                'basePrice' => 10000,
-            ],
-            [
-                'hotels_id' => $hotel->id,
-                'name' => 'Deluxe Room',
-                'description' => 'Nagyobb szoba, extra kényelmi szolgáltatásokkal.',
-                'pricePerNight' => 15000,
-                'capacity' => 3,
-                'basePrice' => 15000,
-            ],
-            [
-                'hotels_id' => $hotel->id,
-                'name' => 'Suite',
-                'description' => 'Luxus lakosztály a pihenésre.',
-                'pricePerNight' => 25000,
-                'capacity' => 4,
-                'basePrice' => 25000,
-            ],
-        ];
-
-        foreach ($rooms as $roomData) {
-            Room::create($roomData);
-        }
+            $user = User::create([
+                'name' => 'Hotel Admin',
+                'email' => 'hoteladmin@example.com',
+                'password' => bcrypt('password'),
+                'role' => 'hotel',
+            ]);
 
             // -------------------------
-            // 2️⃣ Hotels, Rooms, Services
+            // 2️⃣ Hotel létrehozása ehhez a userhez
             // -------------------------
-            $allHotels = [];
+            $mainHotel = Hotel::create([
+                'user_id' => $user->id,
+                'name' => 'Hotel Budapest',
+                'location' => 'Budapest, Hungary',
+                'description' => 'Egy szép hotel a város szívében.',
+                'type' => 'hotel',
+                'starRating' => 4,
+            ]);
+
+            // Szobák létrehozása a fő hotelhez
+            $rooms = [
+                [
+                    'hotels_id' => $mainHotel->id,
+                    'name' => 'Standard Room',
+                    'description' => 'Kényelmes, klasszikus szoba két fő részére.',
+                    'pricePerNight' => 10000,
+                    'capacity' => 2,
+                    'basePrice' => 10000,
+                ],
+                [
+                    'hotels_id' => $mainHotel->id,
+                    'name' => 'Deluxe Room',
+                    'description' => 'Nagyobb szoba, extra kényelmi szolgáltatásokkal.',
+                    'pricePerNight' => 15000,
+                    'capacity' => 3,
+                    'basePrice' => 15000,
+                ],
+                [
+                    'hotels_id' => $mainHotel->id,
+                    'name' => 'Suite',
+                    'description' => 'Luxus lakosztály a pihenésre.',
+                    'pricePerNight' => 25000,
+                    'capacity' => 4,
+                    'basePrice' => 25000,
+                ],
+            ];
+
+            foreach ($rooms as $roomData) {
+                Room::create($roomData);
+            }
+
+            // -------------------------
+            // 3️⃣ Többi hotel létrehozása minden hotel userhez
+            // -------------------------
+            $allHotels = [$mainHotel]; // kezdjük a fő hotellel
+
             foreach ($hotelUsers as $host) {
                 $numHotels = rand(1, 3);
                 for ($j = 0; $j < $numHotels; $j++) {
                     $hotel = Hotel::create([
-                        'user_id' => $host->id, // csak hotel userhez
+                        'user_id' => $host->id,
                         'location' => $faker->city,
+                        'name' => $faker->company(),
                         'description' => $faker->sentence(),
                         'type' => $faker->randomElement(['hotel','apartment','villa','other']),
                         'starRating' => $faker->numberBetween(1,5),
-                        
                     ]);
                     $allHotels[] = $hotel;
 
-                    // Szobák 3-5/db
+                    // Szobák
                     $numRooms = rand(3,5);
-                    $rooms = [];
                     for ($k = 0; $k < $numRooms; $k++) {
-                        $rooms[] = Room::create([
+                        Room::create([
                             'hotels_id' => $hotel->id,
                             'name' => 'Room ' . $faker->unique()->numberBetween(100,999),
                             'description' => $faker->sentence(),
                             'pricePerNight' => $faker->numberBetween(50,300),
                             'capacity' => $faker->numberBetween(1,4),
                             'basePrice' => $faker->randomFloat(2,50,300),
-                            
                         ]);
                     }
 
-                    // Szolgáltatások 2-4/db
+                    // Szolgáltatások
                     $numServices = rand(2,4);
                     for ($s = 0; $s < $numServices; $s++) {
                         Service::create([
@@ -138,31 +150,17 @@ class FullDemoSeeder extends Seeder
                             'name' => $faker->words(2, true),
                             'description' => $faker->sentence(),
                             'price' => $faker->numberBetween(10,100),
-                            
                         ]);
                     }
                 }
             }
-             RFIDKey::create([
-                'hotels_id' => 37,
-                'isUsed' => false,
-                'rfidKey' => 'F4E4C928'
 
-            ]);
-            RFIDKey::create([
-                'hotels_id' => 37,
-                'isUsed' => false,
-                'rfidKey' => 'B7E5C37A'
-
-            ]);
             // -------------------------
-            // RFID kulcsok generálása minden hotelhez
+            // 4️⃣ RFID kulcsok minden hotelhez
             // -------------------------
             foreach ($allHotels as $hotel) {
-
-                // Hotelhez 5–10 RFID kulcs
+                // 5–10 RFID kulcs hotelenként
                 $numKeys = rand(5, 10);
-
                 for ($k = 0; $k < $numKeys; $k++) {
                     RFIDKey::create([
                         'hotels_id' => $hotel->id,
@@ -170,14 +168,12 @@ class FullDemoSeeder extends Seeder
                         'rfidKey' => strtoupper($faker->bothify('########'))
                     ]);
                 }
-}
-
+            }
 
             // -------------------------
-            // 3️⃣ Bookings, Guests, Reviews
+            // 5️⃣ Bookings, Guests, Reviews
             // -------------------------
-            $allUsers = array_merge($users, $hotelUsers); // bárki foglalhat
-
+            $allUsers = array_merge($users, $hotelUsers);
 
             foreach ($allUsers as $user) {
                 $numBookings = rand(1,3);
@@ -193,12 +189,11 @@ class FullDemoSeeder extends Seeder
                         'endDate' => $faker->dateTimeBetween('+1 day', '+2 weeks')->format('Y-m-d'),
                         'totalPrice' => $rooms->sum('pricePerNight') * rand(1,5),
                         'status' => $faker->randomElement(['pending','confirmed','cancelled']),
-                        
                     ]);
 
                     $booking->rooms()->sync($rooms->pluck('id')->toArray());
 
-                    // Vendégek: szobák összkapacitása alapján
+                    // Vendégek a szobák kapacitása alapján
                     $totalCapacity = $rooms->sum('capacity');
                     $numGuests = rand(1, $totalCapacity);
                     for ($g = 0; $g < $numGuests; $g++) {
@@ -207,11 +202,8 @@ class FullDemoSeeder extends Seeder
                             'name' => $faker->name,
                             'idNumber' => strtoupper($faker->bothify('??######')),
                             'dateOfBirth' => $faker->date('Y-m-d', '-18 years'),
-                            
                         ]);
                     }
-
-                    
                 }
             }
 

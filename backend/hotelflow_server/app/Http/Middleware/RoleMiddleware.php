@@ -12,7 +12,17 @@ class RoleMiddleware
     {
         $user = Auth::user();
 
-        if (!$user || $user->role !== $role) {
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Super admin has access to everything
+        if ($user->role === 'super_admin') {
+            return $next($request);
+        }
+
+        // Check specific role
+        if ($user->role !== $role) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

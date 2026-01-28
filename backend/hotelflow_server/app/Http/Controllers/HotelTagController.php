@@ -20,6 +20,21 @@ class HotelTagController extends Controller
             'tag_ids.*' => 'exists:serviceTags,id',
         ]);
 
+        // Exclusivity check: prevent linking tags that are already used on rooms
+        $roomTagIds = \DB::table('roomTagRelation')
+            ->whereIn('serviceTags_id', $data['tag_ids'])
+            ->pluck('serviceTags_id')
+            ->unique()
+            ->toArray();
+
+        if (!empty($roomTagIds)) {
+            $conflictingTags = ServiceTag::whereIn('id', $roomTagIds)->pluck('name')->toArray();
+            return response()->json([
+                'message' => 'These tags are already used on rooms and cannot be linked to hotels: ' . implode(', ', $conflictingTags),
+                'conflicting_tags' => $conflictingTags
+            ], 422);
+        }
+
         // nem duplikál
         $hotel->tags()->syncWithoutDetaching($data['tag_ids']);
 

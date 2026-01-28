@@ -27,21 +27,32 @@ class GuestController extends Controller
         return response()->json(['message' => 'Guest not found'], 404);
     }
 
-    // Foglalás lekérése a vendég alapján
-    $booking = Booking::find($guest->bookings_id);
+    // Foglalás lekérése a vendég alapján (with hotel relationship)
+    $booking = Booking::with('hotel')->find($guest->bookings_id);
     if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
 
     // 🔥 Jogosultság ellenőrzés
-    if ($booking->users_id !== auth()->id()) {
+    // Allow if user is the booking owner OR hotel admin for this booking
+    $user = auth()->user();
+    $isBookingOwner = $booking->users_id === $user->id;
+    $isHotelAdmin = $user->role === 'hotel' && $booking->hotel->user_id === $user->id;
+    
+    if (!$isBookingOwner && !$isHotelAdmin) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
     // Vendég módosítása
-    $guest->name = $request->name;
-    $guest->idNumber = $request->idNumber;
-    $guest->dateOfBirth = $request->dateOfBirth;
+    if ($request->has('name')) {
+        $guest->name = $request->name;
+    }
+    if ($request->has('idNumber')) {
+        $guest->idNumber = $request->idNumber;
+    }
+    if ($request->has('dateOfBirth')) {
+        $guest->dateOfBirth = $request->dateOfBirth;
+    }
     $guest->save();
 
     return response()->json([
@@ -57,14 +68,19 @@ public function deleteGuest($id)
         return response()->json(['message' => 'Guest not found'], 404);
     }
 
-    // Foglalás lekérése a vendég alapján
-    $booking = Booking::find($guest->bookings_id);
+    // Foglalás lekérése a vendég alapján (with hotel relationship)
+    $booking = Booking::with('hotel')->find($guest->bookings_id);
     if (!$booking) {
         return response()->json(['message' => 'Booking not found'], 404);
     }
 
     // 🔥 Jogosultság ellenőrzés
-    if ($booking->users_id !== auth()->id()) {
+    // Allow if user is the booking owner OR hotel admin for this booking
+    $user = auth()->user();
+    $isBookingOwner = $booking->users_id === $user->id;
+    $isHotelAdmin = $user->role === 'hotel' && $booking->hotel->user_id === $user->id;
+    
+    if (!$isBookingOwner && !$isHotelAdmin) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 

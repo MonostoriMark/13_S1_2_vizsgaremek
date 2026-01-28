@@ -1,5 +1,5 @@
 <template>
-  <div class="data-table">
+  <div class="data-table" :class="{ 'dark-theme': isDarkTheme }">
       <div class="table-header">
         <div class="table-search">
           <input
@@ -147,6 +147,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 
 const props = defineProps({
   data: {
@@ -207,6 +210,11 @@ watch(() => props.pageSize, (newVal) => {
 })
 
 const hasActions = computed(() => props.onEdit || props.onDelete || !!$slots.actions)
+
+// Determine if we should use dark theme (super admin or admin pages)
+const isDarkTheme = computed(() => {
+  return route.path.startsWith('/super-admin') || route.path.startsWith('/admin')
+})
 
 const getRowKey = (row, index) => {
   return row[props.rowKey] || index
@@ -298,19 +306,32 @@ watch(() => filteredData.value.length, () => {
 <style scoped>
 .data-table {
   background: white;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
+.data-table.dark-theme {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
 .table-header {
   padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  background: #f9fafb;
+}
+
+.data-table.dark-theme .table-header {
+  border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .table-search {
@@ -323,9 +344,38 @@ watch(() => filteredData.value.length, () => {
 .search-input {
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border: 1px solid #ddd;
+  background: white;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.9rem;
+  color: #1f2937;
+  transition: all 0.2s;
+}
+
+.data-table.dark-theme .search-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: #e5e7eb;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: white;
+}
+
+.data-table.dark-theme .search-input:focus {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
+.data-table.dark-theme .search-input::placeholder {
+  color: #6b7280;
 }
 
 .search-icon {
@@ -334,6 +384,11 @@ watch(() => filteredData.value.length, () => {
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
+  color: #6b7280;
+}
+
+.data-table.dark-theme .search-icon {
+  color: #9ca3af;
 }
 
 .table-wrapper {
@@ -346,27 +401,43 @@ watch(() => filteredData.value.length, () => {
 }
 
 .table thead {
-  background-color: #f8f9fa;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.data-table.dark-theme .table thead {
+  background: rgba(102, 126, 234, 0.1);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3);
 }
 
 .table th {
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  color: #2c3e50;
+  color: #374151;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.data-table.dark-theme .table th {
+  color: #d1d5db;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
 }
 
 .table th.sortable {
   cursor: pointer;
   user-select: none;
+  transition: background 0.2s;
 }
 
 .table th.sortable:hover {
-  background-color: #e8e8e8;
+  background: #f3f4f6;
+}
+
+.data-table.dark-theme .table th.sortable:hover {
+  background: rgba(102, 126, 234, 0.15);
 }
 
 .th-content {
@@ -377,18 +448,31 @@ watch(() => filteredData.value.length, () => {
 
 .sort-icon {
   font-size: 0.8rem;
-  color: #7f8c8d;
+  color: #667eea;
 }
 
 .table td {
   padding: 1rem;
-  border-bottom: 1px solid #f0f0f0;
-  color: #555;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
   font-size: 0.9rem;
 }
 
+.data-table.dark-theme .table td {
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  color: #e5e7eb;
+}
+
+.table tbody tr {
+  transition: background 0.2s;
+}
+
 .table tbody tr:hover {
-  background-color: #f8f9fa;
+  background: #f9fafb;
+}
+
+.data-table.dark-theme .table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
 }
 
 .table tbody tr:last-child td {
@@ -417,25 +501,30 @@ watch(() => filteredData.value.length, () => {
 }
 
 .btn-edit:hover {
-  background-color: #e8f4f8;
+  background: rgba(59, 130, 246, 0.2);
 }
 
 .btn-delete:hover {
-  background-color: #fee;
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .table-loading,
 .table-empty {
   padding: 3rem;
   text-align: center;
-  color: #7f8c8d;
+  color: #6b7280;
+}
+
+.data-table.dark-theme .table-loading,
+.data-table.dark-theme .table-empty {
+  color: #9ca3af;
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #ecf0f1;
-  border-top-color: #3498db;
+  border: 4px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 1rem;
@@ -462,23 +551,31 @@ watch(() => filteredData.value.length, () => {
 }
 
 .badge-success {
-  background-color: #d4edda;
-  color: #155724;
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .badge-secondary {
-  background-color: #e2e3e5;
-  color: #383d41;
+  background: rgba(156, 163, 175, 0.2);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
 .table-pagination {
   padding: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #e5e7eb;
   display: flex;
+  background: white;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.data-table.dark-theme .table-pagination {
+  border-top: 1px solid rgba(102, 126, 234, 0.2);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .pagination-info {
@@ -494,17 +591,31 @@ watch(() => filteredData.value.length, () => {
 
 .pagination-btn {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid #d1d5db;
   background: white;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
+  color: #374151;
   transition: all 0.2s;
 }
 
+.data-table.dark-theme .pagination-btn {
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  background: rgba(0, 0, 0, 0.3);
+  color: #d1d5db;
+}
+
 .pagination-btn:hover:not(:disabled) {
-  background-color: #f8f9fa;
-  border-color: #3498db;
+  background: #f3f4f6;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.data-table.dark-theme .pagination-btn:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+  color: #e5e7eb;
 }
 
 .pagination-btn:disabled {
@@ -515,7 +626,29 @@ watch(() => filteredData.value.length, () => {
 .pagination-page {
   padding: 0 1rem;
   font-size: 0.9rem;
-  color: #555;
+  color: #6b7280;
+  transition: color 0.2s;
+}
+
+.data-table.dark-theme .pagination-page {
+  color: #d1d5db;
+}
+
+.pagination-page:hover {
+  color: #667eea;
+}
+
+.data-table.dark-theme .pagination-page:hover {
+  color: #e5e7eb;
+}
+
+.pagination-page.active {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.data-table.dark-theme .pagination-page.active {
+  color: #e5e7eb;
 }
 
 .pagination-size {
@@ -527,9 +660,29 @@ watch(() => filteredData.value.length, () => {
 
 .page-size-select {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  background: white;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.9rem;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.data-table.dark-theme .page-size-select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: #e5e7eb;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: white;
+}
+
+.data-table.dark-theme .page-size-select:focus {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 @media (max-width: 768px) {
