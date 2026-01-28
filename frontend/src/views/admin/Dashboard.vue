@@ -103,8 +103,14 @@ const recentActivity = ref([])
 
 const handleDismissWelcome = () => {
   showWelcomePrompt.value = false
-  // Store in localStorage that user has seen the welcome
-  localStorage.setItem('admin_welcome_seen', 'true')
+  // Store in localStorage that THIS user has seen the welcome
+  const userId = authStore.state.user?.id
+  if (userId) {
+    localStorage.setItem(`admin_welcome_seen_${userId}`, 'true')
+  } else {
+    // Fallback (should rarely be used)
+    localStorage.setItem('admin_welcome_seen', 'true')
+  }
 }
 
 const loadDashboardData = async () => {
@@ -172,8 +178,10 @@ const formatTime = (date) => {
 onMounted(() => {
   loadDashboardData()
   
-  // Show welcome prompt if user hasn't seen it before
-  const welcomeSeen = localStorage.getItem('admin_welcome_seen')
+  // Show welcome prompt only the first time this user signs in (per browser)
+  const userId = authStore.state.user?.id
+  const key = userId ? `admin_welcome_seen_${userId}` : 'admin_welcome_seen'
+  const welcomeSeen = localStorage.getItem(key)
   if (!welcomeSeen) {
     // Show after a short delay for better UX
     setTimeout(() => {

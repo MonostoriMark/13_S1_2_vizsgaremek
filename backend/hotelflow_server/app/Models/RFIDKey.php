@@ -11,7 +11,9 @@ class RFIDKey extends Model
     protected $fillable = [
         'hotels_id',
         'isUsed',
-        'rfidKey'
+        'rfidKey',
+        'name',
+        'type'
     ];
 
     public $timestamps = false;

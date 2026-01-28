@@ -79,11 +79,13 @@ Route::delete('/services/{id}', [ServiceController::class, 'deleteService'])->mi
 Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
     Route::get('/rfid-keys', [RFIDKeyController::class, 'index']);
     Route::get('/rfid-keys/bookings', [RFIDKeyController::class, 'getAvailableBookings']);
+    Route::get('/rfid-keys/calendar', [RFIDKeyController::class, 'calendarAssignments']);
     Route::get('/rfid-keys/{id}', [RFIDKeyController::class, 'show']);
     Route::post('/rfid-keys', [RFIDKeyController::class, 'store']);
     Route::patch('/rfid-keys/{id}', [RFIDKeyController::class, 'update']);
     Route::delete('/rfid-keys/{id}', [RFIDKeyController::class, 'destroy']);
     Route::post('/rfid-keys/{id}/assign', [RFIDKeyController::class, 'assign']);
+    Route::post('/rfid-keys/{id}/assign-room', [RFIDKeyController::class, 'assignToRoom']);
     Route::post('/rfid-keys/{id}/release', [RFIDKeyController::class, 'release']);
 });
 

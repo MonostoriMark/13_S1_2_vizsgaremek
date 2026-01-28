@@ -183,6 +183,7 @@ import Toast from '../../components/Toast.vue'
 import { adminService } from '../../services/adminService'
 import { tagService } from '../../services/tagService'
 import { useAuthStore } from '../../stores/auth'
+import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const authStore = useAuthStore()
 const hotels = ref([])

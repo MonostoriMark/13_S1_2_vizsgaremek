@@ -515,14 +515,20 @@ const loadAllHotelsData = async () => {
   }
 }
 
-// Simple: Load 10 random hotels on page load
 const loadRecommendations = async () => {
   if (smartRecommendations.value.length > 0) return // Already loaded
   
   recommendationsLoading.value = true
   
   try {
-    const response = await recommendationService.getRecommendations({})
+    // Use current/basic search dates and guests so that recommended hotels
+    // already have availability and plans for a sensible default range
+    const response = await recommendationService.getRecommendations({
+      city: searchParams.value.city || undefined,
+      check_in: searchParams.value.startDate || undefined,
+      check_out: searchParams.value.endDate || undefined,
+      guests: searchParams.value.guests || 1
+    })
     // Handle response - it should have a 'hotels' array
     if (response && Array.isArray(response.hotels)) {
       smartRecommendations.value = response.hotels
@@ -1130,10 +1136,7 @@ const handleScroll = () => {
 onMounted(async () => {
   await loadTags()
   await loadLocations()
-  // Removed loadRecommendedHotels() - it was making individual room requests for all hotels
-  loadRecommendations() // Load 10 random hotels via optimized endpoint
-  window.addEventListener('scroll', handleScroll)
-  
+
   // Set default dates (today and tomorrow)
   const today = new Date()
   const tomorrow = new Date(today)
@@ -1141,9 +1144,11 @@ onMounted(async () => {
   
   searchParams.value.startDate = today.toISOString().split('T')[0]
   searchParams.value.endDate = tomorrow.toISOString().split('T')[0]
-  
-  // Load 10 random hotels on page load
+
+  // Load recommendations using the default dates so that plans/prices are visible
   loadRecommendations()
+
+  window.addEventListener('scroll', handleScroll)
 })
 
 onUnmounted(() => {

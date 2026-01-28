@@ -49,5 +49,22 @@ export const rfidKeyService = {
   async getAvailableBookings() {
     const response = await api.get('/rfid-keys/bookings')
     return response.data
+  },
+
+  // Manual assignment of RFID key to one or more rooms for custom period / lifetime
+  async assignKeyToRoom(keyId, { room_ids, start_date, end_date, lifetime }) {
+    const response = await api.post(`/rfid-keys/${keyId}/assign-room`, {
+      room_ids,
+      start_date,
+      end_date,
+      lifetime,
+    })
+    return response.data
+  },
+
+  // Get RFID key assignments for calendar view
+  async getCalendarEvents(params = {}) {
+    const response = await api.get('/rfid-keys/calendar', { params })
+    return response.data
   }
 }

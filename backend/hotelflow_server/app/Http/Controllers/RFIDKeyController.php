@@ -79,6 +79,8 @@ class RFIDKeyController extends Controller
             return [
                 'id' => $key->id,
                 'uid' => $key->rfidKey,
+                'type' => $key->type ?? 'guest',
+                'name' => $key->name,
                 'label' => null, // Label column doesn't exist
                 'status' => $status,
                 'isUsed' => $key->isUsed,
@@ -95,6 +97,81 @@ class RFIDKeyController extends Controller
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'message' => 'Error loading RFID keys',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get RFID key assignments for calendar view for the authenticated hotel admin.
+     * Returns all assignments (past, current, future) for the hotel's RFID keys.
+     */
+    public function calendarAssignments(Request $request)
+    {
+        try {
+            $user = auth()->user();
+
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            // Determine hotel for this admin
+            $hotel = Hotel::where('user_id', $user->id)->first();
+            if (!$hotel) {
+                return response()->json(['message' => 'Hotel not found'], 404);
+            }
+
+            // Optional date range filters
+            $start = $request->query('start_date');
+            $end = $request->query('end_date');
+
+            $query = RFIDAssignment::whereHas('rfidKey', function ($q) use ($hotel) {
+                $q->where('hotels_id', $hotel->id);
+            })->with(['rfidKey', 'booking.user', 'room']);
+
+            if ($start) {
+                $query->whereDate('reserved_to', '>=', $start);
+            }
+            if ($end) {
+                $query->whereDate('reserved_from', '<=', $end);
+            }
+
+            // Only include assignments where the underlying RFID key is a guest card
+            $assignments = $query->whereHas('rfidKey', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->whereNull('type')->orWhere('type', 'guest');
+                });
+            })->orderBy('reserved_from')->get();
+
+            $events = $assignments->map(function ($assignment) {
+                $booking = $assignment->booking;
+                $user = $booking ? $booking->user : null;
+                $room = $assignment->room;
+                $key = $assignment->rfidKey;
+
+                return [
+                    'id' => $assignment->id,
+                    'rfid_key_id' => $assignment->rfid_key_id,
+                    'rfid_uid' => $key ? $key->rfidKey : null,
+                    'type' => $key ? ($key->type ?? 'guest') : 'guest',
+                    'booking_id' => $assignment->booking_id,
+                    'room_id' => $assignment->room_id,
+                    'room_name' => $room ? $room->name : null,
+                    'guest_name' => $user ? $user->name : null,
+                    'guest_email' => $user ? $user->email : null,
+                    'status' => $booking ? $booking->status : null,
+                    'reserved_from' => optional($assignment->reserved_from)->toDateString(),
+                    'reserved_to' => optional($assignment->reserved_to)->toDateString(),
+                    'assigned_at' => optional($assignment->assigned_at)->toDateTimeString(),
+                    'released_at' => optional($assignment->released_at)->toDateTimeString(),
+                ];
+            });
+
+            return response()->json(['events' => $events], 200);
+        } catch (\Exception $e) {
+            \Log::error('RFID calendar error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error loading RFID calendar data',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -133,7 +210,9 @@ class RFIDKeyController extends Controller
         
         $validator = Validator::make($request->all(), [
             'uid' => 'required|string|max:255|unique:rfidKeys,rfidKey',
-            'hotel_id' => 'required|integer|exists:hotels,id'
+            'hotel_id' => 'required|integer|exists:hotels,id',
+            'name' => 'nullable|string|max:255',
+            'type' => 'nullable|in:guest,crew',
         ]);
 
         if ($validator->fails()) {
@@ -153,6 +232,8 @@ class RFIDKeyController extends Controller
         $key = RFIDKey::create([
             'hotels_id' => $hotel->id,
             'rfidKey' => $request->uid,
+            'name' => $request->name,
+            'type' => $request->input('type', 'guest'),
             'isUsed' => false
         ]);
 
@@ -181,7 +262,9 @@ class RFIDKeyController extends Controller
 
         $validator = Validator::make($request->all(), [
             'uid' => 'sometimes|string|max:255|unique:rfidKeys,rfidKey,' . $id,
-            'status' => 'sometimes|in:available,assigned'
+            'status' => 'sometimes|in:available,assigned',
+            'name' => 'sometimes|nullable|string|max:255',
+            'type' => 'sometimes|in:guest,crew'
             // Note: lost and disabled not supported without status column
         ]);
 
@@ -201,6 +284,14 @@ class RFIDKeyController extends Controller
 
         if ($request->has('uid')) {
             $key->rfidKey = $request->uid;
+        }
+
+        if ($request->has('name')) {
+            $key->name = $request->name;
+        }
+
+        if ($request->has('type')) {
+            $key->type = $request->type;
         }
 
         $key->save();
@@ -344,6 +435,109 @@ class RFIDKeyController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Failed to assign RFID key'], 500);
+        }
+    }
+
+    /**
+     * Manually assign RFID key to a room for a custom period (or lifetime),
+     * without linking to a specific booking.
+     */
+    public function assignToRoom(Request $request, $id)
+    {
+        $user = auth()->user();
+        $hotel = Hotel::where('user_id', $user->id)->first();
+
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'room_ids'   => 'required|array|min:1',
+            'room_ids.*' => 'exists:rooms,id',
+            'start_date' => 'required|date',
+            'end_date'   => 'nullable|date|after_or_equal:start_date',
+            'lifetime'   => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $key = RFIDKey::where('id', $id)
+            ->where('hotels_id', $hotel->id)
+            ->first();
+
+        if (!$key) {
+            return response()->json(['message' => 'RFID key not found'], 404);
+        }
+
+        // Only crew cards can be manually assigned to rooms
+        if (($key->type ?? 'guest') !== 'crew') {
+            return response()->json([
+                'error' => 'Csak személyzeti kártyák rendelhetők kézzel szobákhoz'
+            ], 400);
+        }
+
+        if ($key->isUsed || $key->activeAssignment) {
+            return response()->json([
+                'error' => 'RFID key is not available for assignment'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $reservedFrom = \Carbon\Carbon::parse($request->start_date)->toDateString();
+
+            // Lifetime assignment: extend far into the future
+            if ($request->boolean('lifetime')) {
+                $reservedTo = \Carbon\Carbon::create(2099, 12, 31)->toDateString();
+            } else {
+                $reservedTo = $request->end_date
+                    ? \Carbon\Carbon::parse($request->end_date)->toDateString()
+                    : $reservedFrom;
+            }
+
+            foreach ($request->room_ids as $roomId) {
+                $room = Room::find($roomId);
+                if (!$room || $room->hotels_id !== $hotel->id) {
+                    continue; // Skip invalid rooms silently
+                }
+
+                $assignment = RFIDAssignment::create([
+                    'rfid_key_id'   => $key->id,
+                    'booking_id'    => null,
+                    'room_id'       => $room->id,
+                    'reserved_from' => $reservedFrom,
+                    'reserved_to'   => $reservedTo,
+                    'assigned_at'   => now(),
+                ]);
+
+                // Link key UID to room for device mapping
+                RFIDConnection::updateOrCreate(
+                    [
+                        'rfidKeys_id' => $key->rfidKey,
+                        'rooms_id'    => $room->id,
+                    ],
+                    [
+                        'rfidKeys_id' => $key->rfidKey,
+                        'rooms_id'    => $room->id,
+                    ]
+                );
+            }
+
+            $key->isUsed = true;
+            $key->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'RFID key assigned to room successfully',
+                'assignment' => $assignment->load(['room'])
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to assign RFID key to room'], 500);
         }
     }
 

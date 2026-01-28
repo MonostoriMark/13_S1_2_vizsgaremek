@@ -2,14 +2,14 @@
   <AdminLayout>
     <div class="users-page">
       <div class="page-header">
-        <h1>My Profile</h1>
-        <p class="page-subtitle">Manage your account information and invoice details</p>
+        <h1>Profilom</h1>
+        <p class="page-subtitle">Fiókadatok és számlázási adatok kezelése</p>
       </div>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>Loading profile...</p>
+        <p>Profil betöltése...</p>
       </div>
 
       <!-- Error Message -->
@@ -22,31 +22,31 @@
       <div v-if="!loading && userData" class="profile-card">
         <form @submit.prevent="handleSubmit" class="profile-form">
           <div class="form-section">
-            <h3 class="section-title">Personal Information</h3>
+            <h3 class="section-title">Személyes adatok</h3>
             
             <div class="form-group">
-              <label>Full Name *</label>
-              <input v-model="form.name" type="text" required placeholder="Enter full name" />
+              <label>Teljes név *</label>
+              <input v-model="form.name" type="text" required placeholder="Adja meg a teljes nevét" />
             </div>
 
             <div class="form-group">
-              <label>Email Address *</label>
-              <input v-model="form.email" type="email" required placeholder="Enter email address" />
+              <label>E-mail cím *</label>
+              <input v-model="form.email" type="email" required placeholder="Adja meg az e-mail címét" />
             </div>
 
             <div class="form-group">
-              <label>Role</label>
+              <label>Szerepkör</label>
               <input v-model="form.role" type="text" disabled />
-              <small class="form-hint">Role cannot be changed</small>
+              <small class="form-hint">A szerepkör nem módosítható</small>
             </div>
 
             <div class="form-group">
-              <label>New Password</label>
+              <label>Új jelszó</label>
               <div class="input-wrapper-password">
                 <input 
                   v-model="form.password" 
                   :type="showPassword ? 'text' : 'password'"
-                  placeholder="Leave blank to keep current password"
+                  placeholder="Hagyja üresen, ha nem szeretné megváltoztatni a jelszót"
                   :minlength="8"
                 />
                 <button
@@ -59,15 +59,15 @@
                   {{ showPassword ? 'Elrejt' : 'Mutat' }}
                 </button>
               </div>
-              <small class="form-hint">Minimum 8 characters. Leave blank to keep current password.</small>
+              <small class="form-hint">Minimum 8 karakter. Hagyja üresen, ha nem szeretné megváltoztatni a jelszót.</small>
             </div>
 
             <div class="form-group">
               <div class="two-factor-toggle">
                 <div class="toggle-info">
-                  <label>Two-Factor Authentication</label>
+                  <label>Kétfaktoros hitelesítés (2FA)</label>
                   <span class="toggle-status" :class="{ enabled: form.two_factor_enabled }">
-                    {{ form.two_factor_enabled ? 'Enabled' : 'Disabled' }}
+                    {{ form.two_factor_enabled ? 'Engedélyezve' : 'Letiltva' }}
                   </span>
                 </div>
                 <label class="switch-toggle">
@@ -80,54 +80,54 @@
                   <span class="slider-toggle"></span>
                 </label>
                 <p v-if="form.two_factor_enabled && authStore.state.user?.role === 'hotel'" class="twofa-required-note">
-                  ⚠️ Hotel administrators cannot disable 2FA for security reasons.
+                  ⚠️ A szálloda adminisztrátorok biztonsági okokból nem tilthatják le a kétfaktoros hitelesítést.
                 </p>
                 <p v-if="!form.two_factor_enabled && authStore.state.user?.role === 'hotel'" class="twofa-required-note">
-                  ⚠️ Hotel administrators must enable 2FA to access the admin panel. The setup modal will appear automatically.
+                  ⚠️ A szálloda adminisztrátoroknak kötelező engedélyezni a 2FA-t az admin felület használatához. A beállító ablak automatikusan meg fog jelenni.
                 </p>
               </div>
             </div>
           </div>
 
           <div class="form-section">
-            <h3 class="section-title">Invoice Information *</h3>
-            <p class="section-description">These fields are required for invoice generation. You must complete them to access the admin panel.</p>
+            <h3 class="section-title">Számlázási adatok *</h3>
+            <p class="section-description">Ezek a mezők kötelezőek a számlák kiállításához. A kitöltésük szükséges az admin felület eléréséhez.</p>
             
             <div class="form-group">
-              <label>Tax Number (Adószám) *</label>
-              <input v-model="form.tax_number" type="text" placeholder="Enter tax number" required />
-              <span class="field-hint">Required for invoice generation</span>
+              <label>Adószám *</label>
+              <input v-model="form.tax_number" type="text" placeholder="Adja meg az adószámot" required />
+              <span class="field-hint">Kötelező a számlák kiállításához</span>
             </div>
 
             <div class="form-group">
-              <label>Bank Account (Bankszámlaszám) *</label>
-              <input v-model="form.bank_account" type="text" placeholder="Enter bank account number" required />
-              <span class="field-hint">Required for invoice generation</span>
+              <label>Bankszámlaszám *</label>
+              <input v-model="form.bank_account" type="text" placeholder="Adja meg a bankszámlaszámot" required />
+              <span class="field-hint">Kötelező a számlák kiállításához</span>
             </div>
 
             <div class="form-group">
-              <label>EU Tax Number (Közösségi adószám) *</label>
-              <input v-model="form.eu_tax_number" type="text" placeholder="Enter EU tax number" required />
-              <span class="field-hint">Required for invoice generation</span>
+              <label>Közösségi adószám (EU adószám) *</label>
+              <input v-model="form.eu_tax_number" type="text" placeholder="Adja meg a közösségi adószámot" required />
+              <span class="field-hint">Kötelező a számlák kiállításához</span>
             </div>
           </div>
 
           <div class="form-section danger-zone">
-            <h3 class="section-title danger-title">Danger Zone</h3>
-            <p class="section-description">Irreversible and destructive actions</p>
+            <h3 class="section-title danger-title">Veszélyes zóna</h3>
+            <p class="section-description">Visszafordíthatatlan, végleges műveletek</p>
             
             <div class="form-group">
               <button @click="showDeleteAccountModal = true" class="btn-delete-account">
                 <span class="delete-icon">🗑️</span>
-                Delete My Account
+                Fiókom törlése
               </button>
-              <p class="delete-warning">Once you delete your account, there is no going back. Please be certain.</p>
+              <p class="delete-warning">A fiók törlése végleges, nem vonható vissza. Kérjük, csak akkor folytassa, ha biztos benne.</p>
             </div>
           </div>
 
           <div class="form-actions">
             <button type="submit" class="btn-primary" :disabled="saving">
-              {{ saving ? 'Saving...' : 'Save Changes' }}
+              {{ saving ? 'Mentés...' : 'Változások mentése' }}
             </button>
           </div>
         </form>
@@ -138,7 +138,7 @@
         <div v-if="show2FASetup" class="modal-overlay" :class="{ 'non-dismissible': authStore.state.user?.role === 'hotel' && !(form.two_factor_enabled || authStore.state.user?.two_factor_enabled) }" @click.self="handleModalClick">
           <div class="modal-content-2fa">
             <div class="modal-header-2fa">
-              <h3>Set Up Two-Factor Authentication</h3>
+              <h3>Kétfaktoros hitelesítés beállítása</h3>
               <button v-if="!(authStore.state.user?.role === 'hotel' && !(form.two_factor_enabled || authStore.state.user?.two_factor_enabled))" class="modal-close" @click="close2FASetup">×</button>
             </div>
             <div class="modal-body-2fa">
@@ -146,26 +146,26 @@
               <div v-if="twoFASuccess" class="success-message">{{ twoFASuccess }}</div>
               
               <div v-if="!twoFAQRCode" class="setup-instructions">
-                <p>Click the button below to generate a QR code for your authenticator app.</p>
+                <p>Kattintson az alábbi gombra, hogy QR-kódot generáljon az autentikátor alkalmazás számára.</p>
                 <button @click="generate2FAQR" class="btn-generate-qr" :disabled="twoFALoading">
-                  {{ twoFALoading ? 'Generating...' : 'Generate QR Code' }}
+                  {{ twoFALoading ? 'Generálás...' : 'QR-kód generálása' }}
                 </button>
               </div>
               
               <div v-if="twoFAQRCode" class="qr-setup">
                 <div class="qr-container">
-                  <img :src="twoFAQRCode" alt="QR Code" class="qr-code-image" />
+                  <img :src="twoFAQRCode" alt="QR-kód" class="qr-code-image" />
                 </div>
                 <div class="secret-info">
-                  <p class="info-text">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                  <p class="info-text">Olvassa be ezt a QR-kódot az autentikátor alkalmazásával (Google Authenticator, Authy, stb.).</p>
                   <div class="secret-box">
-                    <label>Secret Key:</label>
+                    <label>Titkos kulcs:</label>
                     <div class="secret-value">{{ twoFASecret }}</div>
-                    <button @click="copySecret" class="btn-copy">📋 Copy</button>
+                    <button @click="copySecret" class="btn-copy">📋 Másolás</button>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Enter 6-digit code from your app</label>
+                  <label>Adja meg az alkalmazás által generált 6 számjegyű kódot</label>
                   <input
                     v-model="twoFACode"
                     type="text"
@@ -176,7 +176,7 @@
                   />
                 </div>
                 <button @click="verifyAndEnable2FA" class="btn-verify-2fa" :disabled="twoFACode.length !== 6 || twoFALoading">
-                  {{ twoFALoading ? 'Verifying...' : 'Verify & Enable' }}
+                  {{ twoFALoading ? 'Ellenőrzés...' : 'Ellenőrzés és engedélyezés' }}
                 </button>
               </div>
             </div>
@@ -189,14 +189,14 @@
         <div v-if="show2FADisable" class="modal-overlay" @click.self="close2FADisable">
           <div class="modal-content-2fa">
             <div class="modal-header-2fa">
-              <h3>Disable Two-Factor Authentication</h3>
+              <h3>Kétfaktoros hitelesítés letiltása</h3>
               <button class="modal-close" @click="close2FADisable">×</button>
             </div>
             <div class="modal-body-2fa">
               <div v-if="twoFAError" class="error-message">{{ twoFAError }}</div>
-              <p class="warning-text">⚠️ Disabling 2FA will reduce the security of your account.</p>
+              <p class="warning-text">⚠️ A 2FA letiltása csökkenti a fiók biztonságát.</p>
               <div class="form-group">
-                <label>Enter your password to confirm</label>
+                <label>Adja meg a jelszavát a megerősítéshez</label>
                 <div class="input-wrapper-password">
                   <input
                     v-model="disablePassword"
@@ -215,10 +215,10 @@
                   </button>
                 </div>
               </div>
-              <div class="modal-footer-2fa">
-                <button @click="close2FADisable" class="btn-secondary">Cancel</button>
+                <div class="modal-footer-2fa">
+                <button @click="close2FADisable" class="btn-secondary">Mégse</button>
                 <button @click="confirmDisable2FA" class="btn-danger" :disabled="!disablePassword || twoFALoading">
-                  {{ twoFALoading ? 'Disabling...' : 'Disable 2FA' }}
+                  {{ twoFALoading ? 'Letiltás...' : '2FA letiltása' }}
                 </button>
               </div>
             </div>
@@ -231,14 +231,14 @@
         <div v-if="showDeleteAccountModal" class="modal-overlay" @click.self="closeDeleteAccountModal">
           <div class="modal-content-2fa" @click.stop>
             <div class="modal-header-2fa">
-              <h3>Delete Account</h3>
+              <h3>Fiók törlése</h3>
               <button class="modal-close" @click="closeDeleteAccountModal">×</button>
             </div>
             <div class="modal-body-2fa">
               <div v-if="deleteAccountError" class="error-message">{{ deleteAccountError }}</div>
-              <p class="warning-text">⚠️ This action cannot be undone. This will permanently delete your account and remove all of your data from our servers.</p>
+              <p class="warning-text">⚠️ Ez a művelet nem vonható vissza. A fiók véglegesen törlődik, és minden adat eltávolításra kerül a rendszerből.</p>
               <div class="form-group">
-                <label>Enter your password to confirm</label>
+                <label>Adja meg a jelszavát a megerősítéshez</label>
                 <div class="input-wrapper-password">
                   <input
                     v-model="deleteAccountPassword"
@@ -258,9 +258,9 @@
                 </div>
               </div>
               <div class="modal-footer-2fa">
-                <button @click="closeDeleteAccountModal" class="btn-secondary">Cancel</button>
+                <button @click="closeDeleteAccountModal" class="btn-secondary">Mégse</button>
                 <button @click="confirmDeleteAccount" class="btn-danger" :disabled="!deleteAccountPassword || deletingAccount">
-                  {{ deletingAccount ? 'Deleting...' : 'Delete Account' }}
+                  {{ deletingAccount ? 'Törlés...' : 'Fiók törlése' }}
                 </button>
               </div>
             </div>
@@ -330,25 +330,26 @@ const loadUserData = async () => {
     // Fetch complete user data from API to get invoice fields
     const userDataFromApi = await authService.getMe()
     userData.value = userDataFromApi
+    const twoFAEnabled = !!userDataFromApi.two_factor_enabled
     
     // Populate form with complete user data including invoice fields
-                form.value = {
-                  name: userDataFromApi.name || '',
-                  email: userDataFromApi.email || '',
-                  role: userDataFromApi.role || '',
-                  password: '',
-                  tax_number: userDataFromApi.tax_number || '',
-                  bank_account: userDataFromApi.bank_account || '',
-                  eu_tax_number: userDataFromApi.eu_tax_number || '',
-                  two_factor_enabled: userDataFromApi.two_factor_enabled || false
-                }
+    form.value = {
+      name: userDataFromApi.name || '',
+      email: userDataFromApi.email || '',
+      role: userDataFromApi.role || '',
+      password: '',
+      tax_number: userDataFromApi.tax_number || '',
+      bank_account: userDataFromApi.bank_account || '',
+      eu_tax_number: userDataFromApi.eu_tax_number || '',
+      two_factor_enabled: twoFAEnabled
+    }
     
     // Also update auth store with complete data
     if (authStore.state.user) {
       authStore.state.user.tax_number = userDataFromApi.tax_number
       authStore.state.user.bank_account = userDataFromApi.bank_account
       authStore.state.user.eu_tax_number = userDataFromApi.eu_tax_number
-      authStore.state.user.two_factor_enabled = userDataFromApi.two_factor_enabled || false
+      authStore.state.user.two_factor_enabled = twoFAEnabled
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
   } catch (err) {
@@ -364,7 +365,7 @@ const loadUserData = async () => {
         tax_number: authStore.state.user.tax_number || '',
         bank_account: authStore.state.user.bank_account || '',
         eu_tax_number: authStore.state.user.eu_tax_number || '',
-        two_factor_enabled: authStore.state.user.two_factor_enabled || false
+        two_factor_enabled: !!authStore.state.user.two_factor_enabled
       }
     }
   } finally {
