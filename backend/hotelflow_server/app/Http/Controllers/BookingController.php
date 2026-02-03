@@ -42,14 +42,14 @@ public function store(Request $request)
         'payment_method' => 'sometimes|in:bank_transfer,card',
         'invoice_details' => 'sometimes|array',
         'invoice_details.customer_type' => 'sometimes|in:private,business',
-        'invoice_details.full_name' => 'sometimes|string|max:255',
-        'invoice_details.email' => 'sometimes|email|max:255',
+        'invoice_details.full_name' => 'required_with:invoice_details|string|max:255',
+        'invoice_details.email' => 'required_with:invoice_details|email|max:255',
         'invoice_details.company_name' => 'nullable|string|max:255',
         'invoice_details.tax_number' => 'nullable|string|max:255',
-        'invoice_details.country' => 'nullable|string|max:255',
-        'invoice_details.city' => 'nullable|string|max:255',
-        'invoice_details.postal_code' => 'nullable|string|max:50',
-        'invoice_details.address_line' => 'nullable|string|max:255',
+        'invoice_details.country' => 'required_with:invoice_details|string|max:255',
+        'invoice_details.city' => 'required_with:invoice_details|string|max:255',
+        'invoice_details.postal_code' => 'required_with:invoice_details|string|max:50',
+        'invoice_details.address_line' => 'required_with:invoice_details|string|max:255',
         'invoice_details.note' => 'nullable|string|max:2000',
     ]);
 
@@ -307,11 +307,38 @@ public function store(Request $request)
 
         return response()->json(['bookingId' => $booking->id, 'totalPrice' => $totalPrice], 201);
 
-    } catch (\Exception $e) {
+    } catch (\Illuminate\Validation\ValidationException $e) {
         DB::rollBack();
         return response()->json([
-            'error' => 'Hiba a foglalás létrehozásakor',
-            'message' => $e->getMessage()
+            'error' => 'Érvényesítési hiba',
+            'message' => $e->getMessage(),
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Booking creation error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'request_data' => [
+                'userId' => $request->userId,
+                'hotelId' => $request->hotelId,
+                'payment_method' => $request->input('payment_method'),
+                'has_invoice_details' => $request->has('invoice_details')
+            ]
+        ]);
+        
+        // Provide more specific error messages
+        $errorMessage = 'Hiba a foglalás létrehozásakor';
+        if (str_contains($e->getMessage(), 'SQLSTATE') || str_contains($e->getMessage(), 'Integrity constraint')) {
+            $errorMessage = 'Adatbázis hiba történt. Kérjük, próbálja újra.';
+        } elseif (str_contains($e->getMessage(), 'booking_payments')) {
+            $errorMessage = 'Hiba a fizetési adatok mentésekor.';
+        } elseif (str_contains($e->getMessage(), 'booking_invoice_details')) {
+            $errorMessage = 'Hiba a számlázási adatok mentésekor.';
+        }
+        
+        return response()->json([
+            'error' => $errorMessage,
+            'message' => config('app.debug') ? $e->getMessage() : 'Kérjük, próbálja újra később.'
         ], 500);
     }
 }

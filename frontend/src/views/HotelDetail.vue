@@ -370,17 +370,41 @@
                     <h3 class="card-title">Számlázási adatok</h3>
                     <div class="form-grid">
                       <div class="form-field">
-                        <label>Teljes név *</label>
-                        <input v-model="invoiceForm.full_name" type="text" class="input" placeholder="Kovács János" />
+                        <label>Teljes név <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.full_name" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.full_name }"
+                          placeholder="Kovács János"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.full_name" class="field-error">{{ formErrors.full_name }}</div>
                       </div>
                       <div class="form-field">
-                        <label>E-mail *</label>
-                        <input v-model="invoiceForm.email" type="email" class="input" placeholder="pelda@email.com" />
+                        <label>E-mail <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.email" 
+                          type="email" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.email }"
+                          placeholder="pelda@email.com"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.email" class="field-error">{{ formErrors.email }}</div>
                       </div>
 
                       <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
-                        <label>Cégnév *</label>
-                        <input v-model="invoiceForm.company_name" type="text" class="input" placeholder="Példa Kft." />
+                        <label>Cégnév <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.company_name" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.company_name }"
+                          placeholder="Példa Kft."
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.company_name" class="field-error">{{ formErrors.company_name }}</div>
                       </div>
                       <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
                         <label>Adószám</label>
@@ -388,20 +412,52 @@
                       </div>
 
                       <div class="form-field">
-                        <label>Ország</label>
-                        <input v-model="invoiceForm.country" type="text" class="input" placeholder="Magyarország" />
+                        <label>Ország <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.country" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.country }"
+                          placeholder="Magyarország"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.country" class="field-error">{{ formErrors.country }}</div>
                       </div>
                       <div class="form-field">
-                        <label>Város</label>
-                        <input v-model="invoiceForm.city" type="text" class="input" placeholder="Budapest" />
+                        <label>Város <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.city" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.city }"
+                          placeholder="Budapest"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.city" class="field-error">{{ formErrors.city }}</div>
                       </div>
                       <div class="form-field">
-                        <label>Irányítószám</label>
-                        <input v-model="invoiceForm.postal_code" type="text" class="input" placeholder="1111" />
+                        <label>Irányítószám <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.postal_code" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.postal_code }"
+                          placeholder="1111"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.postal_code" class="field-error">{{ formErrors.postal_code }}</div>
                       </div>
                       <div class="form-field">
-                        <label>Utca, házszám</label>
-                        <input v-model="invoiceForm.address_line" type="text" class="input" placeholder="Példa utca 1." />
+                        <label>Utca, házszám <span class="required">*</span></label>
+                        <input 
+                          v-model="invoiceForm.address_line" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.address_line }"
+                          placeholder="Példa utca 1."
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.address_line" class="field-error">{{ formErrors.address_line }}</div>
                       </div>
                       <div class="form-field full">
                         <label>Megjegyzés a szállodának (opcionális)</label>
@@ -421,34 +477,64 @@
 
                     <div class="form-grid">
                       <div class="form-field full">
-                        <label>Kártyabirtokos neve *</label>
-                        <input v-model="cardForm.name" type="text" class="input" placeholder="Kovács János" autocomplete="cc-name" />
+                        <label>Kártyabirtokos neve <span class="required">*</span></label>
+                        <input 
+                          v-model="cardForm.name" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.card_name }"
+                          placeholder="Kovács János" 
+                          autocomplete="cc-name"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.card_name" class="field-error">{{ formErrors.card_name }}</div>
                       </div>
                       <div class="form-field full">
-                        <label>Kártyaszám *</label>
+                        <label>Kártyaszám <span class="required">*</span></label>
                         <input
                           v-model="cardForm.number"
                           type="text"
                           class="input"
+                          :class="{ 'input-error': formErrors.card_number }"
                           placeholder="1111 2222 3333 4444"
                           inputmode="numeric"
                           autocomplete="cc-number"
+                          @blur="validateForm"
+                          @input="cardForm.number = cardForm.number.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 23)"
+                          maxlength="23"
                         />
+                        <div v-if="formErrors.card_number" class="field-error">{{ formErrors.card_number }}</div>
                       </div>
                       <div class="form-field">
-                        <label>Lejárat (HH/ÉÉ) *</label>
-                        <input v-model="cardForm.expiry" type="text" class="input" placeholder="12/30" autocomplete="cc-exp" />
+                        <label>Lejárat (HH/ÉÉ) <span class="required">*</span></label>
+                        <input 
+                          v-model="cardForm.expiry" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.card_expiry }"
+                          placeholder="12/30" 
+                          autocomplete="cc-exp"
+                          @blur="validateForm"
+                          @input="cardForm.expiry = cardForm.expiry.replace(/\D/g, '').replace(/(\d{2})(?=\d)/, '$1/')"
+                          maxlength="5"
+                        />
+                        <div v-if="formErrors.card_expiry" class="field-error">{{ formErrors.card_expiry }}</div>
                       </div>
                       <div class="form-field">
-                        <label>CVC *</label>
+                        <label>CVC <span class="required">*</span></label>
                         <input
                           v-model="cardForm.cvc"
                           type="text"
                           class="input"
+                          :class="{ 'input-error': formErrors.card_cvc }"
                           placeholder="123"
                           inputmode="numeric"
                           autocomplete="cc-csc"
+                          @blur="validateForm"
+                          @input="cardForm.cvc = cardForm.cvc.replace(/\D/g, '')"
+                          maxlength="4"
                         />
+                        <div v-if="formErrors.card_cvc" class="field-error">{{ formErrors.card_cvc }}</div>
                       </div>
                     </div>
                   </div>
@@ -589,7 +675,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { hotelService } from '../services/hotelService'
 import { bookingService } from '../services/bookingService'
@@ -637,6 +723,20 @@ const invoiceForm = ref({
   note: ''
 })
 
+const formErrors = ref({
+  full_name: '',
+  email: '',
+  company_name: '',
+  country: '',
+  city: '',
+  postal_code: '',
+  address_line: '',
+  card_name: '',
+  card_number: '',
+  card_expiry: '',
+  card_cvc: ''
+})
+
 const isAuthenticated = computed(() => authStore.state.isAuthenticated)
 
 const invoiceAddressPreview = computed(() => {
@@ -648,12 +748,128 @@ const invoiceAddressPreview = computed(() => {
   return parts.length ? parts.join(', ') : '—'
 })
 
-const canSubmitBookingWithInvoice = computed(() => {
-  if (!invoiceForm.value.full_name || !invoiceForm.value.email) return false
-  if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name) return false
+const validateForm = () => {
+  // Clear previous errors
+  Object.keys(formErrors.value).forEach(key => {
+    formErrors.value[key] = ''
+  })
+  cardError.value = ''
+
+  let isValid = true
+
+  // Invoice form validation
+  if (!invoiceForm.value.full_name?.trim()) {
+    formErrors.value.full_name = 'A teljes név kötelező'
+    isValid = false
+  }
+
+  if (!invoiceForm.value.email?.trim()) {
+    formErrors.value.email = 'Az e-mail cím kötelező'
+    isValid = false
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoiceForm.value.email)) {
+    formErrors.value.email = 'Érvénytelen e-mail cím formátum'
+    isValid = false
+  }
+
+  if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name?.trim()) {
+    formErrors.value.company_name = 'A cégnév kötelező vállalati számlázás esetén'
+    isValid = false
+  }
+
+  // Address fields validation
+  if (!invoiceForm.value.country?.trim()) {
+    formErrors.value.country = 'Az ország kötelező'
+    isValid = false
+  }
+
+  if (!invoiceForm.value.city?.trim()) {
+    formErrors.value.city = 'A város kötelező'
+    isValid = false
+  }
+
+  if (!invoiceForm.value.postal_code?.trim()) {
+    formErrors.value.postal_code = 'Az irányítószám kötelező'
+    isValid = false
+  }
+
+  if (!invoiceForm.value.address_line?.trim()) {
+    formErrors.value.address_line = 'Az utca és házszám kötelező'
+    isValid = false
+  }
+
+  // Card validation
   if (paymentMethod.value === 'card') {
-    // Basic presence check (full validation happens on submit)
-    if (!cardForm.value.name || !cardForm.value.number || !cardForm.value.expiry || !cardForm.value.cvc) return false
+    if (!cardForm.value.name?.trim()) {
+      formErrors.value.card_name = 'A kártyabirtokos neve kötelező'
+      isValid = false
+    }
+
+    const digits = (cardForm.value.number || '').replace(/\D/g, '')
+    if (!digits || digits.length < 13 || digits.length > 19) {
+      formErrors.value.card_number = 'Érvénytelen kártyaszám'
+      isValid = false
+    } else {
+      // Luhn algorithm check
+      const isValidLuhn = (num) => {
+        let sum = 0
+        let shouldDouble = false
+        for (let i = num.length - 1; i >= 0; i--) {
+          let d = parseInt(num[i], 10)
+          if (Number.isNaN(d)) return false
+          if (shouldDouble) {
+            d *= 2
+            if (d > 9) d -= 9
+          }
+          sum += d
+          shouldDouble = !shouldDouble
+        }
+        return sum % 10 === 0
+      }
+      if (!isValidLuhn(digits)) {
+        formErrors.value.card_number = 'Érvénytelen kártyaszám'
+        isValid = false
+      }
+    }
+
+    const exp = (cardForm.value.expiry || '').trim()
+    const expMatch = exp.match(/^(\d{2})\s*\/\s*(\d{2})$/)
+    if (!expMatch) {
+      formErrors.value.card_expiry = 'A lejárat formátuma: HH/ÉÉ (pl. 12/30)'
+      isValid = false
+    } else {
+      const mm = parseInt(expMatch[1], 10)
+      const yy = parseInt(expMatch[2], 10)
+      if (mm < 1 || mm > 12) {
+        formErrors.value.card_expiry = 'Érvénytelen lejárati hónap'
+        isValid = false
+      } else {
+        const now = new Date()
+        const expDate = new Date(2000 + yy, mm, 0, 23, 59, 59)
+        if (expDate < now) {
+          formErrors.value.card_expiry = 'A kártya lejárt'
+          isValid = false
+        }
+      }
+    }
+
+    const cvcDigits = (cardForm.value.cvc || '').replace(/\D/g, '')
+    if (!cvcDigits || cvcDigits.length < 3 || cvcDigits.length > 4) {
+      formErrors.value.card_cvc = 'Érvénytelen CVC (3-4 számjegy)'
+      isValid = false
+    }
+  }
+
+  return isValid
+}
+
+const canSubmitBookingWithInvoice = computed(() => {
+  // Basic check - full validation happens on submit
+  if (!invoiceForm.value.full_name?.trim() || !invoiceForm.value.email?.trim()) return false
+  if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name?.trim()) return false
+  // Address fields are required
+  if (!invoiceForm.value.country?.trim() || !invoiceForm.value.city?.trim() || !invoiceForm.value.postal_code?.trim() || !invoiceForm.value.address_line?.trim()) return false
+  if (paymentMethod.value === 'card') {
+    if (!cardForm.value.name?.trim() || !cardForm.value.number?.trim() || !cardForm.value.expiry?.trim() || !cardForm.value.cvc?.trim()) return false
   }
   return true
 })
@@ -672,6 +888,20 @@ const closePaymentInvoiceModal = () => {
 
 // Lock body scroll when modal is open
 useBodyScrollLock(showPaymentInvoiceModal)
+
+// Clear errors when payment method changes
+watch(paymentMethod, () => {
+  cardError.value = ''
+  formErrors.value.card_name = ''
+  formErrors.value.card_number = ''
+  formErrors.value.card_expiry = ''
+  formErrors.value.card_cvc = ''
+})
+
+// Clear errors when customer type changes
+watch(() => invoiceForm.value.customer_type, () => {
+  formErrors.value.company_name = ''
+})
 
 // Image fallback
 const imageFallback = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80'
@@ -1090,65 +1320,25 @@ const createBooking = async () => {
     return
   }
 
+  // Validate form before submission
+  if (!validateForm()) {
+    // Scroll to first error
+    const firstErrorField = document.querySelector('.field-error')
+    if (firstErrorField) {
+      firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      firstErrorField.focus()
+    }
+    return
+  }
+
   bookingLoading.value = true
   bookingError.value = ''
   bookingSuccess.value = false
   cardError.value = ''
 
   try {
-    // Simulated card payment validation + processing
+    // Simulated card payment processing (validation already done)
     if (paymentMethod.value === 'card') {
-      const digits = (cardForm.value.number || '').replace(/\D/g, '')
-      const cvcDigits = (cardForm.value.cvc || '').replace(/\D/g, '')
-      const exp = (cardForm.value.expiry || '').trim()
-
-      const isValidLuhn = (num) => {
-        let sum = 0
-        let shouldDouble = false
-        for (let i = num.length - 1; i >= 0; i--) {
-          let d = parseInt(num[i], 10)
-          if (Number.isNaN(d)) return false
-          if (shouldDouble) {
-            d *= 2
-            if (d > 9) d -= 9
-          }
-          sum += d
-          shouldDouble = !shouldDouble
-        }
-        return sum % 10 === 0
-      }
-
-      const expMatch = exp.match(/^(\d{2})\s*\/\s*(\d{2})$/)
-      if (!cardForm.value.name?.trim()) {
-        cardError.value = 'Kérjük, adja meg a kártyabirtokos nevét.'
-        throw new Error('card_validation')
-      }
-      if (digits.length < 13 || digits.length > 19 || !isValidLuhn(digits)) {
-        cardError.value = 'Érvénytelen kártyaszám.'
-        throw new Error('card_validation')
-      }
-      if (!expMatch) {
-        cardError.value = 'A lejárat formátuma: HH/ÉÉ (pl. 12/30).'
-        throw new Error('card_validation')
-      }
-      const mm = parseInt(expMatch[1], 10)
-      const yy = parseInt(expMatch[2], 10)
-      if (mm < 1 || mm > 12) {
-        cardError.value = 'Érvénytelen lejárati hónap.'
-        throw new Error('card_validation')
-      }
-      // Very simple expiry check: YY is 2000-based
-      const now = new Date()
-      const expDate = new Date(2000 + yy, mm, 0, 23, 59, 59)
-      if (expDate < now) {
-        cardError.value = 'A kártya lejárt.'
-        throw new Error('card_validation')
-      }
-      if (cvcDigits.length < 3 || cvcDigits.length > 4) {
-        cardError.value = 'Érvénytelen CVC.'
-        throw new Error('card_validation')
-      }
-
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 1200))
     }
@@ -1186,11 +1376,31 @@ const createBooking = async () => {
       router.push('/bookings')
     }, 2000)
   } catch (err) {
-    if (err?.message === 'card_validation') {
-      // cardError already set
-      return
+    console.error('Booking creation error:', err)
+    
+    // Extract error message from response
+    let errorMsg = 'A foglalás létrehozása sikertelen'
+    if (err.response?.data) {
+      errorMsg = err.response.data.error || err.response.data.message || errorMsg
+      
+      // If there are validation errors, show them
+      if (err.response.data.errors) {
+        const validationErrors = Object.values(err.response.data.errors).flat()
+        errorMsg = validationErrors.join(', ') || errorMsg
+      }
+    } else if (err.message) {
+      errorMsg = err.message
     }
-    bookingError.value = err.response?.data?.error || err.response?.data?.message || 'A foglalás létrehozása sikertelen'
+    
+    bookingError.value = errorMsg
+    
+    // Scroll to error message
+    setTimeout(() => {
+      const errorElement = document.querySelector('.error-message')
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 100)
   } finally {
     bookingLoading.value = false
   }
@@ -2900,6 +3110,46 @@ const getGrandTotal = () => {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+  background: rgba(254, 242, 242, 0.75) !important;
+}
+
+.input-error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12) !important;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 0.375rem;
+  font-weight: 500;
+}
+
+.required {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.inline-error {
+  background: rgba(254, 242, 242, 0.9);
+  border: 1px solid #ef4444;
+  color: #dc2626;
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
 }
 
 /* Room Gallery Modal Styles */
