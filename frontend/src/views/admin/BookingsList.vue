@@ -219,6 +219,14 @@
           <span class="filter-count">({{ confirmedCount }})</span>
         </button>
         <button
+          @click="activeFilter = 'waitingForPayment'"
+          :class="['filter-btn', { active: activeFilter === 'waitingForPayment' }]"
+        >
+          <span class="filter-icon">💰</span>
+          <span>Fizetésre vár</span>
+          <span class="filter-count">({{ waitingForPaymentCount }})</span>
+        </button>
+        <button
           @click="activeFilter = 'cancelled'"
           :class="['filter-btn', { active: activeFilter === 'cancelled' }]"
         >
@@ -294,13 +302,33 @@
                 </span>
               </td>
               <td class="actions-cell">
-                <button
-                  @click="openBookingActionsModal(booking)"
-                  class="btn-actions"
-                  title="Műveletek"
-                >
-                  ⚙️ Műveletek
-                </button>
+                <div class="table-actions">
+                  <button
+                    v-if="booking.status === 'cancelled' || booking.checkInstatus === 'checkedOut'"
+                    @click="openBookingDetailsModal(booking)"
+                    class="btn-actions btn-details-vibrant"
+                    title="Részletek"
+                  >
+                    📋 Részletek
+                  </button>
+                  <template v-else>
+                    <button
+                      @click="openEditBookingModal(booking)"
+                      class="btn-actions btn-edit"
+                      title="Módosítás"
+                      :disabled="updating === booking.id"
+                    >
+                      ✏️ Módosítás
+                    </button>
+                    <button
+                      @click="openBookingActionsModal(booking)"
+                      class="btn-actions"
+                      title="Műveletek"
+                    >
+                      ⚙️ Műveletek
+                    </button>
+                  </template>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -1068,6 +1096,7 @@
                   ✏️ Foglalás szerkesztése
                 </button>
                 <button
+                  v-if="selectedBookingForActions.status !== 'confirmed'"
                   @click="handleAction('cancel')"
                   class="action-btn btn-danger"
                   :disabled="updating === selectedBookingForActions.id"
@@ -1178,6 +1207,88 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Booking Details Modal (Read-only for cancelled/deleted bookings) -->
+    <Transition name="modal">
+      <div v-if="showBookingDetailsModal && selectedBookingForDetails" class="modal-overlay" @click.self="closeBookingDetailsModal">
+        <div class="modal-content details-modal">
+          <div class="modal-header">
+            <h2>📋 Foglalás részletei - #{{ selectedBookingForDetails.id }}</h2>
+            <button @click="closeBookingDetailsModal" class="btn-close-modal">×</button>
+          </div>
+          <div class="details-content">
+            <div class="details-section">
+              <h3 class="details-section-title">Vendég információk</h3>
+              <div class="details-row">
+                <span class="details-label">Név:</span>
+                <span class="details-value">{{ selectedBookingForDetails.user?.name || 'N/A' }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Email:</span>
+                <span class="details-value">{{ selectedBookingForDetails.user?.email || 'N/A' }}</span>
+              </div>
+            </div>
+
+            <div class="details-section">
+              <h3 class="details-section-title">Foglalás információk</h3>
+              <div class="details-row">
+                <span class="details-label">Státusz:</span>
+                <span :class="['status-badge', selectedBookingForDetails.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${selectedBookingForDetails.status}`]">
+                  {{ selectedBookingForDetails.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(selectedBookingForDetails.status) }}
+                </span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Bejelentkezés:</span>
+                <span class="details-value">{{ formatDate(selectedBookingForDetails.startDate) }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Kijelentkezés:</span>
+                <span class="details-value">{{ formatDate(selectedBookingForDetails.endDate) }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Éjszakák:</span>
+                <span class="details-value">{{ calculateNights(selectedBookingForDetails.startDate, selectedBookingForDetails.endDate) }} éjszaka</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Összeg:</span>
+                <span class="details-value price">{{ selectedBookingForDetails.totalPrice || 'Nincs adat' }} €</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.rooms && selectedBookingForDetails.rooms.length > 0" class="details-section">
+              <h3 class="details-section-title">Szobák</h3>
+              <div v-for="room in selectedBookingForDetails.rooms" :key="room.id" class="details-row">
+                <span class="details-value">{{ room.name }} - {{ room.pricePerNight }} €/éjszaka</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.services && selectedBookingForDetails.services.length > 0" class="details-section">
+              <h3 class="details-section-title">Szolgáltatások</h3>
+              <div v-for="service in selectedBookingForDetails.services" :key="service.id" class="details-row">
+                <span class="details-value">{{ service.name }} - {{ service.price || 0 }} €</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.payment" class="details-section">
+              <h3 class="details-section-title">Fizetés</h3>
+              <div class="details-row">
+                <span class="details-label">Fizetési mód:</span>
+                <span class="details-value">{{ selectedBookingForDetails.payment.method === 'bank_transfer' ? 'Banki átutalás' : selectedBookingForDetails.payment.method === 'card' ? 'Kártyás fizetés' : selectedBookingForDetails.payment.method }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Fizetési státusz:</span>
+                <span :class="['status-badge', selectedBookingForDetails.payment.status === 'paid' ? 'badge-confirmed' : 'badge-pending']">
+                  {{ selectedBookingForDetails.payment.status === 'paid' ? 'Fizetve' : 'Fizetésre vár' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="closeBookingDetailsModal" class="btn-primary">Bezárás</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1267,9 +1378,23 @@ const cancelling = ref(false)
 const showBookingActionsModal = ref(false)
 const selectedBookingForActions = ref(null)
 
+// Booking Details Modal
+const showBookingDetailsModal = ref(false)
+const selectedBookingForDetails = ref(null)
+
+const openBookingDetailsModal = (booking) => {
+  selectedBookingForDetails.value = booking
+  showBookingDetailsModal.value = true
+}
+
+const closeBookingDetailsModal = () => {
+  showBookingDetailsModal.value = false
+  selectedBookingForDetails.value = null
+}
+
 // Filter state
 const activeFilter = ref('all')
-const viewMode = ref('card') // 'card' or 'table'
+const viewMode = ref('table') // 'card' or 'table'
 
 // Computed properties for counts
 const confirmedCount = computed(() => {
@@ -1292,6 +1417,15 @@ const archivedCount = computed(() => {
   return bookings.value.filter(b => b.status === 'cancelled' || b.checkInstatus === 'checkedOut').length
 })
 
+const waitingForPaymentCount = computed(() => {
+  return bookings.value.filter(b => 
+    b.status === 'confirmed' && 
+    b.checkInstatus !== 'checkedOut' &&
+    b.payment && 
+    b.payment.status !== 'paid'
+  ).length
+})
+
 // Filtered bookings based on active filter
 const filteredBookings = computed(() => {
   if (activeFilter.value === 'all') {
@@ -1300,6 +1434,13 @@ const filteredBookings = computed(() => {
     return bookings.value.filter(b => b.status === 'pending')
   } else if (activeFilter.value === 'confirmed') {
     return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut')
+  } else if (activeFilter.value === 'waitingForPayment') {
+    return bookings.value.filter(b => 
+      b.status === 'confirmed' && 
+      b.checkInstatus !== 'checkedOut' &&
+      b.payment && 
+      b.payment.status !== 'paid'
+    )
   } else if (activeFilter.value === 'cancelled') {
     return bookings.value.filter(b => b.status === 'cancelled')
   } else if (activeFilter.value === 'finished') {
@@ -1311,7 +1452,7 @@ const filteredBookings = computed(() => {
 })
 
 // Lock body scroll when any modal is open
-useBodyScrollLock([showEditInvoiceModal, showEditBookingModal, showGuestModal, showCancellationModal, showBookingActionsModal])
+useBodyScrollLock([showEditInvoiceModal, showEditBookingModal, showGuestModal, showCancellationModal, showBookingActionsModal, showBookingDetailsModal])
 
 onMounted(async () => {
   await loadHotels()
@@ -3909,6 +4050,14 @@ const handleAction = async (action, data = null) => {
   text-align: center;
 }
 
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .btn-actions {
   padding: 0.5rem 1rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -3927,6 +4076,45 @@ const handleAction = async (action, data = null) => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.btn-actions.btn-details {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.btn-actions.btn-details:hover {
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+}
+
+.btn-actions.btn-details-vibrant {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-weight: 700;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-actions.btn-details-vibrant:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-actions.btn-edit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.btn-actions.btn-edit:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-actions:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Actions Modal */
 .actions-modal {
   max-width: 700px;
@@ -3938,6 +4126,74 @@ const handleAction = async (action, data = null) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+/* Details Modal */
+.details-modal {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.details-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid #e0e0e0;
+}
+
+.details-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.details-row:last-child {
+  border-bottom: none;
+}
+
+.details-label {
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.details-value {
+  color: #2c3e50;
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.details-value.price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1rem;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 .booking-info-summary {
