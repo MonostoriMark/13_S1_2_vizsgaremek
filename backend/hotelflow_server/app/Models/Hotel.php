@@ -17,7 +17,10 @@ class Hotel extends Model
         'type',
         'starRating',
         'cover_image',
-        'createdAt'
+        'createdAt',
+        'tax_number',
+        'bank_account',
+        'eu_tax_number'
     ];
 
     // Kapcsolat a userhez (host)

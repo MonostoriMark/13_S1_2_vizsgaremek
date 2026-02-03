@@ -89,29 +89,6 @@
             </div>
           </div>
 
-          <div class="form-section">
-            <h3 class="section-title">Számlázási adatok *</h3>
-            <p class="section-description">Ezek a mezők kötelezőek a számlák kiállításához. A kitöltésük szükséges az admin felület eléréséhez.</p>
-            
-            <div class="form-group">
-              <label>Adószám *</label>
-              <input v-model="form.tax_number" type="text" placeholder="Adja meg az adószámot" required />
-              <span class="field-hint">Kötelező a számlák kiállításához</span>
-            </div>
-
-            <div class="form-group">
-              <label>Bankszámlaszám *</label>
-              <input v-model="form.bank_account" type="text" placeholder="Adja meg a bankszámlaszámot" required />
-              <span class="field-hint">Kötelező a számlák kiállításához</span>
-            </div>
-
-            <div class="form-group">
-              <label>Közösségi adószám (EU adószám) *</label>
-              <input v-model="form.eu_tax_number" type="text" placeholder="Adja meg a közösségi adószámot" required />
-              <span class="field-hint">Kötelező a számlák kiállításához</span>
-            </div>
-          </div>
-
           <div class="form-section danger-zone">
             <h3 class="section-title danger-title">Veszélyes zóna</h3>
             <p class="section-description">Visszafordíthatatlan, végleges műveletek</p>
@@ -318,9 +295,6 @@ const form = ref({
   email: '',
   role: '',
   password: '',
-  tax_number: '',
-  bank_account: '',
-  eu_tax_number: '',
   two_factor_enabled: false
 })
 
@@ -338,17 +312,11 @@ const loadUserData = async () => {
       email: userDataFromApi.email || '',
       role: userDataFromApi.role || '',
       password: '',
-      tax_number: userDataFromApi.tax_number || '',
-      bank_account: userDataFromApi.bank_account || '',
-      eu_tax_number: userDataFromApi.eu_tax_number || '',
       two_factor_enabled: twoFAEnabled
     }
     
     // Also update auth store with complete data
     if (authStore.state.user) {
-      authStore.state.user.tax_number = userDataFromApi.tax_number
-      authStore.state.user.bank_account = userDataFromApi.bank_account
-      authStore.state.user.eu_tax_number = userDataFromApi.eu_tax_number
       authStore.state.user.two_factor_enabled = twoFAEnabled
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
@@ -362,9 +330,6 @@ const loadUserData = async () => {
         email: authStore.state.user.email || '',
         role: authStore.state.user.role || '',
         password: '',
-        tax_number: authStore.state.user.tax_number || '',
-        bank_account: authStore.state.user.bank_account || '',
-        eu_tax_number: authStore.state.user.eu_tax_number || '',
         two_factor_enabled: !!authStore.state.user.two_factor_enabled
       }
     }
@@ -381,10 +346,7 @@ const handleSubmit = async () => {
   try {
     const updateData = {
       name: form.value.name,
-      email: form.value.email,
-      tax_number: form.value.tax_number || null,
-      bank_account: form.value.bank_account || null,
-      eu_tax_number: form.value.eu_tax_number || null
+      email: form.value.email
     }
 
     // Only include password if it's provided
@@ -403,27 +365,8 @@ const handleSubmit = async () => {
     if (authStore.state.user) {
       authStore.state.user.name = updatedUser.name
       authStore.state.user.email = updatedUser.email
-      authStore.state.user.tax_number = updatedUser.tax_number
-      authStore.state.user.bank_account = updatedUser.bank_account
-      authStore.state.user.eu_tax_number = updatedUser.eu_tax_number
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
-    
-    // Update form with saved values (especially invoice fields)
-    form.value.tax_number = updatedUser.tax_number || ''
-    form.value.bank_account = updatedUser.bank_account || ''
-    form.value.eu_tax_number = updatedUser.eu_tax_number || ''
-    
-    // Update auth store with invoice data
-    if (authStore.state.user) {
-      authStore.state.user.tax_number = updatedUser.tax_number
-      authStore.state.user.bank_account = updatedUser.bank_account
-      authStore.state.user.eu_tax_number = updatedUser.eu_tax_number
-      localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
-    }
-    
-    // Trigger invoice data check in AdminLayout
-    window.dispatchEvent(new CustomEvent('invoice-data-updated'))
     userData.value = updatedUser
 
     successMessage.value = 'Profile updated successfully!'

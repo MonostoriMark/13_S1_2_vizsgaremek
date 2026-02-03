@@ -7,6 +7,7 @@
     
     <InvoiceDataBlocker
       :visible="showInvoiceDataBlocker"
+      :missing-hotels="missingBillingHotels"
       @complete="handleInvoiceDataComplete"
     />
     
@@ -96,6 +97,7 @@ const menuItems = [
   { path: '/admin/services', label: 'Szolgáltatások', icon: '✨' },
   { path: '/admin/tags', label: 'Címkék', icon: '🏷️' },
   { path: '/admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' },
+  { path: '/admin/company-info', label: 'Cégadatok', icon: '💼' },
   { path: '/admin/users', label: 'Profilom', icon: '👤' }
 ]
 
@@ -161,11 +163,41 @@ const handleNavClick = (event, path) => {
 }
 
 const showInvoiceDataBlocker = ref(false)
+const missingBillingHotels = ref([])
 
-const hasCompleteInvoiceData = (user) => {
-  if (!user) return false
-  // Required fields: tax_number, bank_account, eu_tax_number
-  return !!(user.tax_number && user.bank_account && user.eu_tax_number)
+const hasCompleteInvoiceData = async () => {
+  // Check if all hotels owned by the user have complete billing information
+  try {
+    const { adminService } = await import('../services/adminService')
+    const hotelsData = await adminService.getHotels()
+    const hotels = Array.isArray(hotelsData) ? hotelsData : (hotelsData.hotels || [])
+    
+    // Filter to only hotels owned by current user
+    const userHotels = hotels.filter(hotel => {
+      const hotelUserId = hotel.user_id || hotel.user?.id
+      const currentUserId = authStore.state.user?.id
+      return hotelUserId && currentUserId && (hotelUserId === currentUserId || hotelUserId == currentUserId)
+    })
+    
+    // If user has no hotels, they can't access admin features anyway
+    if (userHotels.length === 0) {
+      missingBillingHotels.value = []
+      return false
+    }
+    
+    // Find hotels missing billing info
+    const missing = userHotels.filter(hotel => 
+      !hotel.tax_number || !hotel.bank_account || !hotel.eu_tax_number
+    )
+    
+    missingBillingHotels.value = missing
+    
+    return missing.length === 0
+  } catch (err) {
+    console.error('Failed to check hotel billing info:', err)
+    missingBillingHotels.value = []
+    return false
+  }
 }
 
 const check2FARequirement = async () => {
@@ -187,16 +219,19 @@ const check2FARequirement = async () => {
     
     // After 2FA is enabled, check invoice data
     if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-      if (!hasCompleteInvoiceData(authStore.state.user)) {
+      // Allow access to company-info page to fill billing data
+      if (route.path === '/admin/company-info') {
+        showInvoiceDataBlocker.value = false
+        return
+      }
+      
+      // Check if all hotels have complete billing info
+      const hasComplete = await hasCompleteInvoiceData()
+      if (!hasComplete) {
         showInvoiceDataBlocker.value = true
-        // Allow access to profile page to fill invoice data
-        if (route.path === '/admin/users') {
-          showInvoiceDataBlocker.value = false
-        } else {
-          // Block other pages if invoice data is incomplete
-          if (route.path !== '/admin/users') {
-            router.push('/admin/users')
-          }
+        // Block other pages if invoice data is incomplete
+        if (route.path !== '/admin/company-info') {
+          router.push('/admin/company-info')
         }
       } else {
         showInvoiceDataBlocker.value = false
@@ -222,16 +257,13 @@ onMounted(async () => {
     return
   }
   
-  // Load fresh user data to check 2FA status and invoice data
+  // Load fresh user data to check 2FA status
   try {
     const { authService } = await import('../services/authService')
     const userData = await authService.getMe()
     if (authStore.state.user) {
       Object.assign(authStore.state.user, {
-        two_factor_enabled: userData.two_factor_enabled || false,
-        tax_number: userData.tax_number,
-        bank_account: userData.bank_account,
-        eu_tax_number: userData.eu_tax_number
+        two_factor_enabled: userData.two_factor_enabled || false
       })
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
@@ -244,43 +276,20 @@ onMounted(async () => {
     check2FARequirement()
   }, 100)
   
-  // Listen for invoice data updates from Users page
-  window.addEventListener('invoice-data-updated', async () => {
-    // Reload user data to check invoice data completion
-    try {
-      const { authService } = await import('../services/authService')
-      const userData = await authService.getMe()
-      if (authStore.state.user) {
-        Object.assign(authStore.state.user, {
-          tax_number: userData.tax_number,
-          bank_account: userData.bank_account,
-          eu_tax_number: userData.eu_tax_number
-        })
-        localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
-      }
-      check2FARequirement()
-    } catch (err) {
-      console.error('Failed to reload user data:', err)
-    }
+  // Listen for hotel billing data updates from CompanyInfo page
+  window.addEventListener('hotel-billing-updated', async () => {
+    // Recheck billing data completion
+    check2FARequirement()
   })
 })
 
-// Watch for invoice data changes
-watch(() => authStore.state.user?.tax_number, () => {
-  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
-  }
-})
-
-watch(() => authStore.state.user?.bank_account, () => {
-  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
-  }
-})
-
-watch(() => authStore.state.user?.eu_tax_number, () => {
-  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
+// Watch for route changes to recheck billing data
+watch(() => route.path, () => {
+  if (route.path === '/admin/company-info') {
+    // When user navigates to company-info page, recheck after a delay
+    setTimeout(() => {
+      check2FARequirement()
+    }, 500)
   }
 })
 

@@ -59,6 +59,8 @@ Route::get('/hotels/{id}', [HotelController::class, 'getHotelById']);
 Route::post('/hotels', [HotelController::class, 'createHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/hotels/upgrade/{id}', [HotelController::class, 'upgradeHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::post('/hotels/{id}/cover-image', [HotelController::class, 'uploadCoverImage'])->middleware('auth:sanctum', 'role:hotel');
+Route::get('/hotels/{id}/billing-info', [HotelController::class, 'getHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
+Route::put('/hotels/{id}/billing-info', [HotelController::class, 'updateHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->middleware('auth:sanctum', 'role:hotel');
 
 //ROOM VÉGPONTOK

@@ -11,7 +11,14 @@ use App\Models\Hotel;
 class HotelController extends Controller
 {
     public function getHotels(){
-        $hotels = Hotel::with(['tags', 'rooms.images'])->get();
+        // If user is authenticated and is a hotel admin, only return their hotels
+        if (auth()->check() && auth()->user()->role === 'hotel') {
+            $hotels = Hotel::with(['tags', 'rooms.images'])
+                ->where('user_id', auth()->id())
+                ->get();
+        } else {
+            $hotels = Hotel::with(['tags', 'rooms.images'])->get();
+        }
         return response()->json($hotels, 200);
     }
 
@@ -146,6 +153,110 @@ class HotelController extends Controller
         }
         return response()->json($hotel, 200);
     }
+    public function getHotelBillingInfo($id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $hotel = Hotel::find($id);
+        
+        if (!$hotel) {
+            return response()->json(['error' => 'Hotel not found'], 404);
+        }
+
+        // Check if user owns this hotel - use loose comparison to handle type mismatches
+        $userId = (int) $user->id;
+        $hotelUserId = (int) $hotel->user_id;
+        
+        if ($userId !== $hotelUserId) {
+            return response()->json(['error' => 'Unauthorized - You do not own this hotel'], 403);
+        }
+
+        return response()->json([
+            'tax_number' => $hotel->tax_number,
+            'bank_account' => $hotel->bank_account,
+            'eu_tax_number' => $hotel->eu_tax_number
+        ], 200);
+    }
+
+    public function updateHotelBillingInfo(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        // Convert ID to integer to handle string IDs from routes
+        $hotelId = (int) $id;
+        $hotel = Hotel::find($hotelId);
+        
+        if (!$hotel) {
+            return response()->json(['error' => 'Hotel not found'], 404);
+        }
+
+        // Check if hotel has a user_id
+        if (!$hotel->user_id) {
+            \Log::warning('Hotel has no user_id', [
+                'hotel_id' => $hotel->id,
+                'user_id' => $user->id
+            ]);
+            return response()->json([
+                'error' => 'Hotel configuration error',
+                'message' => 'A szállodának nincs hozzárendelt tulajdonosa.'
+            ], 500);
+        }
+
+        // Check if user owns this hotel - convert both to integers for comparison
+        $userId = (int) $user->id;
+        $hotelUserId = (int) $hotel->user_id;
+        
+        if ($userId !== $hotelUserId) {
+            \Log::warning('Hotel billing update unauthorized', [
+                'user_id' => $user->id,
+                'user_id_type' => gettype($user->id),
+                'hotel_id' => $hotel->id,
+                'hotel_user_id' => $hotel->user_id,
+                'hotel_user_id_type' => gettype($hotel->user_id),
+                'comparison' => $userId . ' !== ' . $hotelUserId,
+                'request_id' => $id,
+                'converted_hotel_id' => $hotelId
+            ]);
+            return response()->json([
+                'error' => 'Unauthorized - You do not own this hotel',
+                'message' => 'Csak a saját szállodái számlázási adatait módosíthatja.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'tax_number' => ['required', 'string', 'max:255'],
+            'bank_account' => ['required', 'string', 'max:255'],
+            'eu_tax_number' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Validate tax number format
+        $taxNumber = trim(str_replace(' ', '', $validated['tax_number']));
+        $hungarianTaxPattern = '/^\d{8}$/';
+        $euVatPattern = '/^[A-Z]{2}[A-Z0-9]{2,12}$/';
+        
+        if (!preg_match($hungarianTaxPattern, $taxNumber) && !preg_match($euVatPattern, $taxNumber)) {
+            return response()->json([
+                'error' => 'Érvénytelen adószám formátum. Használjon 8 számjegyű magyar adószámot vagy EU ÁFA számot (pl. HU12345678)'
+            ], 422);
+        }
+
+        $hotel->tax_number = $validated['tax_number'];
+        $hotel->bank_account = $validated['bank_account'];
+        $hotel->eu_tax_number = $validated['eu_tax_number'];
+        $hotel->save();
+
+        return response()->json([
+            'message' => 'Hotel billing information updated successfully',
+            'hotel' => $hotel
+        ], 200);
+    }
+
     public function deleteHotel($id){
         $hotel = Hotel::find($id);
          // -------------------------

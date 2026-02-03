@@ -222,11 +222,14 @@
                 <div class="block">
                     <div class="line"><strong>{{ $hotel->user->name ?? $hotel->name }}</strong></div>
                     <div class="line">{{ $hotel->location ?? '' }}</div>
-                    @if($hotel->user->tax_number)
-                        <div class="line">Adószám: {{ $hotel->user->tax_number }}</div>
+                    @if($hotel->tax_number)
+                        <div class="line">Adószám: {{ $hotel->tax_number }}</div>
                     @endif
-                    @if($hotel->user->bank_account)
-                        <div class="line">Bankszámlaszám: {{ $hotel->user->bank_account }}</div>
+                    @if($hotel->bank_account)
+                        <div class="line">Bankszámlaszám: {{ $hotel->bank_account }}</div>
+                    @endif
+                    @if($hotel->eu_tax_number)
+                        <div class="line">EU adószám: {{ $hotel->eu_tax_number }}</div>
                     @endif
                 </div>
             </div>

@@ -408,7 +408,16 @@
                       </div>
                       <div v-if="invoiceForm.customer_type === 'business'" class="form-field">
                         <label>Adószám</label>
-                        <input v-model="invoiceForm.tax_number" type="text" class="input" placeholder="Opcionális" />
+                        <input 
+                          v-model="invoiceForm.tax_number" 
+                          type="text" 
+                          class="input" 
+                          :class="{ 'input-error': formErrors.tax_number }"
+                          placeholder="12345678 vagy HU12345678"
+                          @blur="validateForm"
+                        />
+                        <div v-if="formErrors.tax_number" class="field-error">{{ formErrors.tax_number }}</div>
+                        <small class="field-hint">8 számjegyű magyar adószám vagy EU ÁFA szám (pl. HU12345678)</small>
                       </div>
 
                       <div class="form-field">
@@ -727,6 +736,7 @@ const formErrors = ref({
   full_name: '',
   email: '',
   company_name: '',
+  tax_number: '',
   country: '',
   city: '',
   postal_code: '',
@@ -771,9 +781,24 @@ const validateForm = () => {
     isValid = false
   }
 
-  if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name?.trim()) {
-    formErrors.value.company_name = 'A cégnév kötelező vállalati számlázás esetén'
-    isValid = false
+  if (invoiceForm.value.customer_type === 'business') {
+    if (!invoiceForm.value.company_name?.trim()) {
+      formErrors.value.company_name = 'A cégnév kötelező vállalati számlázás esetén'
+      isValid = false
+    }
+    // Tax number validation for business customers
+    if (invoiceForm.value.tax_number?.trim()) {
+      // Hungarian tax number format: 8 digits (e.g., 12345678)
+      // EU VAT format: 2 letter country code + up to 12 alphanumeric (e.g., HU12345678)
+      const taxNumber = invoiceForm.value.tax_number.trim().replace(/\s/g, '')
+      const hungarianTaxPattern = /^\d{8}$/
+      const euVatPattern = /^[A-Z]{2}[A-Z0-9]{2,12}$/
+      
+      if (!hungarianTaxPattern.test(taxNumber) && !euVatPattern.test(taxNumber)) {
+        formErrors.value.tax_number = 'Érvénytelen adószám formátum. Használjon 8 számjegyű magyar adószámot vagy EU ÁFA számot (pl. HU12345678)'
+        isValid = false
+      }
+    }
   }
 
   // Address fields validation

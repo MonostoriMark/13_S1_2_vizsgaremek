@@ -95,7 +95,7 @@
                         📍 {{ hotel.location || 'Helyszín nincs megadva' }}
                       </p>
                       <button class="hotel-select-btn-minimal">
-                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás →' }}
+                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás' }}
                       </button>
                     </div>
                   </div>
