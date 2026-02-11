@@ -9,8 +9,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Mail\InvoiceMail;
 use App\Helpers\NumberToWords;
+use App\Helpers\UrlHelper;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -81,7 +83,7 @@ class InvoiceController extends Controller
      */
     public function approve($invoiceId)
     {
-        $invoice = Invoice::with(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services'])->find($invoiceId);
+        $invoice = Invoice::with(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails'])->find($invoiceId);
         
         if (!$invoice) {
             return response()->json(['error' => 'Számla nem található'], 404);
@@ -106,13 +108,54 @@ class InvoiceController extends Controller
             $invoice->pdf_path = $pdfPath;
             $invoice->status = 'approved';
             $invoice->approved_at = now();
+            
+            // Generate payment token for card payments
+            $payment = $invoice->booking->payment;
+            if ($payment && $payment->method === 'card') {
+                $invoice->payment_token = Str::random(64);
+            }
+            
             $invoice->save();
+
+            // Automatically send invoice after approval for both payment methods
+            // Reload invoice with all relationships for email
+            $invoice->load(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails']);
+            
+            // Send appropriate email based on payment method
+            try {
+                if ($payment && $payment->method === 'card') {
+                    // Send invoice email with payment link for card payments
+                    Mail::to($invoice->booking->user->email)
+                        ->send(new InvoiceMail($invoice));
+                } else {
+                    // Send invoice email for bank transfer payments
+                    Mail::to($invoice->booking->user->email)
+                        ->send(new \App\Mail\InvoiceBankTransferMail($invoice));
+                }
+                
+                $invoice->status = 'sent';
+                $invoice->sent_at = now();
+                $invoice->save();
+            } catch (\Exception $mailEx) {
+                // Log email error but don't fail the approval
+                \Log::error('Számla email küldési hiba (approve): ' . $mailEx->getMessage());
+                // Keep status as 'approved' so admin can manually send later
+            }
 
             DB::commit();
 
+            // Determine message based on whether email was sent successfully
+            $emailSent = $invoice->status === 'sent';
+            $message = $emailSent 
+                ? ($payment && $payment->method === 'card' 
+                    ? 'Számla jóváhagyva és elküldve a vendégnek fizetési linkkel' 
+                    : 'Számla jóváhagyva és elküldve a vendégnek')
+                : 'Számla jóváhagyva, de az email küldése sikertelen volt. Kérjük, próbálja meg manuálisan elküldeni.';
+
             return response()->json([
-                'message' => 'Számla sikeresen jóváhagyva',
-                'invoice' => $invoice
+                'message' => $message,
+                'invoice' => $invoice,
+                'email_sent' => $emailSent
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -223,7 +266,7 @@ class InvoiceController extends Controller
      */
     public function send($invoiceId)
     {
-        $invoice = Invoice::with(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services'])->find($invoiceId);
+        $invoice = Invoice::with(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails'])->find($invoiceId);
         
         if (!$invoice) {
             return response()->json(['error' => 'Számla nem található'], 404);
@@ -234,27 +277,73 @@ class InvoiceController extends Controller
             return response()->json(['error' => 'Nincs jogosultságod'], 403);
         }
 
-        if ($invoice->status !== 'approved') {
-            return response()->json(['error' => 'A számlát először jóvá kell hagyni'], 400);
+        if ($invoice->status !== 'approved' && $invoice->status !== 'draft') {
+            return response()->json(['error' => 'A számla már elküldve'], 400);
         }
 
         try {
-            // Send email with PDF attachment
-            Mail::to($invoice->booking->user->email)
-                ->send(new InvoiceMail($invoice));
+            // Ensure PDF exists
+            if (!$invoice->pdf_path || !Storage::disk('public')->exists($invoice->pdf_path)) {
+                \Log::info('PDF generálása számla küldéshez: ' . $invoice->invoice_number);
+                // Generate PDF if missing
+                $pdfContent = $this->generatePDF($invoice->booking, $invoice);
+                $pdfPath = 'invoices/' . $invoice->invoice_number . '.pdf';
+                Storage::disk('public')->put($pdfPath, $pdfContent);
+                $invoice->pdf_path = $pdfPath;
+                $invoice->save();
+            }
+
+            // Reload invoice to ensure all relationships are fresh
+            $invoice->refresh();
+            $invoice->load(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails']);
+
+            // Send appropriate email based on payment method
+            $payment = $invoice->booking->payment;
+            $recipientEmail = $invoice->booking->user->email;
+            
+            \Log::info('Számla email küldése kezdődik', [
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'recipient_email' => $recipientEmail,
+                'payment_method' => $payment ? $payment->method : 'unknown'
+            ]);
+
+            if ($payment && $payment->method === 'card') {
+                // Ensure payment token exists for card payments
+                if (!$invoice->payment_token) {
+                    $invoice->payment_token = Str::random(64);
+                    $invoice->save();
+                }
+                // Send invoice email with payment link for card payments
+                Mail::to($recipientEmail)
+                    ->send(new InvoiceMail($invoice));
+                \Log::info('Bankkártyás számla email elküldve', ['invoice_id' => $invoice->id, 'email' => $recipientEmail]);
+            } else {
+                // Send invoice email for bank transfer payments
+                Mail::to($recipientEmail)
+                    ->send(new \App\Mail\InvoiceBankTransferMail($invoice));
+                \Log::info('Banki átutalásos számla email elküldve', ['invoice_id' => $invoice->id, 'email' => $recipientEmail]);
+            }
 
             $invoice->status = 'sent';
             $invoice->sent_at = now();
             $invoice->save();
 
+            \Log::info('Számla státusz frissítve: sent', ['invoice_id' => $invoice->id]);
+
             return response()->json([
-                'message' => 'Számla sikeresen elküldve a vendégnek'
+                'message' => 'Számla sikeresen elküldve a vendégnek',
+                'email_sent' => true
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Számla email küldési hiba: ' . $e->getMessage());
+            \Log::error('Számla email küldési hiba: ' . $e->getMessage(), [
+                'invoice_id' => $invoice->id,
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'error' => 'Hiba a számla küldésekor',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
+                'email_sent' => false
             ], 500);
         }
     }
@@ -301,6 +390,105 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Get invoice by payment token
+     */
+    public function getByPaymentToken($token)
+    {
+        try {
+            $invoice = Invoice::with([
+                'booking.hotel.user', 
+                'booking.user', 
+                'booking.rooms', 
+                'booking.services', 
+                'booking.payment'
+            ])
+            ->where('payment_token', $token)
+            ->first();
+            
+            if (!$invoice) {
+                return response()->json(['error' => 'Érvénytelen fizetési link'], 404);
+            }
+
+            // Ensure booking is loaded
+            if (!$invoice->booking) {
+                return response()->json(['error' => 'A foglalás nem található'], 404);
+            }
+
+            // Check if invoice is already paid
+            if ($invoice->booking->payment && $invoice->booking->payment->status === 'paid') {
+                return response()->json(['error' => 'Ez a számla már ki lett fizetve'], 400);
+            }
+
+            return response()->json([
+                'invoice' => $invoice,
+                'booking' => $invoice->booking
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Error in getByPaymentToken: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Hiba történt a számla betöltésekor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Process payment for invoice (mark as paid)
+     */
+    public function processPayment($token)
+    {
+        $invoice = Invoice::with(['booking.payment', 'booking.user', 'booking.hotel', 'booking.rooms', 'booking.services'])
+            ->where('payment_token', $token)
+            ->first();
+        
+        if (!$invoice) {
+            return response()->json(['error' => 'Érvénytelen fizetési link'], 404);
+        }
+
+        // Check if invoice is already paid
+        if ($invoice->booking->payment && $invoice->booking->payment->status === 'paid') {
+            return response()->json(['error' => 'Ez a számla már ki lett fizetve'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Mark payment as paid
+            $payment = $invoice->booking->payment;
+            if ($payment) {
+                $payment->status = 'paid';
+                $payment->confirmed_at = now();
+                $payment->confirmed_by_user_id = $invoice->booking->users_id;
+                $payment->save();
+            }
+
+            // Send QR code email to guest after successful payment
+            try {
+                $booking = $invoice->booking;
+                $booking->load(['hotel', 'user', 'rooms.hotel', 'services']);
+                
+                Mail::to($booking->user->email)
+                    ->send(new \App\Mail\BookingConfirmationMail($booking));
+            } catch (\Exception $mailEx) {
+                \Log::error('QR kód email küldési hiba (payment processed): ' . $mailEx->getMessage());
+                // Don't fail the payment if email fails
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Fizetés sikeresen feldolgozva',
+                'invoice' => $invoice->fresh(['booking.payment'])
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Hiba a fizetés feldolgozásakor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get invoice by booking ID
      */
     public function getByBooking($bookingId)
@@ -331,7 +519,7 @@ class InvoiceController extends Controller
     /**
      * Create invoice from booking
      */
-    private function createInvoice(Booking $booking)
+    public function createInvoice(Booking $booking)
     {
         // Calculate invoice details
         // For EU sales, VAT can be 0% (tax-free)
@@ -379,7 +567,7 @@ class InvoiceController extends Controller
     /**
      * Generate PDF content
      */
-    private function generatePDF(Booking $booking, Invoice $invoice)
+    public function generatePDF(Booking $booking, Invoice $invoice)
     {
         // Load all necessary relationships
         $booking->load(['hotel.user', 'user', 'rooms', 'services', 'payment', 'invoiceDetails']);

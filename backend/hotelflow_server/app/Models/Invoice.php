@@ -20,6 +20,7 @@ class Invoice extends Model
         'issue_date',
         'due_date',
         'pdf_path',
+        'payment_token',
         'approved_at',
         'sent_at'
     ];

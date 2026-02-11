@@ -13,6 +13,7 @@ use App\Mail\NewBookingNotificationMail;
 use App\Mail\BookingRequestNotificationMail;
 use App\Mail\BookingConfirmedPendingPaymentMail;
 use App\Mail\BookingCancelledMail;
+use App\Mail\InvoiceMail;
 use App\Helpers\UrlHelper;
 use App\Models\Invoice;
 use App\Models\Guest;
@@ -154,14 +155,9 @@ public function store(Request $request)
         // Store payment method + payment status snapshot
         // -------------------------
         // - bank_transfer: pending (paid later by hotel admin confirmation)
-        // - card: simulated as "paid" immediately
+        // - card: pending (will be paid via payment link after invoice approval)
         $paymentMethod = $request->input('payment_method', 'bank_transfer');
         $paymentAttrs = ['method' => $paymentMethod, 'status' => 'pending'];
-        if ($paymentMethod === 'card') {
-            $paymentAttrs['status'] = 'paid';
-            $paymentAttrs['confirmed_at'] = now();
-            $paymentAttrs['confirmed_by_user_id'] = $booking->users_id;
-        }
         BookingPayment::firstOrCreate(['booking_id' => $booking->id], $paymentAttrs);
 
         $details = $request->input('invoice_details');
@@ -515,45 +511,55 @@ function updateStatus(Request $request, $id)
                 ['method' => 'bank_transfer', 'status' => 'pending']
             );
 
-            // If payment is already marked as paid (e.g. simulated card payment),
-            // send the QR code email immediately; otherwise keep payment-gated flow.
-            if ($payment->status === 'paid') {
+            // Different handling for card vs bank transfer payments
+            if ($payment->method === 'card') {
+                // For card payments: automatically create, approve, and send invoice with payment link
+                // Notify guest that hotel will accept booking soon (this email is sent before approval)
                 Mail::to($booking->user->email)
-                    ->send(new BookingConfirmationMail($booking));
+                    ->send(new BookingRequestNotificationMail($booking));
+                
+                // -------------------------
+                // Automatically generate, approve, and send invoice for card payments
+                // -------------------------
+                try {
+                    $invoice = Invoice::where('booking_id', $booking->id)->first();
+                    
+                    if (!$invoice) {
+                        // Create invoice using InvoiceController's method
+                        $invoiceController = new \App\Http\Controllers\InvoiceController();
+                        $invoice = $invoiceController->createInvoice($booking);
+                    }
+                    
+                    // Automatically approve and send invoice with payment link for card payments
+                    $invoice->load(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails']);
+                    
+                    // Generate PDF
+                    $pdfContent = $invoiceController->generatePDF($invoice->booking, $invoice);
+                    $pdfPath = 'invoices/' . $invoice->invoice_number . '.pdf';
+                    \Illuminate\Support\Facades\Storage::disk('public')->put($pdfPath, $pdfContent);
+                    $invoice->pdf_path = $pdfPath;
+                    
+                    // Generate payment token
+                    $invoice->payment_token = \Illuminate\Support\Str::random(64);
+                    $invoice->status = 'approved';
+                    $invoice->approved_at = now();
+                    $invoice->save();
+                    
+                    // Send invoice email with payment link
+                    Mail::to($invoice->booking->user->email)
+                        ->send(new InvoiceMail($invoice));
+                    
+                    $invoice->status = 'sent';
+                    $invoice->sent_at = now();
+                    $invoice->save();
+                } catch (\Exception $invoiceEx) {
+                    \Log::error('Számla generálási/küldési hiba (card payment): ' . $invoiceEx->getMessage());
+                }
             } else {
-                // Notify guest (no QR yet)
+                // For bank transfer: DO NOT TOUCH - keep existing logic
+                // Notify guest that invoice will be sent after approval
                 Mail::to($booking->user->email)
                     ->send(new BookingConfirmedPendingPaymentMail($booking));
-            }
-
-            // -------------------------
-            // Generate invoice preview (draft)
-            // -------------------------
-            try {
-                $invoice = Invoice::where('booking_id', $booking->id)->first();
-                
-                if (!$invoice) {
-                    // Create draft invoice
-                    $subtotal = $booking->totalPrice;
-                    $taxRate = 27;
-                    $taxAmount = round($subtotal * ($taxRate / 100), 2);
-                    $totalAmount = $subtotal + $taxAmount;
-                    $invoiceNumber = 'SZ' . str_pad($booking->id, 6, '0', STR_PAD_LEFT) . '/' . date('Y');
-                    
-                    $invoice = Invoice::create([
-                        'booking_id' => $booking->id,
-                        'invoice_number' => $invoiceNumber,
-                        'status' => 'draft',
-                        'subtotal' => $subtotal,
-                        'tax_amount' => $taxAmount,
-                        'total_amount' => $totalAmount,
-                        'tax_rate' => $taxRate,
-                        'issue_date' => now()->toDateString(),
-                        'due_date' => now()->addDays(8)->toDateString(),
-                    ]);
-                }
-            } catch (\Exception $invoiceEx) {
-                \Log::error('Számla előnézet generálási hiba: ' . $invoiceEx->getMessage());
             }
         } catch (\Exception $mailEx) {
             \Log::error('QR kód email küldési hiba: ' . $mailEx->getMessage());

@@ -153,7 +153,7 @@
                 
                 <div class="detail-row">
                     <span class="detail-label">Összeg:</span>
-                    <span class="detail-value"><strong>{{ number_format($booking->totalPrice, 0, ',', ' ') }} Ft</strong></span>
+                    <span class="detail-value"><strong>€{{ number_format($booking->totalPrice, 2, ',', ' ') }}</strong></span>
                 </div>
                 
                 <div class="detail-row">

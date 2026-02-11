@@ -347,8 +347,8 @@
                         <label class="radio-card">
                           <input type="radio" value="card" v-model="paymentMethod" />
                           <div class="radio-card-content">
-                            <div class="radio-title">Bankkártya (szimuláció)</div>
-                            <div class="radio-sub">Teszt fizetés, valódi terhelés nélkül</div>
+                            <div class="radio-title">Bankkártya</div>
+                            <div class="radio-sub">Fizetés a számla jóváhagyása után</div>
                           </div>
                         </label>
                       </div>
@@ -475,78 +475,6 @@
                     </div>
                   </div>
 
-                  <!-- Card Payment (simulation) -->
-                  <div v-if="paymentMethod === 'card'" class="card">
-                    <h3 class="card-title">Kártyás fizetés (szimuláció)</h3>
-                    <p class="muted">
-                      Ez egy szimuláció: nem küldünk adatot fizetési szolgáltatóhoz, nem történik valódi terhelés.
-                    </p>
-
-                    <div v-if="cardError" class="inline-error">{{ cardError }}</div>
-
-                    <div class="form-grid">
-                      <div class="form-field full">
-                        <label>Kártyabirtokos neve <span class="required">*</span></label>
-                        <input 
-                          v-model="cardForm.name" 
-                          type="text" 
-                          class="input" 
-                          :class="{ 'input-error': formErrors.card_name }"
-                          placeholder="Kovács János" 
-                          autocomplete="cc-name"
-                          @blur="validateForm"
-                        />
-                        <div v-if="formErrors.card_name" class="field-error">{{ formErrors.card_name }}</div>
-                      </div>
-                      <div class="form-field full">
-                        <label>Kártyaszám <span class="required">*</span></label>
-                        <input
-                          v-model="cardForm.number"
-                          type="text"
-                          class="input"
-                          :class="{ 'input-error': formErrors.card_number }"
-                          placeholder="1111 2222 3333 4444"
-                          inputmode="numeric"
-                          autocomplete="cc-number"
-                          @blur="validateForm"
-                          @input="cardForm.number = cardForm.number.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').slice(0, 23)"
-                          maxlength="23"
-                        />
-                        <div v-if="formErrors.card_number" class="field-error">{{ formErrors.card_number }}</div>
-                      </div>
-                      <div class="form-field">
-                        <label>Lejárat (HH/ÉÉ) <span class="required">*</span></label>
-                        <input 
-                          v-model="cardForm.expiry" 
-                          type="text" 
-                          class="input" 
-                          :class="{ 'input-error': formErrors.card_expiry }"
-                          placeholder="12/30" 
-                          autocomplete="cc-exp"
-                          @blur="validateForm"
-                          @input="cardForm.expiry = cardForm.expiry.replace(/\D/g, '').replace(/(\d{2})(?=\d)/, '$1/')"
-                          maxlength="5"
-                        />
-                        <div v-if="formErrors.card_expiry" class="field-error">{{ formErrors.card_expiry }}</div>
-                      </div>
-                      <div class="form-field">
-                        <label>CVC <span class="required">*</span></label>
-                        <input
-                          v-model="cardForm.cvc"
-                          type="text"
-                          class="input"
-                          :class="{ 'input-error': formErrors.card_cvc }"
-                          placeholder="123"
-                          inputmode="numeric"
-                          autocomplete="cc-csc"
-                          @blur="validateForm"
-                          @input="cardForm.cvc = cardForm.cvc.replace(/\D/g, '')"
-                          maxlength="4"
-                        />
-                        <div v-if="formErrors.card_cvc" class="field-error">{{ formErrors.card_cvc }}</div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div class="modal-actions">
@@ -710,13 +638,6 @@ const bookingError = ref('')
 const bookingSuccess = ref(false)
 const showPaymentInvoiceModal = ref(false)
 const paymentMethod = ref('bank_transfer')
-const cardError = ref('')
-const cardForm = ref({
-  name: '',
-  number: '',
-  expiry: '',
-  cvc: ''
-})
 const availableRooms = ref([])
 const roomsLoading = ref(false)
 const invoiceForm = ref({
@@ -741,10 +662,6 @@ const formErrors = ref({
   city: '',
   postal_code: '',
   address_line: '',
-  card_name: '',
-  card_number: '',
-  card_expiry: '',
-  card_cvc: ''
 })
 
 const isAuthenticated = computed(() => authStore.state.isAuthenticated)
@@ -763,7 +680,6 @@ const validateForm = () => {
   Object.keys(formErrors.value).forEach(key => {
     formErrors.value[key] = ''
   })
-  cardError.value = ''
 
   let isValid = true
 
@@ -822,67 +738,6 @@ const validateForm = () => {
     isValid = false
   }
 
-  // Card validation
-  if (paymentMethod.value === 'card') {
-    if (!cardForm.value.name?.trim()) {
-      formErrors.value.card_name = 'A kártyabirtokos neve kötelező'
-      isValid = false
-    }
-
-    const digits = (cardForm.value.number || '').replace(/\D/g, '')
-    if (!digits || digits.length < 13 || digits.length > 19) {
-      formErrors.value.card_number = 'Érvénytelen kártyaszám'
-      isValid = false
-    } else {
-      // Luhn algorithm check
-      const isValidLuhn = (num) => {
-        let sum = 0
-        let shouldDouble = false
-        for (let i = num.length - 1; i >= 0; i--) {
-          let d = parseInt(num[i], 10)
-          if (Number.isNaN(d)) return false
-          if (shouldDouble) {
-            d *= 2
-            if (d > 9) d -= 9
-          }
-          sum += d
-          shouldDouble = !shouldDouble
-        }
-        return sum % 10 === 0
-      }
-      if (!isValidLuhn(digits)) {
-        formErrors.value.card_number = 'Érvénytelen kártyaszám'
-        isValid = false
-      }
-    }
-
-    const exp = (cardForm.value.expiry || '').trim()
-    const expMatch = exp.match(/^(\d{2})\s*\/\s*(\d{2})$/)
-    if (!expMatch) {
-      formErrors.value.card_expiry = 'A lejárat formátuma: HH/ÉÉ (pl. 12/30)'
-      isValid = false
-    } else {
-      const mm = parseInt(expMatch[1], 10)
-      const yy = parseInt(expMatch[2], 10)
-      if (mm < 1 || mm > 12) {
-        formErrors.value.card_expiry = 'Érvénytelen lejárati hónap'
-        isValid = false
-      } else {
-        const now = new Date()
-        const expDate = new Date(2000 + yy, mm, 0, 23, 59, 59)
-        if (expDate < now) {
-          formErrors.value.card_expiry = 'A kártya lejárt'
-          isValid = false
-        }
-      }
-    }
-
-    const cvcDigits = (cardForm.value.cvc || '').replace(/\D/g, '')
-    if (!cvcDigits || cvcDigits.length < 3 || cvcDigits.length > 4) {
-      formErrors.value.card_cvc = 'Érvénytelen CVC (3-4 számjegy)'
-      isValid = false
-    }
-  }
 
   return isValid
 }
@@ -893,9 +748,6 @@ const canSubmitBookingWithInvoice = computed(() => {
   if (invoiceForm.value.customer_type === 'business' && !invoiceForm.value.company_name?.trim()) return false
   // Address fields are required
   if (!invoiceForm.value.country?.trim() || !invoiceForm.value.city?.trim() || !invoiceForm.value.postal_code?.trim() || !invoiceForm.value.address_line?.trim()) return false
-  if (paymentMethod.value === 'card') {
-    if (!cardForm.value.name?.trim() || !cardForm.value.number?.trim() || !cardForm.value.expiry?.trim() || !cardForm.value.cvc?.trim()) return false
-  }
   return true
 })
 
@@ -916,11 +768,7 @@ useBodyScrollLock(showPaymentInvoiceModal)
 
 // Clear errors when payment method changes
 watch(paymentMethod, () => {
-  cardError.value = ''
-  formErrors.value.card_name = ''
-  formErrors.value.card_number = ''
-  formErrors.value.card_expiry = ''
-  formErrors.value.card_cvc = ''
+  // Payment method changed
 })
 
 // Clear errors when customer type changes
@@ -1359,15 +1207,8 @@ const createBooking = async () => {
   bookingLoading.value = true
   bookingError.value = ''
   bookingSuccess.value = false
-  cardError.value = ''
 
   try {
-    // Simulated card payment processing (validation already done)
-    if (paymentMethod.value === 'card') {
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 1200))
-    }
-
     const selectedPlan = searchResultsData.value.hotel.plans[selectedPlanIndex.value]
     const bookingData = {
       userId: authStore.state.user.id,

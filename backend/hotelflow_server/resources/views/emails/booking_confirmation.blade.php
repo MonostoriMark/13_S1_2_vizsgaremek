@@ -180,7 +180,7 @@
             <p><strong>Szolgáltatások:</strong></p>
             <ul>
                 @foreach($booking->services as $service)
-                    <li>{{ $service->name }} @if($service->price) – {{ number_format($service->price, 0, ',', ' ') }} Ft @endif</li>
+                    <li>{{ $service->name }} @if($service->price) – €{{ number_format($service->price, 2, ',', ' ') }} @endif</li>
                 @endforeach
             </ul>
             @endif

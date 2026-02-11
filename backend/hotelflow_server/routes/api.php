@@ -138,6 +138,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download']);
 });
 
+// Public invoice payment routes (no auth required)
+Route::get('/invoices/payment/{token}', [InvoiceController::class, 'getByPaymentToken']);
+Route::post('/invoices/payment/{token}/process', [InvoiceController::class, 'processPayment']);
+
 //GUEST VÉGPONTOK
 Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGuests'])->middleware('auth:sanctum');
 Route::get('/guests/booking/{bookingId}', [BookingController::class, 'getGuestsByBookingId'])->middleware('auth:sanctum');

@@ -79,6 +79,18 @@
             color: #065f46;
             font-size: 0.9rem;
         }
+        .payment-info {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .payment-info p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 0.9rem;
+        }
         .footer {
             margin-top: 30px;
             padding-top: 20px;
@@ -137,14 +149,9 @@
                 </div>
             </div>
 
-            <div class="info-box" style="background: #dbeafe; border-left-color: #3b82f6;">
-                <p><strong>Fizetési mód: Bankkártya</strong></p>
-                <p style="margin: 10px 0;">
-                    <a href="{{ $paymentUrl }}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                        Fizetés bankkártyával
-                    </a>
-                </p>
-                <p style="margin-top: 10px; font-size: 0.85rem;">Kattints a gombra a biztonságos fizetési oldal megnyitásához. A fizetés sikeres befejezése után automatikusan elküldjük a check-in QR kódot.</p>
+            <div class="payment-info">
+                <p><strong>Fizetési mód: Banki átutalás</strong></p>
+                <p style="margin-top: 10px;">Kérjük, az átutalást a számlán feltüntetett bankszámlaszámra végezd el. A fizetés megerősítése után elküldjük a check-in QR kódot.</p>
             </div>
 
             <div class="info-box">

@@ -137,7 +137,7 @@
                 
                 <div class="detail-row">
                     <span class="detail-label">Összeg:</span>
-                    <span class="detail-value"><strong>{{ number_format($booking->totalPrice, 0, ',', ' ') }} Ft</strong></span>
+                    <span class="detail-value"><strong>€{{ number_format($booking->totalPrice, 2, ',', ' ') }}</strong></span>
                 </div>
                 
                 <div class="detail-row">
@@ -152,13 +152,13 @@
                 <p><strong>Mi történik most?</strong></p>
                 <ul style="margin: 10px 0; padding-left: 20px; color: #1e40af;">
                     <li>A szálloda adminisztrátora értesítést kap a foglalási kérésedről</li>
-                    <li>Átnézi a foglalás részleteit és megerősíti vagy elutasítja</li>
-                    <li>Ha a foglalást megerősítik, akkor e-mailben küldjük neked a check-in QR kódot és az összes szükséges információt</li>
+                    <li>A szálloda hamarosan elfogadja a foglalást</li>
+                    <li>Fizetési módodtól függően a számlát és a további információkat e-mailben küldjük</li>
                     <li>Addig is kérjük, hogy türelemmel várj a válaszra</li>
                 </ul>
             </div>
 
-            <p>Amint a szálloda válaszol a foglalási kérésedre, azonnal értesítünk!</p>
+            <p>Amint a szálloda elfogadja a foglalást, azonnal értesítünk!</p>
         </div>
 
         <div class="footer">

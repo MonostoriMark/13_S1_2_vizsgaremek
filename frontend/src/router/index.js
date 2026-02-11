@@ -129,6 +129,12 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/payment/:token',
+      name: 'Payment',
+      component: () => import('../views/Payment.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/two-factor-recovery/:token',
       name: 'TwoFactorRecoveryConfirm',
       component: () => import('../views/TwoFactorRecoveryConfirm.vue'),

@@ -1767,18 +1767,27 @@ const previewInvoice = async (bookingId) => {
 }
 
 const approveInvoice = async (invoiceId, bookingId) => {
-  if (!confirm('Biztosan jóváhagyja ezt a számlát? Végleges lesz és nem szerkeszthető.')) {
+  if (!confirm('Biztosan jóváhagyja ezt a számlát? A számla automatikusan elküldésre kerül a vendégnek.')) {
     return
   }
   
   invoiceLoading.value = bookingId
   try {
-    await invoiceService.approveInvoice(invoiceId)
-    successMessage.value = 'Számla sikeresen jóváhagyva!'
-    setTimeout(() => { successMessage.value = '' }, 5000)
+    const response = await invoiceService.approveInvoice(invoiceId)
+    if (response.email_sent) {
+      successMessage.value = response.message || 'Számla sikeresen jóváhagyva és elküldve!'
+    } else {
+      successMessage.value = response.message || 'Számla jóváhagyva, de az email küldése sikertelen volt.'
+      error.value = 'Az email küldése sikertelen volt. Kérjük, használja a "Küldés vendégnek" gombot.'
+    }
+    setTimeout(() => { 
+      successMessage.value = ''
+      error.value = ''
+    }, 7000)
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'A számla jóváhagyása sikertelen'
+    error.value = err.response?.data?.error || err.response?.data?.message || 'A számla jóváhagyása sikertelen'
+    console.error('Invoice approval error:', err)
   } finally {
     invoiceLoading.value = null
   }
@@ -1790,13 +1799,28 @@ const sendInvoice = async (invoiceId, bookingId) => {
   }
   
   invoiceLoading.value = bookingId
+  error.value = ''
+  successMessage.value = ''
+  
   try {
-    await invoiceService.sendInvoice(invoiceId)
-    successMessage.value = 'Számla sikeresen elküldve a vendégnek!'
-    setTimeout(() => { successMessage.value = '' }, 5000)
+    console.log('Sending invoice:', invoiceId)
+    const response = await invoiceService.sendInvoice(invoiceId)
+    console.log('Invoice send response:', response)
+    
+    if (response.email_sent !== false) {
+      successMessage.value = response.message || 'Számla sikeresen elküldve a vendégnek!'
+      setTimeout(() => { successMessage.value = '' }, 5000)
+    } else {
+      error.value = response.message || 'Az email küldése sikertelen volt'
+    }
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'A számla küldése sikertelen'
+    console.error('Invoice send error:', err)
+    console.error('Error response:', err.response)
+    error.value = err.response?.data?.error || err.response?.data?.message || 'A számla küldése sikertelen'
+    if (err.response?.data?.message) {
+      error.value += ': ' + err.response.data.message
+    }
   } finally {
     invoiceLoading.value = null
   }
@@ -2236,21 +2260,19 @@ const handleAction = async (action, data = null) => {
       await previewInvoice(booking.id)
       break
     case 'approveInvoice':
-      if (confirm('Biztosan jóváhagyja ezt a számlát? Végleges lesz és nem szerkeszthető.')) {
-        await approveInvoice(booking.invoice.id, booking.id)
-        await loadBookings()
-        const updatedBooking = bookings.value.find(b => b.id === booking.id)
-        if (updatedBooking) {
-          selectedBookingForActions.value = updatedBooking
-        }
+      await approveInvoice(booking.invoice.id, booking.id)
+      await loadBookings()
+      const approvedBooking = bookings.value.find(b => b.id === booking.id)
+      if (approvedBooking) {
+        selectedBookingForActions.value = approvedBooking
       }
       break
     case 'sendInvoice':
       await sendInvoice(booking.invoice.id, booking.id)
       await loadBookings()
-      const updatedBooking = bookings.value.find(b => b.id === booking.id)
-      if (updatedBooking) {
-        selectedBookingForActions.value = updatedBooking
+      const sentBooking = bookings.value.find(b => b.id === booking.id)
+      if (sentBooking) {
+        selectedBookingForActions.value = sentBooking
       }
       break
     case 'downloadInvoice':
