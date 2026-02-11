@@ -13,6 +13,7 @@ use App\Mail\NewBookingNotificationMail;
 use App\Mail\BookingRequestNotificationMail;
 use App\Mail\BookingConfirmedPendingPaymentMail;
 use App\Mail\BookingCancelledMail;
+use App\Helpers\UrlHelper;
 use App\Models\Invoice;
 use App\Models\Guest;
 use App\Models\RFIDKey;
@@ -194,7 +195,12 @@ public function store(Request $request)
         $requestedStart = \Carbon\Carbon::parse($request->startDate)->toDateString();
         $requestedEnd = \Carbon\Carbon::parse($request->endDate)->toDateString();
 
+        // Only assign guest cards automatically, not crew cards
         $availableRfidKeys = RFIDKey::where('hotels_id', $request->hotelId)
+            ->where(function($q) {
+                $q->where('type', 'guest')
+                  ->orWhereNull('type'); // Handle legacy keys without type
+            })
             ->whereDoesntHave('assignments', function ($q) use ($requestedStart, $requestedEnd) {
                 $q->whereNull('released_at')
                     ->whereNotNull('reserved_from')
@@ -293,9 +299,8 @@ public function store(Request $request)
             $booking->load(['hotel.user', 'user']);
             
             if ($booking->hotel && $booking->hotel->user) {
-                // Get frontend URL from config
-                $frontendUrl = config('app.frontend_url');
-                $bookingsUrl = $frontendUrl . '/admin/bookings';
+                // Get frontend URL dynamically
+                $bookingsUrl = UrlHelper::getFrontendUrl('/admin/bookings');
                 
                 // Send notification email to hotel admin
                 Mail::to($booking->hotel->user->email)

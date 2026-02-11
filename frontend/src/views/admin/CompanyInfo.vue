@@ -500,7 +500,7 @@ onMounted(async () => {
 
 .hotel-carousel-container-minimal {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -551,8 +551,8 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   padding: 1.5rem 0;
-  background: #f8f9fa;
-  min-height: 280px;
+  background: #f5f5f5;
+  min-height: 400px;
 }
 
 .hotel-carousel-minimal {
@@ -568,28 +568,25 @@ onMounted(async () => {
 
 .hotel-card-item-minimal {
   min-width: 100%;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-}
-
-.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
-  background: #10b981;
+  cursor: pointer;
 }
 
 .hotel-card-image-minimal {
   width: 100%;
-  max-width: 360px;
-  height: 180px;
+  height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  background: #e9ecef;
+  background: #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .hotel-cover-image-minimal {
@@ -610,67 +607,117 @@ onMounted(async () => {
 
 .hotel-card-content-minimal {
   text-align: center;
+  background: transparent;
+  padding: 0;
+  width: 100%;
 }
 
 .hotel-card-name-minimal {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.5rem;
   color: #2c3e50;
 }
 
 .hotel-card-location-minimal {
   font-size: 0.9rem;
   color: #6c757d;
-  margin: 0 0 0.75rem;
-}
-
-.hotel-select-btn-minimal {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: none;
-  background: #667eea;
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.hotel-select-btn-minimal:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
-}
-
-.carousel-nav-btn-modern {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: none;
-  background: rgba(15, 23, 42, 0.85);
-  color: white;
+  margin: 0 0 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
+}
+
+.hotel-select-btn-minimal {
+  width: 100%;
+  max-width: 280px;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.carousel-nav-btn-modern {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .carousel-nav-btn-modern:hover {
-  transform: translateY(-1px);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-nav-btn-modern:active {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.carousel-nav-btn-modern svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.carousel-nav-btn-modern svg path {
+  stroke: white;
+  stroke-width: 2.5;
 }
 
 .carousel-prev-modern {
-  margin-left: 1rem;
+  left: 0.75rem;
+}
+
+.carousel-prev-modern:hover svg {
+  transform: translateX(-1px);
 }
 
 .carousel-next-modern {
-  margin-right: 1rem;
+  right: 0.75rem;
+}
+
+.carousel-next-modern:hover svg {
+  transform: translateX(1px);
 }
 
 .carousel-indicators-minimal {

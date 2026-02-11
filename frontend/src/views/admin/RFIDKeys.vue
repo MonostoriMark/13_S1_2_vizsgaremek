@@ -3,9 +3,6 @@
     <div class="rfid-keys-page">
       <div class="page-header">
         <h1>RFID kulcsok</h1>
-        <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> RFID kulcs hozzáadása
-        </button>
       </div>
 
       <!-- Compact hotel selector (like bookings supervision) -->
@@ -79,7 +76,7 @@
                       <img
                         v-if="hotel.cover_image"
                         :src="getImageUrl(hotel.cover_image)"
-                        :alt="hotel.name || 'Hotel'"
+                        :alt="hotel.name || 'Szálloda'"
                         class="hotel-cover-image-minimal"
                         @error="handleImageError"
                       />
@@ -251,6 +248,11 @@
 
       <!-- Table with keys under the calendar -->
       <div v-if="selectedHotel" class="keys-table-section">
+        <div class="keys-table-header">
+          <button @click="openCreateModal" class="btn-primary">
+            <span>➕</span> RFID kulcs hozzáadása
+          </button>
+        </div>
         <div class="keys-filter-bar">
           <label>
             <span class="filter-label">Kártyatípus:</span>
@@ -272,6 +274,12 @@
           :on-edit="handleEdit"
           :on-delete="handleDelete"
         >
+          <template #cell-type="{ value }">
+            <span>{{ value === 'guest' ? 'Vendégkártya' : value === 'crew' ? 'Személyzeti kártya' : value || 'Vendégkártya' }}</span>
+          </template>
+          <template #cell-status="{ value }">
+            <span>{{ value === 'available' ? 'Elérhető' : value === 'assigned' ? 'Hozzárendelve' : value || 'Elérhető' }}</span>
+          </template>
           <template #actions="{ row }">
             <button
               v-if="row.type === 'crew'"
@@ -314,9 +322,9 @@
               <div v-if="!editingKey" class="form-group">
                 <label>Szálloda kiválasztása *</label>
                 <select v-model="form.hotelId" required class="form-select">
-                  <option value="">Choose a hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+                    {{ hotel.name || hotel.location || `Szálloda #${hotel.id}` }}
                   </option>
                 </select>
               </div>
@@ -434,6 +442,9 @@
                     <span>{{ room.name }}</span>
                   </label>
                 </div>
+                <small v-if="hotelRooms.length === 0" class="form-hint">
+                  Nincs elérhető szoba a hozzárendeléshez.
+                </small>
               </div>
 
               <div class="form-row-booking">
@@ -734,7 +745,7 @@ const loadHotels = async () => {
       loading.value = false
     }
   } catch (err) {
-    showToast('Failed to load hotels', 'error')
+    showToast('A szállodák betöltése sikertelen', 'error')
     loading.value = false
   }
 }
@@ -838,7 +849,7 @@ const loadKeys = async () => {
       keys.value = []
     }
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to load RFID keys', 'error')
+    showToast(err.response?.data?.message || 'Az RFID kulcsok betöltése sikertelen', 'error')
     keys.value = []
   } finally {
     loading.value = false
@@ -896,10 +907,10 @@ const confirmDelete = async () => {
 
   try {
     await rfidKeyService.deleteKey(keyToDelete.value.id)
-    showToast('RFID key deleted successfully', 'success')
+    showToast('RFID kulcs sikeresen törölve', 'success')
     await loadKeys()
   } catch (err) {
-    showToast(err.response?.data?.error || 'Failed to delete RFID key', 'error')
+    showToast(err.response?.data?.error || 'Az RFID kulcs törlése sikertelen', 'error')
   } finally {
     keyToDelete.value = null
   }
@@ -992,10 +1003,10 @@ const confirmRelease = async () => {
 
   try {
     await rfidKeyService.releaseKey(keyToRelease.value.id)
-    showToast('RFID key released successfully', 'success')
+    showToast('RFID kulcs sikeresen feloldva', 'success')
     await loadKeys()
   } catch (err) {
-    showToast(err.response?.data?.error || 'Failed to release RFID key', 'error')
+    showToast(err.response?.data?.error || 'Az RFID kulcs feloldása sikertelen', 'error')
   } finally {
     keyToRelease.value = null
   }
@@ -1003,7 +1014,7 @@ const confirmRelease = async () => {
 
 const handleSubmit = async () => {
   if (!editingKey.value && !form.value.hotelId) {
-    showToast('Please select a hotel', 'warning')
+    showToast('Kérjük, válasszon szállodát', 'warning')
     return
   }
 
@@ -1025,7 +1036,7 @@ const handleSubmit = async () => {
         updateData.status = newStatus
       }
       await rfidKeyService.updateKey(editingKey.value.id, updateData)
-      showToast('RFID key updated successfully', 'success')
+      showToast('RFID kulcs sikeresen frissítve', 'success')
     } else {
       await rfidKeyService.createKey({
         uid: form.value.uid,
@@ -1033,12 +1044,12 @@ const handleSubmit = async () => {
         name: form.value.name || null,
         hotel_id: form.value.hotelId
       })
-      showToast('RFID key created successfully', 'success')
+      showToast('RFID kulcs sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadKeys()
   } catch (err) {
-    error.value = err.response?.data?.message || err.response?.data?.error || 'Failed to save RFID key'
+    error.value = err.response?.data?.message || err.response?.data?.error || 'Az RFID kulcs mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -1232,7 +1243,7 @@ onUnmounted(() => {
 
 .hotel-carousel-container-minimal {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -1283,8 +1294,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 1.5rem 0;
-  background: #f8f9fa;
-  min-height: 280px;
+  background: #f5f5f5;
+  min-height: 400px;
 }
 
 .hotel-carousel-minimal {
@@ -1300,28 +1311,25 @@ onUnmounted(() => {
 
 .hotel-card-item-minimal {
   min-width: 100%;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-}
-
-.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
-  background: #10b981;
+  cursor: pointer;
 }
 
 .hotel-card-image-minimal {
   width: 100%;
-  max-width: 360px;
-  height: 180px;
+  height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  background: #e9ecef;
+  background: #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .hotel-cover-image-minimal {
@@ -1342,67 +1350,117 @@ onUnmounted(() => {
 
 .hotel-card-content-minimal {
   text-align: center;
+  background: transparent;
+  padding: 0;
+  width: 100%;
 }
 
 .hotel-card-name-minimal {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.5rem;
   color: #2c3e50;
 }
 
 .hotel-card-location-minimal {
   font-size: 0.9rem;
   color: #6c757d;
-  margin: 0 0 0.75rem;
-}
-
-.hotel-select-btn-minimal {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: none;
-  background: #667eea;
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.hotel-select-btn-minimal:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
-}
-
-.carousel-nav-btn-modern {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: none;
-  background: rgba(15, 23, 42, 0.85);
-  color: white;
+  margin: 0 0 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
+}
+
+.hotel-select-btn-minimal {
+  width: 100%;
+  max-width: 280px;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.carousel-nav-btn-modern {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .carousel-nav-btn-modern:hover {
-  transform: translateY(-1px);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-nav-btn-modern:active {
+  transform: translateY(-50%) scale(1.05);
+}
+
+.carousel-nav-btn-modern svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.carousel-nav-btn-modern svg path {
+  stroke: white;
+  stroke-width: 2.5;
 }
 
 .carousel-prev-modern {
-  margin-left: 1rem;
+  left: 0.75rem;
+}
+
+.carousel-prev-modern:hover svg {
+  transform: translateX(-1px);
 }
 
 .carousel-next-modern {
-  margin-right: 1rem;
+  right: 0.75rem;
+}
+
+.carousel-next-modern:hover svg {
+  transform: translateX(1px);
 }
 
 .carousel-indicators-minimal {
@@ -1897,6 +1955,14 @@ onUnmounted(() => {
   margin-top: 0.25rem;
 }
 
+.keys-table-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .keys-filter-bar {
   display: flex;
   justify-content: flex-end;
@@ -1938,6 +2004,24 @@ onUnmounted(() => {
 
 .room-chip input {
   margin: 0;
+}
+
+.room-chip.room-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.room-chip.room-disabled input:disabled {
+  cursor: not-allowed;
+}
+
+.room-assigned-badge {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 500;
+  margin-left: 0.25rem;
 }
 
 .existing-assignments {

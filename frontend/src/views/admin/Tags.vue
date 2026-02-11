@@ -2,65 +2,93 @@
   <AdminLayout>
     <div class="tags-page">
       <div class="page-header">
-        <h1>Service Tags Management</h1>
+        <h1>Szolgáltatás címkék kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Tag
+          <span>➕</span> Címke hozzáadása
         </button>
       </div>
 
       <p class="page-description">
-        Manage shared tags that can be used by any hotel or room. Tags linked to hotels cannot be used on rooms, and vice versa.
+        Kezelje a megosztott címkéket, amelyeket bármely szálloda vagy szoba használhat. A szállodákhoz kapcsolt címkék nem használhatók szobákon, és fordítva.
       </p>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>Loading tags...</p>
+        <p>Címkék betöltése...</p>
       </div>
 
       <!-- Error State -->
       <div v-if="error" class="error-message">{{ error }}</div>
 
-      <!-- Tags Grid -->
-      <div v-if="!loading && tags.length > 0" class="tags-grid">
-        <div
-          v-for="tag in tags"
-          :key="tag.id"
-          class="tag-card"
-        >
-          <div class="tag-header">
-            <h3 class="tag-name">{{ tag.name }}</h3>
-            <div class="tag-usage">
-              <span v-if="isHotelTag(tag.id)" class="usage-badge hotel">Hotel</span>
-              <span v-else-if="isRoomTag(tag.id)" class="usage-badge room">Room</span>
-              <span v-else class="usage-badge available">Available</span>
-            </div>
-          </div>
-          <div class="tag-actions">
-            <button
-              @click="openEditModal(tag)"
-              class="btn-edit"
-              :title="'Edit tag'"
-            >
-              ✏️ Edit
-            </button>
-            <button
-              @click="deleteTag(tag.id)"
-              class="btn-delete"
-              :disabled="isHotelTag(tag.id) || isRoomTag(tag.id)"
-              :title="(isHotelTag(tag.id) || isRoomTag(tag.id)) ? 'Cannot delete tag that is in use' : 'Delete tag'"
-            >
-              🗑️ Delete
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-if="!loading && tags.length === 0" class="empty-state">
-        <div class="empty-icon">🏷️</div>
-        <h2>No Tags Found</h2>
-        <p>Create your first tag to get started.</p>
+      <!-- Tags Table -->
+      <div v-if="!loading" class="tags-table-container">
+        <table class="tags-table minimal-table">
+          <thead>
+            <tr>
+              <th>Címke ID</th>
+              <th>Címke neve</th>
+              <th>Létrehozó</th>
+              <th>Hozzárendelés</th>
+              <th>Státusz</th>
+              <th>Műveletek</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tag in tags" :key="tag.id">
+              <td class="tag-id-cell">#{{ tag.id }}</td>
+              <td class="tag-name-cell">
+                {{ tag.name }}
+              </td>
+              <td class="tag-creator-cell">
+                <span v-if="tag.user">{{ tag.user.name || tag.user.email }}</span>
+                <span v-else class="text-muted">Ismeretlen</span>
+              </td>
+              <td class="tag-assignment-cell">
+                <div class="assignment-info">
+                  <span v-if="getTagUsage(tag.id).hotel_count > 0" class="assignment-badge hotel">
+                    🏨 {{ getTagUsage(tag.id).hotel_count }} szálloda
+                  </span>
+                  <span v-if="getTagUsage(tag.id).room_count > 0" class="assignment-badge room">
+                    🛏️ {{ getTagUsage(tag.id).room_count }} szoba
+                  </span>
+                  <span v-if="getTagUsage(tag.id).hotel_count === 0 && getTagUsage(tag.id).room_count === 0" class="assignment-badge none">
+                    Nincs hozzárendelés
+                  </span>
+                </div>
+              </td>
+              <td class="tag-status-cell">
+                <span :class="['status-badge', getTagUsage(tag.id).is_used ? 'status-used' : 'status-available']">
+                  {{ getTagUsage(tag.id).is_used ? 'Használatban' : 'Elérhető' }}
+                </span>
+              </td>
+              <td class="tag-actions-cell">
+                <div class="table-actions">
+                  <button
+                    @click="openEditModal(tag)"
+                    class="btn-actions btn-edit"
+                    title="Címke szerkesztése"
+                  >
+                    ✏️ Szerkesztés
+                  </button>
+                  <button
+                    @click="deleteTag(tag.id)"
+                    class="btn-actions btn-delete"
+                    :disabled="!canDeleteTag(tag)"
+                    :title="getDeleteTooltip(tag)"
+                  >
+                    🗑️ Törlés
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!tags.length">
+              <td colspan="6" class="empty-row">
+                Nincsenek címkék. Hozza létre az első címkéjét a kezdéshez.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Create/Edit Tag Modal -->
@@ -68,28 +96,28 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>{{ isEditMode ? 'Edit Tag' : 'Create New Tag' }}</h2>
+              <h2>{{ isEditMode ? 'Címke szerkesztése' : 'Új címke létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Tag Name *</label>
+                <label>Címke neve *</label>
                 <input
                   v-model="tagForm.name"
                   type="text"
                   required
-                  placeholder="e.g., Free Wi-Fi, Pool, Parking"
+                  placeholder="pl.: Ingyenes Wi-Fi, Medence, Parkolás"
                   maxlength="100"
                 />
-                <p class="form-hint">This tag will be available for all hotels to use on their hotels or rooms.</p>
+                <p class="form-hint">Ez a címke minden szálloda számára elérhető lesz a szállodáikhoz vagy szobáikhoz.</p>
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Tag' : 'Create Tag') }}
+                  {{ saving ? (isEditMode ? 'Frissítés...' : 'Létrehozás...') : (isEditMode ? 'Címke frissítése' : 'Címke létrehozása') }}
                 </button>
               </div>
             </form>
@@ -103,14 +131,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import Toast from '../../components/Toast.vue'
 import { tagService } from '../../services/tagService'
 import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
+import { useAuthStore } from '../../stores/auth'
 
+const authStore = useAuthStore()
 const tags = ref([])
-const tagUsage = ref({ hotel_tags: [], room_tags: [] })
+const tagUsage = ref({ usage: {}, hotel_tags: [], room_tags: [] })
 const loading = ref(true)
 const showModal = ref(false)
 const saving = ref(false)
@@ -123,12 +153,41 @@ const tagForm = ref({
   name: ''
 })
 
+const getTagUsage = (tagId) => {
+  return tagUsage.value.usage[tagId] || {
+    is_used: false,
+    hotels: [],
+    rooms: [],
+    hotel_count: 0,
+    room_count: 0
+  }
+}
+
 const isHotelTag = (tagId) => {
   return tagUsage.value.hotel_tags.includes(tagId)
 }
 
 const isRoomTag = (tagId) => {
   return tagUsage.value.room_tags.includes(tagId)
+}
+
+const canDeleteTag = (tag) => {
+  // Can only delete if:
+  // 1. User is the creator
+  // 2. Tag is not in use
+  const isCreator = tag.user_id === authStore.state.user?.id
+  const isUsed = getTagUsage(tag.id).is_used
+  return isCreator && !isUsed
+}
+
+const getDeleteTooltip = (tag) => {
+  if (tag.user_id !== authStore.state.user?.id) {
+    return 'Csak a saját címkéit törölheti'
+  }
+  if (getTagUsage(tag.id).is_used) {
+    return 'A használatban lévő címke nem törölhető'
+  }
+  return 'Címke törlése'
 }
 
 const loadTags = async () => {
@@ -142,7 +201,7 @@ const loadTags = async () => {
     tags.value = tagsData
     tagUsage.value = usageData
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to load tags'
+    error.value = err.response?.data?.message || 'A címkék betöltése sikertelen'
     showToast(error.value, 'error')
   } finally {
     loading.value = false
@@ -178,7 +237,7 @@ useBodyScrollLock(showModal)
 
 const handleSubmit = async () => {
   if (!tagForm.value.name.trim()) {
-    error.value = 'Tag name is required'
+    error.value = 'A címke neve kötelező'
     return
   }
 
@@ -188,15 +247,15 @@ const handleSubmit = async () => {
   try {
     if (isEditMode.value) {
       await tagService.updateTag(editingTagId.value, tagForm.value.name.trim())
-      showToast('Tag updated successfully', 'success')
+      showToast('Címke sikeresen frissítve', 'success')
     } else {
       await tagService.createTag(tagForm.value.name.trim())
-      showToast('Tag created successfully', 'success')
+      showToast('Címke sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadTags()
   } catch (err) {
-    error.value = err.response?.data?.message || (isEditMode.value ? 'Failed to update tag' : 'Failed to create tag')
+    error.value = err.response?.data?.message || (isEditMode.value ? 'A címke frissítése sikertelen' : 'A címke létrehozása sikertelen')
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -204,21 +263,28 @@ const handleSubmit = async () => {
 }
 
 const deleteTag = async (tagId) => {
-  if (isHotelTag(tagId) || isRoomTag(tagId)) {
-    showToast('Cannot delete tag that is currently in use', 'warning')
+  const tag = tags.value.find(t => t.id === tagId)
+  if (!tag) return
+
+  if (!canDeleteTag(tag)) {
+    if (tag.user_id !== authStore.state.user?.id) {
+      showToast('Csak a saját címkéit törölheti', 'warning')
+    } else if (getTagUsage(tagId).is_used) {
+      showToast('A használatban lévő címke nem törölhető', 'warning')
+    }
     return
   }
 
-  if (!confirm('Are you sure you want to delete this tag? This action cannot be undone.')) {
+  if (!confirm('Biztosan törölni szeretné ezt a címkét? Ez a művelet nem vonható vissza.')) {
     return
   }
 
   try {
     await tagService.deleteTag(tagId)
-    showToast('Tag deleted successfully', 'success')
+    showToast('Címke sikeresen törölve', 'success')
     await loadTags()
   } catch (err) {
-    const errorMessage = err.response?.data?.message || 'Failed to delete tag'
+    const errorMessage = err.response?.data?.message || 'A címke törlése sikertelen'
     showToast(errorMessage, 'error')
   }
 }
@@ -239,6 +305,183 @@ onMounted(() => {
 <style scoped>
 .tags-page {
   max-width: 1400px;
+}
+
+.tags-table-container {
+  margin-top: 2rem;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.tags-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tags-table thead {
+  background: #f9fafb;
+}
+
+.tags-table th,
+.tags-table td {
+  padding: 0.9rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.tags-table th {
+  font-weight: 600;
+  color: #374151;
+}
+
+.tags-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.tag-id-cell {
+  width: 90px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.tag-creator-cell {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.text-muted {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.tag-assignment-cell {
+  min-width: 200px;
+}
+
+.assignment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.assignment-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.assignment-badge.hotel {
+  background: #eef2ff;
+  color: #6366f1;
+}
+
+.assignment-badge.room {
+  background: #ecfeff;
+  color: #06b6d4;
+}
+
+.assignment-badge.none {
+  background: #f3f4f6;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.tag-status-cell {
+  min-width: 120px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.status-used {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-badge.status-available {
+  background: #d1fae5;
+  color: #059669;
+  color: #4b5563;
+}
+
+.tag-name-cell {
+  font-weight: 600;
+  color: #111827;
+}
+
+.tag-usage-cell {
+  width: 160px;
+}
+
+.tag-actions-cell {
+  width: 260px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-actions {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.btn-actions.btn-edit {
+  background: #e8f4f8;
+  color: #2563eb;
+}
+
+.btn-actions.btn-edit:hover {
+  background: #d0e8f0;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18);
+}
+
+.btn-actions.btn-delete {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.btn-actions.btn-delete:hover:not(:disabled) {
+  background: #fecaca;
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.2);
+}
+
+.btn-actions.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-row {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6b7280;
+  font-size: 0.9rem;
 }
 
 .page-header {

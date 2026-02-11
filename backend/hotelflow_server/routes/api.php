@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
     Route::get('/rfid-keys', [RFIDKeyController::class, 'index']);
     Route::get('/rfid-keys/bookings', [RFIDKeyController::class, 'getAvailableBookings']);
     Route::get('/rfid-keys/calendar', [RFIDKeyController::class, 'calendarAssignments']);
+    Route::get('/rfid-keys/assigned-rooms', [RFIDKeyController::class, 'getRoomsAssignedToCrewCards']);
     Route::get('/rfid-keys/{id}', [RFIDKeyController::class, 'show']);
     Route::get('/rfid-keys/{id}/manual-assignments', [RFIDKeyController::class, 'manualAssignments']);
     Route::post('/rfid-keys', [RFIDKeyController::class, 'store']);

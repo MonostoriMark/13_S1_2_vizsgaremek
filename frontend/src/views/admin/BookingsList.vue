@@ -4404,7 +4404,7 @@ const handleAction = async (action, data = null) => {
 
 .hotel-carousel-container-minimal {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -4455,8 +4455,8 @@ const handleAction = async (action, data = null) => {
   display: flex;
   align-items: center;
   padding: 1.5rem 0;
-  background: #f8f9fa;
-  min-height: 280px;
+  background: #f5f5f5;
+  min-height: 400px;
 }
 
 .hotel-carousel-minimal {
@@ -4472,10 +4472,11 @@ const handleAction = async (action, data = null) => {
 
 .hotel-card-item-minimal {
   min-width: 100%;
-  padding: 0 1rem;
+  padding: 0 2rem;
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  align-items: center;
 }
 
 .hotel-card-item-minimal.selected {
@@ -4485,11 +4486,12 @@ const handleAction = async (action, data = null) => {
 .hotel-card-image-minimal {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #e5e5e5;
 }
 
 .hotel-cover-image-minimal {
@@ -4513,60 +4515,76 @@ const handleAction = async (action, data = null) => {
 }
 
 .hotel-card-content-minimal {
-  background: white;
-  padding: 1rem;
-  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .hotel-card-name-minimal {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.5rem 0;
 }
 
 .hotel-card-location-minimal {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
 .hotel-select-btn-minimal {
   width: 100%;
-  padding: 0.75rem 1rem;
+  max-width: 280px;
+  padding: 0.875rem 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
 }
 
 .hotel-card-item-minimal.selected .hotel-select-btn-minimal {
-  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .hotel-select-btn-minimal:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
 .carousel-nav-btn-modern {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: white;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(102, 126, 234, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
   align-items: center;
@@ -4575,14 +4593,9 @@ const handleAction = async (action, data = null) => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
-  transform: translateY(-50%) scale(1.15);
-  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4), 0 0 0 1px rgba(102, 126, 234, 0.2);
-}
-
-.carousel-nav-btn-modern:hover svg path {
-  stroke: white;
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .carousel-nav-btn-modern:active {
@@ -4590,29 +4603,30 @@ const handleAction = async (action, data = null) => {
 }
 
 .carousel-nav-btn-modern svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   transition: transform 0.2s ease;
 }
 
-.carousel-nav-btn-modern:hover svg {
-  transform: scale(1.1);
+.carousel-nav-btn-modern svg path {
+  stroke: white;
+  stroke-width: 2.5;
 }
 
 .carousel-prev-modern {
-  left: 1rem;
+  left: 0.75rem;
 }
 
 .carousel-prev-modern:hover svg {
-  transform: translateX(-2px) scale(1.1);
+  transform: translateX(-1px);
 }
 
 .carousel-next-modern {
-  right: 1rem;
+  right: 0.75rem;
 }
 
 .carousel-next-modern:hover svg {
-  transform: translateX(2px) scale(1.1);
+  transform: translateX(1px);
 }
 
 .carousel-indicators-minimal {
