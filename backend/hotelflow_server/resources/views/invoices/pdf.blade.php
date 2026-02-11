@@ -38,6 +38,14 @@
             font-size: 13pt;
             font-weight: 700;
             letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-logo {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
         }
         .invoice-type {
             font-size: 18pt;
@@ -204,7 +212,30 @@
         @endphp
 
         <div class="top-row">
-            <div class="brand">{{ $hotel->name }}</div>
+            <div class="brand">
+                @php
+                    // Try to find HotelFlowLogoLIla.png for invoices
+                    $logoPath = public_path('HotelFlowLogoLIla.png');
+                    if (!file_exists($logoPath)) {
+                        $logoPath = storage_path('app/public/HotelFlowLogoLIla.png');
+                    }
+                    if (!file_exists($logoPath)) {
+                        // Try frontend public path (if symlinked or accessible)
+                        $logoPath = base_path('../frontend/HotelFlowLogoLIla.png');
+                    }
+                    if (file_exists($logoPath)) {
+                        $logoData = base64_encode(file_get_contents($logoPath));
+                        $logoMime = mime_content_type($logoPath);
+                        $logoBase64 = 'data:' . $logoMime . ';base64,' . $logoData;
+                    } else {
+                        $logoBase64 = null;
+                    }
+                @endphp
+                @if($logoBase64)
+                    <img src="{{ $logoBase64 }}" alt="HotelFlow" class="brand-logo" />
+                @endif
+                <span>{{ $hotel->name }}</span>
+            </div>
             <div class="inv-no">
                 <div><span class="muted">Sorszám:</span> <strong>{{ $invoice->invoice_number }}</strong></div>
             </div>

@@ -3,7 +3,7 @@
     <nav v-if="!isAdminRoute && !isAuthRoute" class="navbar">
       <div class="nav-container">
         <router-link to="/" class="nav-logo">
-          <span class="logo-icon">🏨</span>
+          <img src="/Kép1.png" alt="HotelFlow" class="logo-image" />
           <span class="logo-text">HotelFlow</span>
         </router-link>
         
@@ -226,8 +226,10 @@ body {
   transform: scale(1.05);
 }
 
-.logo-icon {
-  font-size: 1.75rem;
+.logo-image {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-text {

@@ -236,7 +236,7 @@ class HotelController extends Controller
         // Get bookings
         $bookings = \App\Models\Booking::where('hotels_id', $hotelId)
             ->with('user')
-            ->orderBy('startDate', 'desc')
+            ->orderBy('createdAt', 'desc')
             ->limit(20)
             ->get();
 
@@ -253,8 +253,8 @@ class HotelController extends Controller
                 'type' => 'booking',
                 'icon' => $booking->status === 'pending' ? '⏳' : ($booking->status === 'confirmed' ? '✅' : ($booking->status === 'cancelled' ? '❌' : '✓')),
                 'text' => $statusText . ' - ' . ($booking->user->name ?? 'Vendég'),
-                'time' => $booking->startDate ? \Carbon\Carbon::parse($booking->startDate)->toIso8601String() : null,
-                'timestamp' => $booking->startDate ? \Carbon\Carbon::parse($booking->startDate)->timestamp : null
+                'time' => $booking->createdAt ? \Carbon\Carbon::parse($booking->createdAt)->toIso8601String() : null,
+                'timestamp' => $booking->createdAt ? \Carbon\Carbon::parse($booking->createdAt)->timestamp : null
             ];
         }
 

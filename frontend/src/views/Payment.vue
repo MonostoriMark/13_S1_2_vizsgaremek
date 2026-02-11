@@ -253,21 +253,22 @@ onMounted(() => {
 .payment-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 2rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
 }
 
 .home-button {
-  position: absolute;
-  top: 1.5rem;
-  left: 1.5rem;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
   color: #667eea;
@@ -277,6 +278,17 @@ onMounted(() => {
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 100;
+}
+
+@media (max-width: 480px) {
+  .home-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .home-text {
+    display: none;
+  }
 }
 
 .home-button:hover {
@@ -292,6 +304,23 @@ onMounted(() => {
   max-width: 600px;
   width: 100%;
   padding: 2.5rem;
+  margin: 1rem;
+}
+
+@media (max-width: 768px) {
+  .payment-container {
+    padding: 1.5rem;
+    margin: 0.5rem;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-container {
+    padding: 1rem;
+    margin: 0.25rem;
+    border-radius: 8px;
+  }
 }
 
 .loading-container,
@@ -350,9 +379,25 @@ onMounted(() => {
   margin-bottom: 0.5rem;
 }
 
+@media (max-width: 480px) {
+  .payment-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .payment-icon {
+    font-size: 2rem;
+  }
+}
+
 .subtitle {
   color: #6b7280;
   font-size: 1rem;
+}
+
+@media (max-width: 480px) {
+  .subtitle {
+    font-size: 0.875rem;
+  }
 }
 
 .invoice-details {
@@ -365,6 +410,16 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
+@media (max-width: 480px) {
+  .invoice-details h2 {
+    font-size: 1.1rem;
+  }
+  
+  .payment-form h2 {
+    font-size: 1.1rem;
+  }
+}
+
 .detail-card {
   background: #f9fafb;
   border-radius: 8px;
@@ -372,11 +427,34 @@ onMounted(() => {
   border: 1px solid #e5e7eb;
 }
 
+@media (max-width: 480px) {
+  .detail-card {
+    padding: 1rem;
+  }
+}
+
 .detail-row {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
   border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .detail-row .label {
+    font-size: 0.875rem;
+  }
+  
+  .detail-row .value {
+    font-size: 0.9rem;
+  }
 }
 
 .detail-row:last-child {
@@ -419,6 +497,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 .form-group label {
@@ -466,6 +551,13 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 1rem;
+}
+
+@media (max-width: 480px) {
+  .btn-pay {
+    padding: 0.875rem;
+    font-size: 1rem;
+  }
 }
 
 .btn-pay:hover:not(:disabled) {

@@ -1439,14 +1439,15 @@ onUnmounted(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: #000000;
-  border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 4px;
-  color: white;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
@@ -1456,24 +1457,27 @@ onUnmounted(() => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: #1a1a1a;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 1);
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .carousel-nav-btn-modern:active {
-  transform: translateY(-50%) scale(1.05);
+  transform: translateY(-50%) scale(0.95);
 }
 
 .carousel-nav-btn-modern svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   transition: transform 0.2s ease;
 }
 
 .carousel-nav-btn-modern svg path {
-  stroke: white;
+  stroke: currentColor;
   stroke-width: 2.5;
+  fill: none;
 }
 
 .carousel-prev-modern {

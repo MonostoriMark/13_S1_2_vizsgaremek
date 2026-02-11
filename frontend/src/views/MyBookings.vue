@@ -629,7 +629,7 @@ const loadBookings = async () => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('hu-HU', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

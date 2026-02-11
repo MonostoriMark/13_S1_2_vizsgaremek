@@ -452,6 +452,7 @@ public function getBookingsByUserId($userId)
 
     $bookings = Booking::where('users_id', $userId)
         ->with(['rooms', 'guests', 'services'])
+        ->orderBy('createdAt', 'desc')
         ->get();
 
     return response()->json(['bookings' => $bookings], 200);
@@ -556,10 +557,43 @@ function updateStatus(Request $request, $id)
                     \Log::error('Számla generálási/küldési hiba (card payment): ' . $invoiceEx->getMessage());
                 }
             } else {
-                // For bank transfer: DO NOT TOUCH - keep existing logic
-                // Notify guest that invoice will be sent after approval
-                Mail::to($booking->user->email)
-                    ->send(new BookingConfirmedPendingPaymentMail($booking));
+                // For bank transfer: automatically approve and send invoice (same as card, but payment confirmation is manual)
+                // -------------------------
+                // Automatically generate, approve, and send invoice for bank transfer payments
+                // -------------------------
+                try {
+                    $invoice = Invoice::where('booking_id', $booking->id)->first();
+                    
+                    if (!$invoice) {
+                        // Create invoice using InvoiceController's method
+                        $invoiceController = new \App\Http\Controllers\InvoiceController();
+                        $invoice = $invoiceController->createInvoice($booking);
+                    }
+                    
+                    // Automatically approve and send invoice for bank transfer payments
+                    $invoice->load(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails']);
+                    
+                    // Generate PDF
+                    $pdfContent = $invoiceController->generatePDF($invoice->booking, $invoice);
+                    $pdfPath = 'invoices/' . $invoice->invoice_number . '.pdf';
+                    \Illuminate\Support\Facades\Storage::disk('public')->put($pdfPath, $pdfContent);
+                    $invoice->pdf_path = $pdfPath;
+                    
+                    // Approve invoice (no payment token needed for bank transfer)
+                    $invoice->status = 'approved';
+                    $invoice->approved_at = now();
+                    $invoice->save();
+                    
+                    // Send invoice email for bank transfer payments
+                    Mail::to($invoice->booking->user->email)
+                        ->send(new \App\Mail\InvoiceBankTransferMail($invoice));
+                    
+                    $invoice->status = 'sent';
+                    $invoice->sent_at = now();
+                    $invoice->save();
+                } catch (\Exception $invoiceEx) {
+                    \Log::error('Számla generálási/küldési hiba (bank transfer): ' . $invoiceEx->getMessage());
+                }
             }
         } catch (\Exception $mailEx) {
             \Log::error('QR kód email küldési hiba: ' . $mailEx->getMessage());

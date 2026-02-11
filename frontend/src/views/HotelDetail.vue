@@ -337,16 +337,18 @@
                     <div class="card">
                       <h3 class="card-title">Fizetési mód</h3>
                       <div class="radio-row">
-                        <label class="radio-card">
+                        <label class="radio-card" :class="{ active: paymentMethod === 'bank_transfer' }">
                           <input type="radio" value="bank_transfer" v-model="paymentMethod" />
                           <div class="radio-card-content">
+                            <div class="radio-icon">🏦</div>
                             <div class="radio-title">Banki átutalás</div>
                             <div class="radio-sub">Fizetés a számla küldése után</div>
                           </div>
                         </label>
-                        <label class="radio-card">
+                        <label class="radio-card" :class="{ active: paymentMethod === 'card' }">
                           <input type="radio" value="card" v-model="paymentMethod" />
                           <div class="radio-card-content">
+                            <div class="radio-icon">💳</div>
                             <div class="radio-title">Bankkártya</div>
                             <div class="radio-sub">Fizetés a számla jóváhagyása után</div>
                           </div>
@@ -1141,7 +1143,7 @@ const setFullscreenImageIndex = (index) => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('hu-HU', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
@@ -2904,20 +2906,48 @@ const getGrandTotal = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
+  position: relative;
 }
 
 .radio-card:hover {
   border-color: #c7d2fe;
   box-shadow: 0 10px 24px rgba(102,126,234,0.12);
+  transform: translateY(-2px);
+}
+
+.radio-card.active {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+  box-shadow: 0 10px 24px rgba(102,126,234,0.2);
 }
 
 .radio-card input {
-  transform: scale(1.15);
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  flex: 1;
+  width: 100%;
+}
+
+.radio-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
 }
 
 .radio-title {
   font-weight: 800;
   color: #111827;
+  font-size: 1.1rem;
 }
 
 .radio-sub {

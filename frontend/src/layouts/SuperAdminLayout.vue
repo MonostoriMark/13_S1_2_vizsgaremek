@@ -192,10 +192,11 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.logo-icon {
-  font-size: 2rem;
-  filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
-  animation: pulse-glow 2s ease-in-out infinite;
+.logo-image-sidebar {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 @keyframes pulse-glow {

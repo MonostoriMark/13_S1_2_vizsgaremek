@@ -14,7 +14,7 @@
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed, 'blocked': show2FABlocker || showInvoiceDataBlocker }">
       <div class="sidebar-header">
         <div class="user-profile-sidebar">
-          <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
+          <img src="/Kép1.png" alt="HotelFlow" class="logo-image-sidebar" />
           <div v-if="!sidebarCollapsed" class="user-info-sidebar">
             <div class="logo-text">HOTELFLOW</div>
             <div class="logo-subtitle">Admin felület</div>
@@ -441,6 +441,13 @@ watch(() => route.path, async () => {
   overflow: visible;
 }
 
+.logo-image-sidebar {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .user-avatar-sidebar {
   width: 40px;
   height: 40px;
@@ -580,6 +587,11 @@ watch(() => route.path, async () => {
 
 .sidebar.collapsed .user-info-sidebar {
   display: none;
+}
+
+.sidebar.collapsed .logo-image-sidebar {
+  width: 40px;
+  height: 40px;
 }
 
 .sidebar.collapsed .user-avatar-sidebar {

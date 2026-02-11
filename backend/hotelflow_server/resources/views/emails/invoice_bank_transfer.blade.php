@@ -111,9 +111,9 @@
         <div class="content">
             <p><strong>Kedves {{ $invoice->booking->user->name }}!</strong></p>
 
-            <p>Köszönjük a foglalásodat!</p>
+            <p>Örömmel értesítjük, hogy a foglalásodat megerősítettük! 🎉</p>
 
-            <p>A foglalásodhoz tartozó számlát csatoljuk ezen e-mail mellé PDF formátumban.</p>
+            <p>A foglalásodhoz tartozó számlát csatoljuk ezen e-mail mellé PDF formátumban. A fizetés elvégzése után elküldjük a check-in QR kódot, amellyel bejelentkezhetsz a szállodába.</p>
 
             <div class="invoice-details">
                 <h3>Számla részletei</h3>
@@ -151,7 +151,8 @@
 
             <div class="payment-info">
                 <p><strong>Fizetési mód: Banki átutalás</strong></p>
-                <p style="margin-top: 10px;">Kérjük, az átutalást a számlán feltüntetett bankszámlaszámra végezd el. A fizetés megerősítése után elküldjük a check-in QR kódot.</p>
+                <p style="margin-top: 10px;"><strong>Fontos:</strong> Kérjük, az átutalást a számlán feltüntetett bankszámlaszámra végezd el a fizetési határidőig. A fizetés megerősítése után azonnal elküldjük a check-in QR kódot, amellyel bejelentkezhetsz a szállodába.</p>
+                <p style="margin-top: 10px;">A foglalásod minden részlete rendben van, csak a fizetésre várunk, hogy mindent elrendezhessünk az érkezésedhez.</p>
             </div>
 
             <div class="info-box">
