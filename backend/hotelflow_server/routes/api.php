@@ -26,6 +26,25 @@ Route::get('/ping', function () {
     return response()->json(['message' => 'pong', $alma], 200);
 });
 
+// Swagger/OpenAPI Documentation - Serve YAML file
+Route::get('/api-docs/swagger.yaml', function () {
+    $swaggerPath = base_path('swagger.yaml');
+    if (file_exists($swaggerPath)) {
+        $content = file_get_contents($swaggerPath);
+        // Replace server URLs with current request URL
+        $baseUrl = request()->getSchemeAndHttpHost();
+        $content = str_replace('http://172.16.50.35:8000', $baseUrl, $content);
+        $content = str_replace('http://localhost:8000', $baseUrl, $content);
+        
+        return response($content, 200)
+            ->header('Content-Type', 'application/x-yaml')
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    return response()->json(['error' => 'Swagger documentation not found'], 404);
+});
+
 //USER VÉGPONTOK
 
 Route::post('/auth/register-user', [AuthController::class, 'registerUser']);

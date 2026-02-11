@@ -1667,11 +1667,12 @@ const getGrandTotal = () => {
 .plans-carousel {
   display: flex;
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  gap: 1.5rem;
+  gap: 0;
 }
 
 .plan-card {
   min-width: 100%;
+  width: 100%;
   background: white;
   border-radius: 12px;
   padding: 1.25rem;
@@ -1682,6 +1683,7 @@ const getGrandTotal = () => {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .plan-card:hover {

@@ -1,0 +1,3489 @@
+openapi: 3.0.0
+info:
+  title: HotelFlow API Documentation
+  description: |
+    Complete API documentation for the HotelFlow booking system.
+    This API provides endpoints for hotels, rooms, bookings, services, invoices, guests, images, RFID keys, tags, and super admin management.
+  version: 1.0.0
+  contact:
+    name: HotelFlow API Support
+
+servers:
+  - url: /api
+    description: Current server (auto-detected)
+  - url: http://172.16.50.35:8000/api
+    description: Development server
+  - url: http://localhost:8000/api
+    description: Local server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Hotels
+    description: Hotel management endpoints
+  - name: Rooms
+    description: Room management endpoints
+  - name: Services
+    description: Service management endpoints
+  - name: Bookings
+    description: Booking management endpoints
+  - name: Invoices
+    description: Invoice management endpoints
+  - name: Guests
+    description: Guest management endpoints
+  - name: Images
+    description: Image upload and management endpoints
+  - name: Search
+    description: Search and recommendation endpoints
+  - name: RFID Keys
+    description: RFID key management endpoints
+  - name: Tags
+    description: Tag management endpoints
+  - name: Devices
+    description: Device management endpoints
+  - name: Super Admin
+    description: Super admin management endpoints
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Laravel Sanctum token authentication
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, hotel, super_admin]
+        isVerified:
+          type: boolean
+        two_factor_enabled:
+          type: boolean
+        tax_number:
+          type: string
+          nullable: true
+        bank_account:
+          type: string
+          nullable: true
+        eu_tax_number:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Hotel:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        location:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        starRating:
+          type: integer
+          nullable: true
+        cover_image:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: integer
+        hotels_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+        price:
+          type: number
+          format: float
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              url:
+                type: string
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+        hotels_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+          format: float
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        hotel_id:
+          type: integer
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          type: string
+        total_price:
+          type: number
+          format: float
+        rooms:
+          type: array
+          items:
+            type: object
+        services:
+          type: array
+          items:
+            type: integer
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        booking_id:
+          type: integer
+        invoice_number:
+          type: string
+        status:
+          type: string
+        total_amount:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+
+    Guest:
+      type: object
+      properties:
+        id:
+          type: integer
+        booking_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          nullable: true
+        document_type:
+          type: string
+          nullable: true
+        document_number:
+          type: string
+          nullable: true
+
+    Image:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        imageable_type:
+          type: string
+        imageable_id:
+          type: integer
+
+    RFIDKey:
+      type: object
+      properties:
+        id:
+          type: integer
+        hotels_id:
+          type: integer
+        key_number:
+          type: string
+        status:
+          type: string
+        current_booking_id:
+          type: integer
+          nullable: true
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+        hotels_id:
+          type: integer
+        name:
+          type: string
+        token:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+
+paths:
+  /ping:
+    get:
+      tags:
+        - Authentication
+      summary: Ping endpoint
+      description: Test endpoint to check API availability
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  # ========== AUTHENTICATION ENDPOINTS ==========
+  /auth/register-user:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/register-hotel:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new hotel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - location
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                location:
+                  type: string
+      responses:
+        '201':
+          description: Hotel registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '422':
+          description: Validation error
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                two_factor_code:
+                  type: string
+                  description: Required if 2FA is enabled
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  token:
+                    type: string
+                  requires_2fa:
+                    type: boolean
+        '401':
+          description: Invalid credentials
+        '403':
+          description: Email not verified
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Logout user
+      responses:
+        '200':
+          description: Logout successful
+
+  /auth/verify-email/{token}:
+    get:
+      tags:
+        - Authentication
+      summary: Verify email address
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          description: Invalid or expired token
+
+  /auth/resend-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Resend verification email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Verification email sent
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Password reset email sent
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - email
+                - password
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid token
+
+  /auth/user/{id}:
+    get:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/updateuser/{id}:
+    put:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/deleteuser/{id}:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User deleted successfully
+        '404':
+          description: User not found
+
+  /auth/admin/profile:
+    put:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Update admin profile (including invoice fields)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                tax_number:
+                  type: string
+                bank_account:
+                  type: string
+                eu_tax_number:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/2fa/enable:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Enable 2FA
+      responses:
+        '200':
+          description: 2FA setup initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qr_code_url:
+                    type: string
+                  secret:
+                    type: string
+
+  /auth/2fa/verify-enable:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Verify and enable 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: 2FA enabled successfully
+        '400':
+          description: Invalid code
+
+  /auth/2fa/disable:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Disable 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: 2FA disabled successfully
+
+  /auth/verify-2fa:
+    post:
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      summary: Verify 2FA code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Code verified successfully
+        '400':
+          description: Invalid code
+
+  /auth/2fa/recovery/request:
+    post:
+      tags:
+        - Authentication
+      summary: Request 2FA recovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Recovery email sent
+
+  /auth/2fa/recovery/confirm:
+    post:
+      tags:
+        - Authentication
+      summary: Confirm 2FA recovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - email
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Recovery confirmed, 2FA disabled
+
+  # ========== HOTEL ENDPOINTS ==========
+  /hotels:
+    get:
+      tags:
+        - Hotels
+      summary: Get all hotels
+      description: Returns all hotels. If authenticated as hotel admin, returns only their hotels.
+      responses:
+        '200':
+          description: List of hotels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hotel'
+    post:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Create a new hotel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - location
+              properties:
+                name:
+                  type: string
+                location:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [hotel, apartment, villa, other]
+                starRating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '201':
+          description: Hotel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+
+  /hotels/{id}:
+    get:
+      tags:
+        - Hotels
+      summary: Get hotel by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Hotel details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+        '404':
+          description: Hotel not found
+
+  /hotels/upgrade/{id}:
+    put:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Upgrade hotel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                starRating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '200':
+          description: Hotel upgraded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+
+  /hotels/{id}/cover-image:
+    post:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Upload hotel cover image
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully
+        '404':
+          description: Hotel not found
+
+  /hotels/{id}/billing-info:
+    get:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Get hotel billing information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Billing information
+          content:
+            application/json:
+              schema:
+                type: object
+    put:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Update hotel billing information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tax_number:
+                  type: string
+                bank_account:
+                  type: string
+                eu_tax_number:
+                  type: string
+      responses:
+        '200':
+          description: Billing information updated
+
+  /hotels/delete/{id}:
+    delete:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Delete hotel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Hotel deleted successfully
+        '404':
+          description: Hotel not found
+
+  /hotels/all-with-rooms:
+    get:
+      tags:
+        - Hotels
+      summary: Get all hotels with rooms (optimized for client-side filtering)
+      responses:
+        '200':
+          description: List of hotels with rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /hotels/{hotel}/tags:
+    post:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Add tag to hotel
+      parameters:
+        - name: hotel
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag_id
+              properties:
+                tag_id:
+                  type: integer
+      responses:
+        '200':
+          description: Tag added successfully
+
+  /hotels/{hotel}/tags/{tag}:
+    delete:
+      tags:
+        - Hotels
+      security:
+        - bearerAuth: []
+      summary: Remove tag from hotel
+      parameters:
+        - name: hotel
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: tag
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tag removed successfully
+
+  # ========== ROOM ENDPOINTS ==========
+  /rooms/hotel/{hotel_id}:
+    get:
+      tags:
+        - Rooms
+      summary: Get rooms by hotel ID
+      parameters:
+        - name: hotel_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+
+  /rooms/{id}:
+    get:
+      tags:
+        - Rooms
+      summary: Get room by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+
+  /rooms/create/{hotel_id}:
+    post:
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      summary: Create a new room
+      parameters:
+        - name: hotel_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - capacity
+                - price
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                capacity:
+                  type: integer
+                price:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Room created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+
+  /rooms/update/{id}:
+    put:
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      summary: Update room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                capacity:
+                  type: integer
+                price:
+                  type: number
+                  format: float
+      responses:
+        '200':
+          description: Room updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+
+  /rooms/delete/{id}:
+    delete:
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      summary: Delete room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Room deleted successfully
+        '404':
+          description: Room not found
+
+  /rooms/{room}/tags:
+    post:
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      summary: Add tag to room
+      parameters:
+        - name: room
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag_id
+              properties:
+                tag_id:
+                  type: integer
+      responses:
+        '200':
+          description: Tag added successfully
+
+  /rooms/{room}/tags/{tag}:
+    delete:
+      tags:
+        - Rooms
+      security:
+        - bearerAuth: []
+      summary: Remove tag from room
+      parameters:
+        - name: room
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: tag
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tag removed successfully
+
+  # ========== SERVICE ENDPOINTS ==========
+  /services/hotel/{hotel_id}:
+    get:
+      tags:
+        - Services
+      summary: Get services by hotel ID
+      parameters:
+        - name: hotel_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '404':
+          description: Hotel not found
+
+  /services:
+    post:
+      tags:
+        - Services
+      security:
+        - bearerAuth: []
+      summary: Create a new service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotels_id
+                - name
+                - price
+              properties:
+                hotels_id:
+                  type: integer
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Service created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+
+  /services/{id}:
+    get:
+      tags:
+        - Services
+      summary: Get service by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '404':
+          description: Service not found
+    put:
+      tags:
+        - Services
+      security:
+        - bearerAuth: []
+      summary: Update service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                  format: float
+      responses:
+        '200':
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+    delete:
+      tags:
+        - Services
+      security:
+        - bearerAuth: []
+      summary: Delete service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Service deleted successfully
+        '404':
+          description: Service not found
+
+  # ========== BOOKING ENDPOINTS ==========
+  /bookings:
+    post:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Create a new booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotelId
+                - startDate
+                - endDate
+                - rooms
+              properties:
+                hotelId:
+                  type: integer
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                rooms:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - guests
+                    properties:
+                      id:
+                        type: integer
+                      guests:
+                        type: integer
+                services:
+                  type: array
+                  items:
+                    type: integer
+                payment_method:
+                  type: string
+                invoice_details:
+                  type: object
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/user/{userId}:
+    get:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Get bookings by user ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+
+  /bookings/hotel/{hotelId}:
+    get:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Get bookings by hotel ID
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+
+  /bookings/delete/{id}:
+    delete:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Delete booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking deleted successfully
+        '404':
+          description: Booking not found
+
+  /bookings/update-status/{id}:
+    put:
+      tags:
+        - Bookings
+      summary: Update booking status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, confirmed, cancelled, completed]
+      responses:
+        '200':
+          description: Booking status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/update/{id}:
+    put:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Update booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{id}/confirm-payment:
+    post:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Confirm payment for booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment confirmed successfully
+
+  /bookings/add-guest/{bookingId}:
+    post:
+      tags:
+        - Bookings
+      security:
+        - bearerAuth: []
+      summary: Add guests to booking
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guests
+              properties:
+                guests:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - email
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      phone:
+                        type: string
+                      document_type:
+                        type: string
+                      document_number:
+                        type: string
+      responses:
+        '200':
+          description: Guests added successfully
+
+  # ========== INVOICE ENDPOINTS ==========
+  /invoices/booking/{bookingId}/preview:
+    get:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Generate invoice preview
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice preview
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /invoices/booking/{bookingId}:
+    get:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Get invoice by booking ID
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          description: Invoice not found
+
+  /invoices/{invoiceId}:
+    put:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Update invoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                invoice_number:
+                  type: string
+      responses:
+        '200':
+          description: Invoice updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+  /invoices/{invoiceId}/approve:
+    post:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Approve invoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice approved successfully
+
+  /invoices/{invoiceId}/send:
+    post:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Send invoice via email
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice sent successfully
+
+  /invoices/{invoiceId}/download:
+    get:
+      tags:
+        - Invoices
+      security:
+        - bearerAuth: []
+      summary: Download invoice PDF
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ========== GUEST ENDPOINTS ==========
+  /guests/booking/{bookingId}:
+    get:
+      tags:
+        - Guests
+      security:
+        - bearerAuth: []
+      summary: Get guests by booking ID
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of guests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Guest'
+
+  /guests/update/{id}:
+    put:
+      tags:
+        - Guests
+      security:
+        - bearerAuth: []
+      summary: Update guest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                document_type:
+                  type: string
+                document_number:
+                  type: string
+      responses:
+        '200':
+          description: Guest updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guest'
+
+  /guests/delete/{id}:
+    delete:
+      tags:
+        - Guests
+      security:
+        - bearerAuth: []
+      summary: Delete guest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Guest deleted successfully
+        '404':
+          description: Guest not found
+
+  # ========== IMAGE ENDPOINTS ==========
+  /images:
+    post:
+      tags:
+        - Images
+      security:
+        - bearerAuth: []
+      summary: Upload image
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+
+  /images/link:
+    post:
+      tags:
+        - Images
+      security:
+        - bearerAuth: []
+      summary: Link image to model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - image_id
+                - imageable_type
+                - imageable_id
+              properties:
+                image_id:
+                  type: integer
+                imageable_type:
+                  type: string
+                imageable_id:
+                  type: integer
+      responses:
+        '200':
+          description: Image linked successfully
+
+  /images/unlink:
+    delete:
+      tags:
+        - Images
+      security:
+        - bearerAuth: []
+      summary: Unlink image from model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - imageable_type
+                - imageable_id
+              properties:
+                imageable_type:
+                  type: string
+                imageable_id:
+                  type: integer
+      responses:
+        '200':
+          description: Image unlinked successfully
+
+  /images/{id}:
+    get:
+      tags:
+        - Images
+      summary: Get image by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Image details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Image'
+    delete:
+      tags:
+        - Images
+      security:
+        - bearerAuth: []
+      summary: Delete image
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Image deleted successfully
+        '404':
+          description: Image not found
+
+  /rooms/{roomId}/images:
+    get:
+      tags:
+        - Images
+      summary: Get images for a room
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Image'
+
+  # ========== SEARCH ENDPOINTS ==========
+  /search/locations:
+    get:
+      tags:
+        - Search
+      summary: Get available locations
+      responses:
+        '200':
+          description: List of locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /search:
+    get:
+      tags:
+        - Search
+      summary: Search hotels with plans
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: guests
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results with plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /recommendations:
+    get:
+      tags:
+        - Search
+      summary: Get hotel recommendations
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: guests
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recommended hotels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # ========== RFID KEY ENDPOINTS ==========
+  /rfid-keys:
+    get:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Get all RFID keys
+      responses:
+        '200':
+          description: List of RFID keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RFIDKey'
+    post:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Create a new RFID key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key_number
+              properties:
+                key_number:
+                  type: string
+                hotels_id:
+                  type: integer
+      responses:
+        '201':
+          description: RFID key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+
+  /rfid-keys/bookings:
+    get:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Get available bookings for RFID key assignment
+      responses:
+        '200':
+          description: List of available bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+
+  /rfid-keys/calendar:
+    get:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Get RFID key calendar assignments
+      responses:
+        '200':
+          description: Calendar assignments
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /rfid-keys/{id}:
+    get:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Get RFID key by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: RFID key details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+        '404':
+          description: RFID key not found
+    patch:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Update RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key_number:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '200':
+          description: RFID key updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+    delete:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Delete RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: RFID key deleted successfully
+        '404':
+          description: RFID key not found
+
+  /rfid-keys/{id}/manual-assignments:
+    get:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Get manual assignments for RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of manual assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /rfid-keys/{id}/assign:
+    post:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Assign RFID key to booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - booking_id
+              properties:
+                booking_id:
+                  type: integer
+      responses:
+        '200':
+          description: RFID key assigned successfully
+
+  /rfid-keys/{id}/assign-room:
+    post:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Assign RFID key to room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - room_id
+              properties:
+                room_id:
+                  type: integer
+      responses:
+        '200':
+          description: RFID key assigned to room successfully
+
+  /rfid-keys/{id}/release:
+    post:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Release RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: RFID key released successfully
+
+  /rfid-keys/{id}/manual-assignments/{assignmentId}:
+    delete:
+      tags:
+        - RFID Keys
+      security:
+        - bearerAuth: []
+      summary: Delete manual assignment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Manual assignment deleted successfully
+
+  # ========== TAG ENDPOINTS ==========
+  /tags:
+    get:
+      tags:
+        - Tags
+      summary: Get all tags
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+    post:
+      tags:
+        - Tags
+      security:
+        - bearerAuth: []
+      summary: Create a new tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+      responses:
+        '201':
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+
+  /tags/usage:
+    get:
+      tags:
+        - Tags
+      summary: Get tag usage statistics
+      responses:
+        '200':
+          description: Tag usage statistics
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /tags/{id}:
+    put:
+      tags:
+        - Tags
+      security:
+        - bearerAuth: []
+      summary: Update tag
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+      responses:
+        '200':
+          description: Tag updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+    delete:
+      tags:
+        - Tags
+      security:
+        - bearerAuth: []
+      summary: Delete tag
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tag deleted successfully
+        '404':
+          description: Tag not found
+
+  # ========== DEVICE ENDPOINTS ==========
+  /devices/bookings/{hotelId}:
+    get:
+      tags:
+        - Devices
+      summary: Get bookings for device (by hotel ID)
+      parameters:
+        - name: hotelId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+
+  /devices/update-booking/{bookingId}:
+    put:
+      tags:
+        - Devices
+      summary: Update booking data from device
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Booking updated successfully
+
+  # ========== SUPER ADMIN ENDPOINTS ==========
+  /super-admin/dashboard/stats:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get dashboard statistics
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # Super Admin - Users
+  /super-admin/users:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all users
+      responses:
+        '200':
+          description: List of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - role
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                role:
+                  type: string
+                  enum: [user, hotel, super_admin]
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /super-admin/users/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User deleted successfully
+        '404':
+          description: User not found
+
+  # Super Admin - Hotels
+  /super-admin/hotels:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all hotels
+      responses:
+        '200':
+          description: List of all hotels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hotel'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create hotel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - location
+              properties:
+                user_id:
+                  type: integer
+                name:
+                  type: string
+                location:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                starRating:
+                  type: integer
+      responses:
+        '201':
+          description: Hotel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+
+  /super-admin/hotels/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get hotel by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Hotel details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+        '404':
+          description: Hotel not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update hotel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                location:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                starRating:
+                  type: integer
+      responses:
+        '200':
+          description: Hotel updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hotel'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete hotel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Hotel deleted successfully
+        '404':
+          description: Hotel not found
+
+  # Super Admin - Rooms
+  /super-admin/rooms:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all rooms
+      responses:
+        '200':
+          description: List of all rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotels_id
+                - name
+                - capacity
+                - price
+              properties:
+                hotels_id:
+                  type: integer
+                name:
+                  type: string
+                description:
+                  type: string
+                capacity:
+                  type: integer
+                price:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Room created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+
+  /super-admin/rooms/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get room by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Room not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                capacity:
+                  type: integer
+                price:
+                  type: number
+                  format: float
+      responses:
+        '200':
+          description: Room updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Room deleted successfully
+        '404':
+          description: Room not found
+
+  # Super Admin - Services
+  /super-admin/services:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all services
+      responses:
+        '200':
+          description: List of all services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotels_id
+                - name
+                - price
+              properties:
+                hotels_id:
+                  type: integer
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Service created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+
+  /super-admin/services/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get service by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '404':
+          description: Service not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                  format: float
+      responses:
+        '200':
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Service deleted successfully
+        '404':
+          description: Service not found
+
+  # Super Admin - Bookings
+  /super-admin/bookings:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all bookings
+      responses:
+        '200':
+          description: List of all bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - hotel_id
+                - start_date
+                - end_date
+              properties:
+                user_id:
+                  type: integer
+                hotel_id:
+                  type: integer
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                status:
+                  type: string
+                total_price:
+                  type: number
+                  format: float
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /super-admin/bookings/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get booking by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+                status:
+                  type: string
+                total_price:
+                  type: number
+                  format: float
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking deleted successfully
+        '404':
+          description: Booking not found
+
+  # Super Admin - Invoices
+  /super-admin/invoices:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all invoices
+      responses:
+        '200':
+          description: List of all invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+
+  /super-admin/invoices/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get invoice by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          description: Invoice not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                invoice_number:
+                  type: string
+      responses:
+        '200':
+          description: Invoice updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Invoice deleted successfully
+        '404':
+          description: Invoice not found
+
+  # Super Admin - RFID Keys
+  /super-admin/rfid-keys:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all RFID keys
+      responses:
+        '200':
+          description: List of all RFID keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RFIDKey'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create RFID key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotels_id
+                - key_number
+              properties:
+                hotels_id:
+                  type: integer
+                key_number:
+                  type: string
+      responses:
+        '201':
+          description: RFID key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+
+  /super-admin/rfid-keys/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get RFID key by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: RFID key details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+        '404':
+          description: RFID key not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key_number:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '200':
+          description: RFID key updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RFIDKey'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete RFID key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: RFID key deleted successfully
+        '404':
+          description: RFID key not found
+
+  # Super Admin - Devices
+  /super-admin/devices:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get all devices
+      responses:
+        '200':
+          description: List of all devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Create device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - hotels_id
+                - name
+              properties:
+                hotels_id:
+                  type: integer
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Device created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /super-admin/devices/{id}:
+    get:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Get device by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: Device not found
+    put:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Update device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+    delete:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Delete device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device deleted successfully
+        '404':
+          description: Device not found
+
+  /super-admin/devices/{id}/regenerate-token:
+    post:
+      tags:
+        - Super Admin
+      security:
+        - bearerAuth: []
+      summary: Regenerate device token
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Token regenerated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
