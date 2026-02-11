@@ -98,6 +98,8 @@ useBodyScrollLock(isVisible)
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .blocker-overlay {
@@ -115,23 +117,25 @@ useBodyScrollLock(isVisible)
   border: 3px solid rgba(239, 68, 68, 0.5);
   border-radius: 20px;
   box-shadow: 0 25px 70px rgba(239, 68, 68, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  max-width: 650px;
+  max-width: 600px;
   width: 90%;
-  overflow: hidden;
+  max-height: 90vh;
+  overflow-y: auto;
   position: relative;
   z-index: 10002;
+  margin: 2rem auto;
 }
 
 .blocker-header {
-  padding: 2.5rem 2rem 1.5rem;
+  padding: 1.5rem 1.5rem 1rem;
   text-align: center;
   border-bottom: 2px solid rgba(239, 68, 68, 0.3);
   background: linear-gradient(135deg, rgba(254, 226, 226, 0.6) 0%, rgba(252, 165, 165, 0.3) 100%);
 }
 
 .warning-icon {
-  font-size: 5rem;
-  margin-bottom: 1rem;
+  font-size: 3.5rem;
+  margin-bottom: 0.75rem;
   filter: drop-shadow(0 4px 12px rgba(239, 68, 68, 0.5));
   animation: pulse-warning 2s ease-in-out infinite;
 }
@@ -148,8 +152,8 @@ useBodyScrollLock(isVisible)
 }
 
 .blocker-header h2 {
-  margin: 0.5rem 0;
-  font-size: 2rem;
+  margin: 0.25rem 0;
+  font-size: 1.5rem;
   font-weight: 700;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   -webkit-background-clip: text;
@@ -159,26 +163,26 @@ useBodyScrollLock(isVisible)
 
 .blocker-subtitle {
   color: #dc2626;
-  font-size: 1rem;
-  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
   margin-bottom: 0;
   font-weight: 600;
 }
 
 .blocker-body {
-  padding: 2.5rem;
+  padding: 1.5rem;
 }
 
 .info-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .info-text {
   color: #4b5563;
-  font-size: 1.05rem;
-  line-height: 1.7;
+  font-size: 0.95rem;
+  line-height: 1.6;
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-weight: 500;
 }
 
@@ -188,32 +192,34 @@ useBodyScrollLock(isVisible)
 }
 
 .missing-hotels-list {
-  margin: 1.5rem 0;
-  padding: 1.5rem;
+  margin: 1rem 0;
+  padding: 1rem;
   background: rgba(239, 68, 68, 0.08);
   border-radius: 12px;
   border: 2px solid rgba(239, 68, 68, 0.2);
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .missing-hotels-title {
   color: #dc2626;
   font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
   text-align: center;
 }
 
 .hotel-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .hotel-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: white;
   border-radius: 8px;
   border-left: 4px solid #ef4444;
@@ -238,15 +244,15 @@ useBodyScrollLock(isVisible)
 .features-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(239, 68, 68, 0.08);
   border-radius: 8px;
   border-left: 3px solid #ef4444;
@@ -266,25 +272,25 @@ useBodyScrollLock(isVisible)
 .action-buttons {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .btn-complete {
   width: 100%;
-  padding: 1.25rem;
+  padding: 1rem;
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   border: none;
   border-radius: 12px;
   color: white;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
@@ -301,9 +307,9 @@ useBodyScrollLock(isVisible)
 .help-text {
   text-align: center;
   color: #6b7280;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   margin: 0;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
   border-top: 1px solid #e5e7eb;
 }
 

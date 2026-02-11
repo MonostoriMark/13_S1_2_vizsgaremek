@@ -49,6 +49,11 @@ export const superAdminService = {
     return response.data
   },
 
+  async approveHotel(id, isApproved) {
+    const response = await api.post(`/super-admin/hotels/${id}/approve`, { is_approved: isApproved })
+    return response.data
+  },
+
   async updateHotel(id, data) {
     const response = await api.put(`/super-admin/hotels/${id}`, data)
     return response.data

@@ -2626,7 +2626,26 @@ const handleAction = async (action, data = null) => {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 0 20px 20px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 0 20px 20px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .modal-header {
@@ -4575,15 +4594,14 @@ const handleAction = async (action, data = null) => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  background: #000000;
   border: none;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 4px;
   color: white;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
@@ -4593,9 +4611,9 @@ const handleAction = async (action, data = null) => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: #1a1a1a;
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .carousel-nav-btn-modern:active {

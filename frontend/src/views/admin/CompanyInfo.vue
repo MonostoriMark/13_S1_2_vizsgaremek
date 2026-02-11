@@ -396,7 +396,11 @@ const getImageUrl = (imagePath) => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath
   }
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/storage/${imagePath}`
+  if (imagePath.startsWith('/storage/')) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return `${baseUrl}${imagePath}`
+  }
+  return imagePath
 }
 
 const handleImageError = (event) => {
@@ -666,15 +670,14 @@ onMounted(async () => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  background: #000000;
   border: none;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 4px;
   color: white;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
@@ -684,9 +687,9 @@ onMounted(async () => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: #1a1a1a;
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .carousel-nav-btn-modern:active {

@@ -24,7 +24,28 @@
         <template #cell-user="{ value }">
           {{ value?.name || 'N/A' }}
         </template>
+        <template #cell-is_approved="{ value }">
+          <span :class="['approval-badge', value ? 'approved' : 'pending']">
+            {{ value ? '✅ Jóváhagyva' : '⏳ Várakozik' }}
+          </span>
+        </template>
         <template #actions="{ row }">
+          <button 
+            v-if="!row.is_approved" 
+            @click="handleApprove(row, true)" 
+            class="btn-icon btn-approve" 
+            title="Jóváhagyás"
+          >
+            ✅
+          </button>
+          <button 
+            v-if="row.is_approved" 
+            @click="handleApprove(row, false)" 
+            class="btn-icon btn-reject" 
+            title="Elutasítás"
+          >
+            ❌
+          </button>
           <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
           <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
@@ -152,6 +173,7 @@ const columns = [
   { key: 'type', label: 'Típus', sortable: true },
   { key: 'starRating', label: 'Értékelés', sortable: true },
   { key: 'user', label: 'Tulajdonos' },
+  { key: 'is_approved', label: 'Státusz', sortable: true },
   { key: 'description', label: 'Leírás' }
 ]
 
@@ -195,6 +217,23 @@ const handleEdit = async (hotel) => {
   }
   await loadUsers()
   showModal.value = true
+}
+
+const handleApprove = async (hotel, isApproved) => {
+  try {
+    await superAdminService.approveHotel(hotel.id, isApproved)
+    showToast(
+      isApproved 
+        ? 'Szálloda sikeresen jóváhagyva' 
+        : 'Szálloda elutasítva',
+      'success'
+    )
+    await loadHotels()
+    // Trigger event to update approval status in admin layout
+    window.dispatchEvent(new Event('hotel-approval-updated'))
+  } catch (err) {
+    showToast(err.response?.data?.message || 'A jóváhagyás sikertelen', 'error')
+  }
 }
 
 const handleDelete = (hotel) => {
@@ -476,11 +515,38 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 
+.btn-approve:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.btn-reject:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 .btn-edit:hover {
   background: rgba(59, 130, 246, 0.2);
 }
 
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.approval-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.approval-badge.approved {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.approval-badge.pending {
+  background: #fef3c7;
+  color: #d97706;
 }
 </style>

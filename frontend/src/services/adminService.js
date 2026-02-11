@@ -215,6 +215,12 @@ export const adminService = {
     return response.data
   },
 
+  // Hotel cover image deletion
+  async deleteHotelCoverImage(hotelId) {
+    const response = await api.delete(`/hotels/${hotelId}/cover-image`)
+    return response.data
+  },
+
   // Hotel billing information
   async getHotelBillingInfo(hotelId) {
     const response = await api.get(`/hotels/${hotelId}/billing-info`)

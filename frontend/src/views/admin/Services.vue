@@ -342,11 +342,16 @@ const goToHotel = (index) => {
   currentHotelIndex.value = index
 }
 
-const getImageUrl = (relativePath) => {
-  if (!relativePath) return ''
-  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''
-  if (relativePath.startsWith('http')) return relativePath
-  return `${baseUrl}${relativePath}`
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  if (imagePath.startsWith('/storage/')) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return `${baseUrl}${imagePath}`
+  }
+  return imagePath
 }
 
 const handleImageError = (event) => {
@@ -790,15 +795,14 @@ onUnmounted(() => {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  background: #000000;
   border: none;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 4px;
   color: white;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
@@ -808,9 +812,9 @@ onUnmounted(() => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: #1a1a1a;
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .carousel-nav-btn-modern:active {
@@ -945,7 +949,26 @@ onUnmounted(() => {
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .modal-header {

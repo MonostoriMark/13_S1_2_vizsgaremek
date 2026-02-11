@@ -62,6 +62,10 @@
         <div class="topbar-content">
           <h1 class="page-title">{{ pageTitle }}</h1>
           <div class="topbar-actions">
+            <div v-if="hotelApprovalStatus !== null" class="approval-status" :class="hotelApprovalStatus ? 'approved' : 'pending'">
+              <span class="status-icon">{{ hotelApprovalStatus ? '✅' : '⏳' }}</span>
+              <span class="status-text">{{ hotelApprovalStatus ? 'Jóváhagyva' : 'Jóváhagyásra vár' }}</span>
+            </div>
             <div class="user-profile">
               <span class="user-avatar">{{ getUserInitials }}</span>
               <span class="user-name">{{ userName }}</span>
@@ -69,6 +73,18 @@
           </div>
         </div>
       </header>
+
+      <!-- Invoice Data Notification Banner -->
+      <div v-if="showInvoiceDataNotification && !showInvoiceDataBlocker" class="invoice-data-notification">
+        <div class="notification-content">
+          <span class="notification-icon">⚠️</span>
+          <div class="notification-text">
+            <strong>Fontos:</strong> Kérjük, töltse ki a számlázási adatokat (adószám, bankszámlaszám, EU adószám) minden szállodához a teljes funkcionalitás érdekében.
+            <router-link to="/admin/company-info" class="notification-link">Számlázási adatok kitöltése →</router-link>
+          </div>
+          <button @click="dismissInvoiceNotification" class="notification-close" title="Bezárás">×</button>
+        </div>
+      </div>
 
       <div class="content-area" :class="{ 'blocked': show2FABlocker || showInvoiceDataBlocker }">
         <slot></slot>
@@ -163,7 +179,9 @@ const handleNavClick = (event, path) => {
 }
 
 const showInvoiceDataBlocker = ref(false)
+const showInvoiceDataNotification = ref(false)
 const missingBillingHotels = ref([])
+const hotelApprovalStatus = ref(null)
 
 const hasCompleteInvoiceData = async () => {
   // Check if all hotels owned by the user have complete billing information
@@ -219,22 +237,26 @@ const check2FARequirement = async () => {
     
     // After 2FA is enabled, check invoice data
     if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-      // Allow access to company-info page to fill billing data
-      if (route.path === '/admin/company-info') {
-        showInvoiceDataBlocker.value = false
-        return
-      }
-      
       // Check if all hotels have complete billing info
       const hasComplete = await hasCompleteInvoiceData()
+
       if (!hasComplete) {
-        showInvoiceDataBlocker.value = true
-        // Block other pages if invoice data is incomplete
-        if (route.path !== '/admin/company-info') {
-          router.push('/admin/company-info')
+        const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+
+        if (route.path === '/admin/company-info') {
+          // On company info page: do NOT block, just show non-blocking notification
+          showInvoiceDataBlocker.value = false
+          showInvoiceDataNotification.value = !dismissed
+        } else {
+          // On all other admin pages: block all operations, only blocker is clickable
+          showInvoiceDataBlocker.value = true
+          showInvoiceDataNotification.value = false
         }
       } else {
+        // All invoice data complete: no blocker, no notification
         showInvoiceDataBlocker.value = false
+        showInvoiceDataNotification.value = false
+        localStorage.removeItem('invoice_data_notification_dismissed')
       }
     }
   }
@@ -249,6 +271,35 @@ watch(() => route.path, () => {
 watch(() => authStore.state.user?.two_factor_enabled, () => {
   check2FARequirement()
 })
+
+const dismissInvoiceNotification = () => {
+  showInvoiceDataNotification.value = false
+  localStorage.setItem('invoice_data_notification_dismissed', 'true')
+}
+
+const loadHotelApprovalStatus = async () => {
+  try {
+    const { adminService } = await import('../services/adminService')
+    const hotelsData = await adminService.getHotels()
+    const hotels = Array.isArray(hotelsData) ? hotelsData : (hotelsData.hotels || [])
+    
+    // Get first hotel owned by current user
+    const userHotel = hotels.find(hotel => {
+      const hotelUserId = hotel.user_id || hotel.user?.id
+      const currentUserId = authStore.state.user?.id
+      return hotelUserId && currentUserId && (hotelUserId === currentUserId || hotelUserId == currentUserId)
+    })
+    
+    if (userHotel) {
+      hotelApprovalStatus.value = userHotel.is_approved ?? false
+    } else {
+      hotelApprovalStatus.value = null
+    }
+  } catch (err) {
+    console.error('Failed to load hotel approval status:', err)
+    hotelApprovalStatus.value = null
+  }
+}
 
 onMounted(async () => {
   // Check if user is authenticated and has hotel role
@@ -271,6 +322,9 @@ onMounted(async () => {
     console.error('Failed to load user data:', err)
   }
   
+  // Load hotel approval status
+  await loadHotelApprovalStatus()
+  
   // Check 2FA requirement after a short delay to ensure route is ready
   setTimeout(() => {
     check2FARequirement()
@@ -281,15 +335,49 @@ onMounted(async () => {
     // Recheck billing data completion
     check2FARequirement()
   })
+  
+  // Listen for hotel approval status updates
+  window.addEventListener('hotel-approval-updated', async () => {
+    await loadHotelApprovalStatus()
+  })
+  
+  // Check invoice data notification on mount
+  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+    setTimeout(async () => {
+      const hasComplete = await hasCompleteInvoiceData()
+      if (!hasComplete) {
+        const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+        if (!dismissed) {
+          showInvoiceDataNotification.value = true
+        }
+      }
+    }, 1000)
+  }
 })
 
 // Watch for route changes to recheck billing data
-watch(() => route.path, () => {
+watch(() => route.path, async () => {
   if (route.path === '/admin/company-info') {
     // When user navigates to company-info page, recheck after a delay
     setTimeout(() => {
       check2FARequirement()
     }, 500)
+  } else {
+    // Recheck invoice data when navigating away from company-info
+    if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+      setTimeout(async () => {
+        const hasComplete = await hasCompleteInvoiceData()
+        if (!hasComplete) {
+          const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+          if (!dismissed && route.path !== '/admin/company-info') {
+            showInvoiceDataNotification.value = true
+          }
+        } else {
+          showInvoiceDataNotification.value = false
+          localStorage.removeItem('invoice_data_notification_dismissed')
+        }
+      }, 500)
+    }
   }
 })
 
@@ -636,6 +724,105 @@ watch(() => route.path, () => {
   font-weight: 600;
   color: white;
   font-size: 0.95rem;
+}
+
+.invoice-data-notification {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.notification-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.notification-text strong {
+  font-weight: 600;
+}
+
+.notification-link {
+  color: #d97706;
+  font-weight: 600;
+  text-decoration: underline;
+  margin-left: 0.5rem;
+  transition: color 0.2s;
+}
+
+.notification-link:hover {
+  color: #b45309;
+}
+
+.notification-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #92400e;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-close:hover {
+  background: rgba(217, 119, 6, 0.2);
+}
+
+.approval-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.approval-status.approved {
+  background: #d1fae5;
+  color: #059669;
+  border: 2px solid #10b981;
+}
+
+.approval-status.pending {
+  background: #fef3c7;
+  color: #d97706;
+  border: 2px solid #f59e0b;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-text {
+  white-space: nowrap;
 }
 
 .content-area {

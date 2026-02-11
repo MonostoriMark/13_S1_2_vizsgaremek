@@ -209,12 +209,30 @@ class AuthController extends Controller
                 'location' => $validated['location'],
                 'type' => $validated['type'],
                 'starRating' => $validated['starRating'],
+                'is_approved' => false, // New hotels need approval
                 'created_at' => now()
             ]);
 
             // Send verification email
             $verificationUrl = UrlHelper::getFrontendUrl('/verify-email/' . $verificationToken);
             Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
+
+            // Send notification to super admin about new hotel registration
+            $superAdmins = User::where('role', 'super_admin')->get();
+            foreach ($superAdmins as $superAdmin) {
+                try {
+                    Mail::to($superAdmin->email)->send(new \App\Mail\NewHotelRegistrationMail($hotel, $user));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send new hotel notification to super admin: ' . $e->getMessage());
+                }
+            }
+
+            // Send hotel creation notification to hotel owner
+            try {
+                Mail::to($user->email)->send(new \App\Mail\HotelCreationNotificationMail($hotel, $user));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send hotel creation notification: ' . $e->getMessage());
+            }
 
             // DO NOT create token - user must verify email first
             return response()->json([

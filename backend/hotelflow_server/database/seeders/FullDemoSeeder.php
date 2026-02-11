@@ -77,6 +77,7 @@ class FullDemoSeeder extends Seeder
                 'description' => 'Egy szép hotel a város szívében.',
                 'type' => 'hotel',
                 'starRating' => 4,
+                'is_approved' => true, // Seeder hotels are pre-approved
             ]);
 
             // Szobák létrehozása a fő hotelhez
@@ -126,6 +127,7 @@ class FullDemoSeeder extends Seeder
                         'description' => $faker->sentence(),
                         'type' => $faker->randomElement(['hotel','apartment','villa','other']),
                         'starRating' => $faker->numberBetween(1,5),
+                        'is_approved' => true, // Seeder hotels are pre-approved
                     ]);
                     $allHotels[] = $hotel;
 

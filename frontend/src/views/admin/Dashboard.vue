@@ -61,19 +61,44 @@
           <h2>Gyors műveletek</h2>
           <div class="quick-actions">
             <router-link to="/admin/hotels" class="action-card">
-              <span class="action-icon">➕</span>
-              <h3>Szálloda hozzáadása</h3>
-              <p>Új szálloda létrehozása</p>
+              <span class="action-icon">🏨</span>
+              <h3>Szállodák</h3>
+              <p>Szállodák kezelése</p>
             </router-link>
             <router-link to="/admin/rooms" class="action-card">
               <span class="action-icon">🛏️</span>
-              <h3>Szoba hozzáadása</h3>
-              <p>Új szoba létrehozása</p>
+              <h3>Szobák</h3>
+              <p>Szobák kezelése</p>
             </router-link>
             <router-link to="/admin/services" class="action-card">
               <span class="action-icon">✨</span>
-              <h3>Szolgáltatás hozzáadása</h3>
-              <p>Új szolgáltatás létrehozása</p>
+              <h3>Szolgáltatások</h3>
+              <p>Szolgáltatások kezelése</p>
+            </router-link>
+            <router-link to="/admin/bookings" class="action-card">
+              <span class="action-icon">📅</span>
+              <h3>Foglalások</h3>
+              <p>Foglalások kezelése</p>
+            </router-link>
+            <router-link to="/admin/tags" class="action-card">
+              <span class="action-icon">🏷️</span>
+              <h3>Címkék</h3>
+              <p>Címkék kezelése</p>
+            </router-link>
+            <router-link to="/admin/rfid-keys" class="action-card">
+              <span class="action-icon">🔑</span>
+              <h3>RFID kulcsok</h3>
+              <p>RFID kulcsok kezelése</p>
+            </router-link>
+            <router-link to="/admin/company-info" class="action-card">
+              <span class="action-icon">💼</span>
+              <h3>Cégadatok</h3>
+              <p>Számlázási adatok</p>
+            </router-link>
+            <router-link to="/admin/users" class="action-card">
+              <span class="action-icon">👤</span>
+              <h3>Profilom</h3>
+              <p>Felhasználói beállítások</p>
             </router-link>
           </div>
         </div>
@@ -140,21 +165,8 @@ const loadDashboardData = async () => {
 
     stats.value.hotels = userHotel ? 1 : 0
 
-    // Generate recent activity (mock for now)
-    recentActivity.value = [
-      {
-        id: 1,
-        icon: '🏨',
-        text: 'Szálloda frissítve',
-        time: new Date(Date.now() - 3600000)
-      },
-      {
-        id: 2,
-        icon: '🛏️',
-        text: 'Új szoba hozzáadva',
-        time: new Date(Date.now() - 7200000)
-      }
-    ]
+    // Load recent activities from bookings and other sources
+    await loadRecentActivities(userHotel?.id)
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
   } finally {
@@ -162,9 +174,61 @@ const loadDashboardData = async () => {
   }
 }
 
+const loadRecentActivities = async (hotelId) => {
+  if (!hotelId) {
+    recentActivity.value = []
+    return
+  }
+
+  try {
+    const activities = []
+    
+    // Get recent bookings
+    try {
+      const bookingsData = await bookingService.getBookingsByHotelId(hotelId)
+      const bookings = bookingsData?.bookings || []
+      
+      // Get last 5 bookings sorted by date
+      const recentBookings = bookings
+        .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+        .slice(0, 5)
+      
+      recentBookings.forEach((booking, index) => {
+        const bookingDate = new Date(booking.startDate)
+        const statusText = {
+          'pending': 'Új foglalási kérelem',
+          'confirmed': 'Foglalás megerősítve',
+          'cancelled': 'Foglalás törölve',
+          'finished': 'Foglalás befejezve'
+        }[booking.status] || 'Foglalás'
+        
+        activities.push({
+          id: `booking-${booking.id}`,
+          icon: booking.status === 'pending' ? '⏳' : booking.status === 'confirmed' ? '✅' : booking.status === 'cancelled' ? '❌' : '✓',
+          text: `${statusText} - ${booking.user?.name || 'Vendég'}`,
+          time: bookingDate
+        })
+      })
+    } catch (err) {
+      console.error('Failed to load bookings for activities:', err)
+    }
+
+    // Sort all activities by time (most recent first)
+    activities.sort((a, b) => b.time - a.time)
+    
+    // Take only the 10 most recent
+    recentActivity.value = activities.slice(0, 10)
+  } catch (err) {
+    console.error('Failed to load recent activities:', err)
+    recentActivity.value = []
+  }
+}
+
 const formatTime = (date) => {
+  if (!date) return 'Ismeretlen'
   const now = new Date()
-  const diff = now - date
+  const activityDate = new Date(date)
+  const diff = now - activityDate
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(minutes / 60)
   const days = Math.floor(hours / 24)
@@ -172,7 +236,8 @@ const formatTime = (date) => {
   if (minutes < 1) return 'Épp most'
   if (minutes < 60) return `${minutes} perce`
   if (hours < 24) return `${hours} órája`
-  return `${days} napja`
+  if (days < 7) return `${days} napja`
+  return activityDate.toLocaleDateString('hu-HU')
 }
 
 onMounted(() => {
@@ -299,40 +364,72 @@ onMounted(() => {
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
 }
 
 .action-card {
   text-decoration: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
+  border: 2px solid #e0e0e0;
+  color: #2c3e50;
   padding: 1.5rem;
   border-radius: 12px;
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
 }
 
 .action-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+}
+
+.action-card:hover::before {
+  transform: scaleX(1);
 }
 
 .action-icon {
   font-size: 2.5rem;
   display: block;
   margin-bottom: 0.75rem;
+  transition: transform 0.3s ease;
+}
+
+.action-card:hover .action-icon {
+  transform: scale(1.1);
 }
 
 .action-card h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .action-card p {
   margin: 0;
   font-size: 0.85rem;
-  opacity: 0.9;
+  color: #7f8c8d;
 }
 
 .empty-state {

@@ -11,13 +11,16 @@ use App\Models\Hotel;
 class HotelController extends Controller
 {
     public function getHotels(){
-        // If user is authenticated and is a hotel admin, only return their hotels
+        // If user is authenticated and is a hotel admin, only return their hotels (regardless of approval status)
         if (auth()->check() && auth()->user()->role === 'hotel') {
             $hotels = Hotel::with(['tags', 'rooms.images'])
                 ->where('user_id', auth()->id())
                 ->get();
         } else {
-            $hotels = Hotel::with(['tags', 'rooms.images'])->get();
+            // For public access, only show approved hotels
+            $hotels = Hotel::where('is_approved', true)
+                ->with(['tags', 'rooms.images'])
+                ->get();
         }
         return response()->json($hotels, 200);
     }
@@ -45,8 +48,26 @@ class HotelController extends Controller
             'description' => $validated['description'] ?? null,
             'type' => $validated['type'] ?? null,
             'starRating' => $validated['starRating'] ?? null,
+            'is_approved' => false, // New hotels need approval
             'created_at' => now()
         ]);
+
+        // Send notification to super admin about new hotel creation
+        $superAdmins = \App\Models\User::where('role', 'super_admin')->get();
+        foreach ($superAdmins as $superAdmin) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($superAdmin->email)->send(new \App\Mail\NewHotelRegistrationMail($hotel, $user));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send new hotel notification to super admin: ' . $e->getMessage());
+            }
+        }
+
+        // Send hotel creation notification to hotel owner
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\HotelCreationNotificationMail($hotel, $user));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send hotel creation notification: ' . $e->getMessage());
+        }
 
         // Load tags relationship
         $hotel->load('tags');
@@ -119,6 +140,9 @@ class HotelController extends Controller
         ]);
 
         try {
+            // Increase memory limit for image processing
+            ini_set('memory_limit', '256M');
+            
             // Delete old cover image if exists
             if ($hotel->cover_image) {
                 $oldPath = str_replace('/storage/', '', $hotel->cover_image);
@@ -146,6 +170,42 @@ class HotelController extends Controller
             ], 500);
         }
     }
+
+    public function deleteCoverImage($id)
+    {
+        $hotel = Hotel::find($id);
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        // Check permission
+        if ($hotel->user_id !== auth()->id()) {
+            return response()->json(['error' => 'Nincs jogosultságod'], 403);
+        }
+
+        try {
+            // Delete cover image file if exists
+            if ($hotel->cover_image) {
+                $oldPath = str_replace('/storage/', '', $hotel->cover_image);
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            // Clear cover_image field
+            $hotel->cover_image = null;
+            $hotel->save();
+
+            return response()->json([
+                'message' => 'Cover image deleted successfully',
+                'cover_image' => null
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Hotel cover image delete error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to delete cover image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function getHotelById($id){
         $hotel = Hotel::with(['tags', 'rooms.images'])->find($id);
         if(!$hotel){
