@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szobák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szoba hozzáadása
+          <span class="btn-plus-icon">+</span> Szoba hozzáadása
         </button>
       </div>
 
@@ -1163,6 +1163,13 @@ onUnmounted(() => {
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-primary:disabled {

@@ -181,43 +181,8 @@ const loadRecentActivities = async (hotelId) => {
   }
 
   try {
-    const activities = []
-    
-    // Get recent bookings
-    try {
-      const bookingsData = await bookingService.getBookingsByHotelId(hotelId)
-      const bookings = bookingsData?.bookings || []
-      
-      // Get last 5 bookings sorted by date
-      const recentBookings = bookings
-        .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
-        .slice(0, 5)
-      
-      recentBookings.forEach((booking, index) => {
-        const bookingDate = new Date(booking.startDate)
-        const statusText = {
-          'pending': 'Új foglalási kérelem',
-          'confirmed': 'Foglalás megerősítve',
-          'cancelled': 'Foglalás törölve',
-          'finished': 'Foglalás befejezve'
-        }[booking.status] || 'Foglalás'
-        
-        activities.push({
-          id: `booking-${booking.id}`,
-          icon: booking.status === 'pending' ? '⏳' : booking.status === 'confirmed' ? '✅' : booking.status === 'cancelled' ? '❌' : '✓',
-          text: `${statusText} - ${booking.user?.name || 'Vendég'}`,
-          time: bookingDate
-        })
-      })
-    } catch (err) {
-      console.error('Failed to load bookings for activities:', err)
-    }
-
-    // Sort all activities by time (most recent first)
-    activities.sort((a, b) => b.time - a.time)
-    
-    // Take only the 10 most recent
-    recentActivity.value = activities.slice(0, 10)
+    const response = await adminService.getRecentActivities(hotelId, 15)
+    recentActivity.value = response.activities || []
   } catch (err) {
     console.error('Failed to load recent activities:', err)
     recentActivity.value = []
@@ -226,18 +191,15 @@ const loadRecentActivities = async (hotelId) => {
 
 const formatTime = (date) => {
   if (!date) return 'Ismeretlen'
-  const now = new Date()
   const activityDate = new Date(date)
-  const diff = now - activityDate
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-
-  if (minutes < 1) return 'Épp most'
-  if (minutes < 60) return `${minutes} perce`
-  if (hours < 24) return `${hours} órája`
-  if (days < 7) return `${days} napja`
-  return activityDate.toLocaleDateString('hu-HU')
+  // Format: YYYY-MM-DD HH:MM:SS
+  const year = activityDate.getFullYear()
+  const month = String(activityDate.getMonth() + 1).padStart(2, '0')
+  const day = String(activityDate.getDate()).padStart(2, '0')
+  const hours = String(activityDate.getHours()).padStart(2, '0')
+  const minutes = String(activityDate.getMinutes()).padStart(2, '0')
+  const seconds = String(activityDate.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 onMounted(() => {

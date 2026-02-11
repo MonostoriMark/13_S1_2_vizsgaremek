@@ -124,7 +124,7 @@
       </Transition>
 
       <!-- Calendar view - primary content -->
-      <div v-if="selectedHotel" class="calendar-section card">
+      <div v-if="selectedHotel" class="calendar-section card" @click.self="hideEventTooltipOnClick">
         <div class="calendar-header">
           <div>
             <h2>RFID kulcs naptár</h2>
@@ -185,11 +185,12 @@
                       'event-bar-single': segment.isStart && segment.isEnd,
                       'event-bar-start': segment.isStart && !segment.isEnd,
                       'event-bar-end': segment.isEnd && !segment.isStart,
-                      'event-bar-middle': !segment.isStart && !segment.isEnd
+                      'event-bar-middle': !segment.isStart && !segment.isEnd,
+                      'event-bar-selected': hoveredEvent && hoveredEvent.id === segment.event.id
                     }"
                     :style="{ backgroundColor: getColorForKey(segment.event.rfid_uid) }"
                     @mouseenter="showEventTooltip(segment.event, $event)"
-                    @mouseleave="hideEventTooltip"
+                    @click="selectEvent(segment.event, $event)"
                   ></div>
                 </div>
               </div>
@@ -219,6 +220,8 @@
             v-if="tooltipVisible && hoveredEvent"
             class="event-tooltip"
             :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
+            @mouseenter="keepTooltipVisible"
+            @mouseleave="hideEventTooltip"
           >
             <div class="tooltip-key">UID: {{ hoveredEvent.rfid_uid }}</div>
             <div class="tooltip-row">
@@ -249,12 +252,7 @@
       <!-- Table with keys under the calendar -->
       <div v-if="selectedHotel" class="keys-table-section">
         <div class="keys-table-header">
-          <button @click="openCreateModal" class="btn-primary">
-            <span>➕</span> RFID kulcs hozzáadása
-          </button>
-        </div>
-        <div class="keys-filter-bar">
-          <label>
+          <label class="filter-group">
             <span class="filter-label">Kártyatípus:</span>
             <select v-model="typeFilter" class="filter-select">
               <option value="all">Összes</option>
@@ -262,6 +260,9 @@
               <option value="crew">Személyzeti kártyák</option>
             </select>
           </label>
+          <button @click="openCreateModal" class="btn-primary">
+            <span class="btn-plus-icon">+</span> RFID kulcs hozzáadása
+          </button>
         </div>
 
         <DataTable
@@ -648,9 +649,32 @@ const showEventTooltip = (event, domEvent) => {
   }
 }
 
+const selectEvent = (event, domEvent) => {
+  // If clicking the same event, toggle tooltip
+  if (hoveredEvent.value && hoveredEvent.value.id === event.id) {
+    tooltipVisible.value = !tooltipVisible.value
+  } else {
+    // Otherwise, show tooltip for the clicked event
+    showEventTooltip(event, domEvent)
+  }
+}
+
+const keepTooltipVisible = () => {
+  // Keep tooltip visible when hovering over it
+  tooltipVisible.value = true
+}
+
 const hideEventTooltip = () => {
-  tooltipVisible.value = false
-  hoveredEvent.value = null
+  // Don't hide immediately - allow user to move mouse to tooltip
+  // Tooltip will stay visible until clicked outside or another event is clicked
+}
+
+const hideEventTooltipOnClick = (event) => {
+  // Hide tooltip when clicking outside the event bars and tooltip
+  if (!event.target.closest('.event-bar') && !event.target.closest('.event-tooltip')) {
+    tooltipVisible.value = false
+    hoveredEvent.value = null
+  }
 }
 
 const goToBooking = (bookingId) => {
@@ -873,6 +897,7 @@ const loadCalendar = async () => {
     const endDateDate = new Date(Number(year), Number(month), 0)
     const endDate = endDateDate.toISOString().slice(0, 10)
     const response = await rfidKeyService.getCalendarEvents({
+      hotel_id: selectedHotelId.value,
       start_date: startDate,
       end_date: endDate
     })
@@ -1748,6 +1773,63 @@ onUnmounted(() => {
   border-radius: 0;
 }
 
+.event-bar-selected {
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  transform: scaleY(1.2);
+}
+
+.event-tooltip {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  min-width: 250px;
+  pointer-events: auto;
+}
+
+.tooltip-key {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.tooltip-label {
+  font-weight: 500;
+  color: #6b7280;
+  margin-right: 0.5rem;
+}
+
+.tooltip-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: #764ba2;
+}
+
 .calendar-legend {
   margin-top: 0.75rem;
   font-size: 0.85rem;
@@ -1978,20 +2060,45 @@ onUnmounted(() => {
   margin-top: 0.25rem;
 }
 
-.keys-table-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
-  gap: 0.5rem;
-  align-items: center;
+.keys-table-section {
+  margin-top: 2rem;
+  background: rgba(20, 20, 20, 0.8);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-.keys-filter-bar {
+.keys-table-section :deep(.data-table) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.keys-table-section :deep(.data-table.dark-theme) {
+  background: transparent;
+  border: none;
+}
+
+.keys-table-header {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.75rem;
-  gap: 0.5rem;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .filter-label {

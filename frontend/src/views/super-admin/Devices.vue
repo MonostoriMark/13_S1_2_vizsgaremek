@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Eszköz regisztráció</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Eszköz regisztrálása
+          <span class="btn-plus-icon">+</span> Eszköz regisztrálása
         </button>
       </div>
 
@@ -140,6 +140,18 @@ import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import Toast from '../../components/Toast.vue'
 import { superAdminService } from '../../services/superAdminService'
 import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'Nincs adat'
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
 
 const devices = ref([])
 const availableHotels = ref([])
@@ -415,6 +427,13 @@ onMounted(async () => {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-activate {

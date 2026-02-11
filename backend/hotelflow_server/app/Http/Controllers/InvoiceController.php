@@ -49,6 +49,34 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Preview invoice by invoice ID
+     */
+    public function preview($invoiceId)
+    {
+        $invoice = Invoice::with(['booking.hotel.user', 'booking.user', 'booking.rooms', 'booking.services', 'booking.payment', 'booking.invoiceDetails'])->find($invoiceId);
+        
+        if (!$invoice) {
+            return response()->json(['error' => 'Számla nem található'], 404);
+        }
+
+        // Check if user is the guest, hotel admin, or super admin
+        $isGuest = $invoice->booking->users_id === auth()->id();
+        $isHotelAdmin = $invoice->booking->hotel->user_id === auth()->id();
+        $isSuperAdmin = auth()->user()->role === 'super_admin';
+
+        if (!$isGuest && !$isHotelAdmin && !$isSuperAdmin) {
+            return response()->json(['error' => 'Nincs jogosultságod'], 403);
+        }
+
+        // Generate PDF preview
+        $pdfContent = $this->generatePDF($invoice->booking, $invoice);
+        
+        return response($pdfContent, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="szamla_elonezet_' . $invoice->invoice_number . '.pdf"');
+    }
+
+    /**
      * Approve invoice
      */
     public function approve($invoiceId)
@@ -242,15 +270,17 @@ class InvoiceController extends Controller
             return response()->json(['error' => 'Számla nem található'], 404);
         }
 
-        // Check if user is the guest or hotel admin
+        // Check if user is the guest, hotel admin, or super admin
         $isGuest = $invoice->booking->users_id === auth()->id();
         $isHotelAdmin = $invoice->booking->hotel->user_id === auth()->id();
+        $isSuperAdmin = auth()->user()->role === 'super_admin';
 
-        if (!$isGuest && !$isHotelAdmin) {
+        if (!$isGuest && !$isHotelAdmin && !$isSuperAdmin) {
             return response()->json(['error' => 'Nincs jogosultságod'], 403);
         }
 
-        if ($invoice->status === 'draft') {
+        // Allow super admin to download draft invoices
+        if ($invoice->status === 'draft' && !$isSuperAdmin) {
             return response()->json(['error' => 'A számla még nem jóváhagyva'], 400);
         }
 

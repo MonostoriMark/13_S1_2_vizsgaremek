@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>RFID kulcsok kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> RFID kulcs hozzáadása
+          <span class="btn-plus-icon">+</span> RFID kulcs hozzáadása
         </button>
       </div>
 
@@ -478,6 +478,13 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-icon {

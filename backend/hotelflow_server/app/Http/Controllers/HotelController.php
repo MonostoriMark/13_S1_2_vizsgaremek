@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use App\Models\Hotel;
 
@@ -213,6 +214,157 @@ class HotelController extends Controller
         }
         return response()->json($hotel, 200);
     }
+    public function getRecentActivities(Request $request, $hotelId)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // Verify the user owns the hotel
+        $hotel = Hotel::where('id', $hotelId)
+                     ->where('user_id', $user->id)
+                     ->first();
+        
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
+        }
+
+        $limit = $request->query('limit', 15);
+        $activities = [];
+
+        // Get bookings
+        $bookings = \App\Models\Booking::where('hotels_id', $hotelId)
+            ->with('user')
+            ->orderBy('startDate', 'desc')
+            ->limit(20)
+            ->get();
+
+        foreach ($bookings as $booking) {
+            $statusText = [
+                'pending' => 'Új foglalási kérelem',
+                'confirmed' => 'Foglalás megerősítve',
+                'cancelled' => 'Foglalás törölve',
+                'finished' => 'Foglalás befejezve'
+            ][$booking->status] ?? 'Foglalás';
+
+            $activities[] = [
+                'id' => 'booking-' . $booking->id,
+                'type' => 'booking',
+                'icon' => $booking->status === 'pending' ? '⏳' : ($booking->status === 'confirmed' ? '✅' : ($booking->status === 'cancelled' ? '❌' : '✓')),
+                'text' => $statusText . ' - ' . ($booking->user->name ?? 'Vendég'),
+                'time' => $booking->startDate ? \Carbon\Carbon::parse($booking->startDate)->toIso8601String() : null,
+                'timestamp' => $booking->startDate ? \Carbon\Carbon::parse($booking->startDate)->timestamp : null
+            ];
+        }
+
+        // Get RFID assignments (assigned)
+        $rfidAssignments = \App\Models\RFIDAssignment::whereHas('rfidKey', function($q) use ($hotelId) {
+                $q->where('hotels_id', $hotelId);
+            })
+            ->whereNotNull('assigned_at')
+            ->with(['rfidKey', 'room', 'booking.user'])
+            ->orderBy('assigned_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        foreach ($rfidAssignments as $assignment) {
+            $keyName = $assignment->rfidKey ? ($assignment->rfidKey->name ?: $assignment->rfidKey->rfidKey) : 'Ismeretlen kulcs';
+            $roomName = $assignment->room ? $assignment->room->name : 'Ismeretlen szoba';
+            $guestName = $assignment->booking && $assignment->booking->user ? $assignment->booking->user->name : 'Vendég';
+
+            $activities[] = [
+                'id' => 'rfid-assign-' . $assignment->id,
+                'type' => 'rfid_assignment',
+                'icon' => '🔑',
+                'text' => 'RFID kulcs hozzárendelve: ' . $keyName . ' → ' . $roomName . ' (' . $guestName . ')',
+                'time' => $assignment->assigned_at ? $assignment->assigned_at->toIso8601String() : null,
+                'timestamp' => $assignment->assigned_at ? $assignment->assigned_at->timestamp : null
+            ];
+        }
+
+        // Get RFID assignments (released)
+        $rfidReleases = \App\Models\RFIDAssignment::whereHas('rfidKey', function($q) use ($hotelId) {
+                $q->where('hotels_id', $hotelId);
+            })
+            ->whereNotNull('released_at')
+            ->with(['rfidKey', 'room', 'booking.user'])
+            ->orderBy('released_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        foreach ($rfidReleases as $assignment) {
+            $keyName = $assignment->rfidKey ? ($assignment->rfidKey->name ?: $assignment->rfidKey->rfidKey) : 'Ismeretlen kulcs';
+            $roomName = $assignment->room ? $assignment->room->name : 'Ismeretlen szoba';
+
+            $activities[] = [
+                'id' => 'rfid-release-' . $assignment->id,
+                'type' => 'rfid_release',
+                'icon' => '🔓',
+                'text' => 'RFID kulcs feloldva: ' . $keyName . ' → ' . $roomName,
+                'time' => $assignment->released_at ? $assignment->released_at->toIso8601String() : null,
+                'timestamp' => $assignment->released_at ? $assignment->released_at->timestamp : null
+            ];
+        }
+
+        // Get rooms (using createdAt if available, otherwise skip)
+        $rooms = \App\Models\Room::where('hotels_id', $hotelId)
+            ->whereNotNull('createdAt')
+            ->orderBy('createdAt', 'desc')
+            ->limit(10)
+            ->get();
+
+        foreach ($rooms as $room) {
+            $activities[] = [
+                'id' => 'room-' . $room->id,
+                'type' => 'room',
+                'icon' => '🛏️',
+                'text' => 'Szoba létrehozva: ' . ($room->name ?: 'Szoba #' . $room->id),
+                'time' => $room->createdAt ? \Carbon\Carbon::parse($room->createdAt)->toIso8601String() : null,
+                'timestamp' => $room->createdAt ? \Carbon\Carbon::parse($room->createdAt)->timestamp : null
+            ];
+        }
+
+        // Get services (check if createdAt column exists)
+        try {
+            $services = \App\Models\Service::where('hotels_id', $hotelId)
+                ->when(\Schema::hasColumn('services', 'createdAt'), function($query) {
+                    $query->whereNotNull('createdAt')->orderBy('createdAt', 'desc');
+                })
+                ->limit(10)
+                ->get();
+
+            foreach ($services as $service) {
+                if (isset($service->createdAt) && $service->createdAt) {
+                    $activities[] = [
+                        'id' => 'service-' . $service->id,
+                        'type' => 'service',
+                        'icon' => '✨',
+                        'text' => 'Szolgáltatás létrehozva: ' . ($service->name ?: 'Szolgáltatás #' . $service->id),
+                        'time' => \Carbon\Carbon::parse($service->createdAt)->toIso8601String(),
+                        'timestamp' => \Carbon\Carbon::parse($service->createdAt)->timestamp
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // Service table might not have createdAt, skip
+        }
+
+        // Sort all activities by timestamp (most recent first)
+        $activities = array_filter($activities, function($a) {
+            return $a['timestamp'] !== null;
+        });
+
+        usort($activities, function($a, $b) {
+            return $b['timestamp'] - $a['timestamp'];
+        });
+
+        // Take only the requested limit
+        $activities = array_slice($activities, 0, $limit);
+
+        return response()->json(['activities' => $activities], 200);
+    }
+
     public function getHotelBillingInfo($id)
     {
         $user = auth()->user();

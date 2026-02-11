@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szolgáltatások kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szolgáltatás hozzáadása
+          <span class="btn-plus-icon">+</span> Szolgáltatás hozzáadása
         </button>
       </div>
 
@@ -137,6 +137,9 @@
           :on-edit="handleEdit"
           :on-delete="handleDelete"
         >
+          <template #cell-name="{ value }">
+            <span class="service-name-cell">{{ value || '-' }}</span>
+          </template>
           <template #cell-price="{ value }">
             <span v-if="value">€{{ parseFloat(value).toFixed(2) }}</span>
             <span v-else class="text-muted">Ingyenes</span>
@@ -907,6 +910,13 @@ onUnmounted(() => {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .hotel-selector {

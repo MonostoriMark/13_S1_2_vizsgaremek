@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szolgáltatás címkék kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Címke hozzáadása
+          <span class="btn-plus-icon">+</span> Címke hozzáadása
         </button>
       </div>
 
@@ -530,6 +530,13 @@ onMounted(() => {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .loading-container {

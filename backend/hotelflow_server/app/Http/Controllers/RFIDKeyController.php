@@ -115,10 +115,24 @@ class RFIDKeyController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 401);
             }
 
-            // Determine hotel for this admin
-            $hotel = Hotel::where('user_id', $user->id)->first();
-            if (!$hotel) {
-                return response()->json(['message' => 'Hotel not found'], 404);
+            // Determine hotel for this admin - accept hotel_id from request or use first hotel
+            $requestedHotelId = $request->query('hotel_id');
+            
+            if ($requestedHotelId) {
+                // Verify the user owns the requested hotel
+                $hotel = Hotel::where('id', $requestedHotelId)
+                             ->where('user_id', $user->id)
+                             ->first();
+                
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
+                }
+            } else {
+                // Fallback: Get first hotel belonging to the user
+                $hotel = Hotel::where('user_id', $user->id)->first();
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found'], 404);
+                }
             }
 
             // Optional date range filters

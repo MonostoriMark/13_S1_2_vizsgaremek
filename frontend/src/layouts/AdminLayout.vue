@@ -62,10 +62,6 @@
         <div class="topbar-content">
           <h1 class="page-title">{{ pageTitle }}</h1>
           <div class="topbar-actions">
-            <div v-if="hotelApprovalStatus !== null" class="approval-status" :class="hotelApprovalStatus ? 'approved' : 'pending'">
-              <span class="status-icon">{{ hotelApprovalStatus ? '✅' : '⏳' }}</span>
-              <span class="status-text">{{ hotelApprovalStatus ? 'Jóváhagyva' : 'Jóváhagyásra vár' }}</span>
-            </div>
             <div class="user-profile">
               <span class="user-avatar">{{ getUserInitials }}</span>
               <span class="user-name">{{ userName }}</span>
@@ -122,7 +118,7 @@ const pageTitle = computed(() => {
     return 'Bookings'
   }
   if (route.path === '/admin/users') {
-    return 'My Profile'
+    return 'Profilom'
   }
   const item = menuItems.find(i => i.path === route.path)
   return item ? item.label : 'Admin Panel'
@@ -469,7 +465,7 @@ watch(() => route.path, async () => {
 .logo-text {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #000000;
   letter-spacing: 0.5px;
   white-space: nowrap;
   margin-bottom: 0.15rem;
@@ -794,36 +790,6 @@ watch(() => route.path, async () => {
   background: rgba(217, 119, 6, 0.2);
 }
 
-.approval-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.approval-status.approved {
-  background: #d1fae5;
-  color: #059669;
-  border: 2px solid #10b981;
-}
-
-.approval-status.pending {
-  background: #fef3c7;
-  color: #d97706;
-  border: 2px solid #f59e0b;
-}
-
-.status-icon {
-  font-size: 1rem;
-}
-
-.status-text {
-  white-space: nowrap;
-}
 
 .content-area {
   flex: 1;

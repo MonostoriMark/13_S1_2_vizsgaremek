@@ -2,7 +2,6 @@
   <AdminLayout>
     <div class="users-page">
       <div class="page-header">
-        <h1>Profilom</h1>
         <p class="page-subtitle">Fiókadatok és számlázási adatok kezelése</p>
       </div>
 

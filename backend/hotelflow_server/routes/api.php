@@ -79,6 +79,7 @@ Route::post('/hotels', [HotelController::class, 'createHotel'])->middleware('aut
 Route::put('/hotels/upgrade/{id}', [HotelController::class, 'upgradeHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::post('/hotels/{id}/cover-image', [HotelController::class, 'uploadCoverImage'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/{id}/cover-image', [HotelController::class, 'deleteCoverImage'])->middleware('auth:sanctum', 'role:hotel');
+Route::get('/hotels/{id}/activities', [HotelController::class, 'getRecentActivities'])->middleware('auth:sanctum', 'role:hotel');
 Route::get('/hotels/{id}/billing-info', [HotelController::class, 'getHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/hotels/{id}/billing-info', [HotelController::class, 'updateHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->middleware('auth:sanctum', 'role:hotel');
@@ -133,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/invoices/{invoiceId}', [InvoiceController::class, 'update'])->middleware('role:hotel');
     Route::post('/invoices/{invoiceId}/approve', [InvoiceController::class, 'approve']);
     Route::post('/invoices/{invoiceId}/send', [InvoiceController::class, 'send']);
+    Route::get('/invoices/{invoiceId}/preview', [InvoiceController::class, 'preview']);
     Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download']);
 });
 

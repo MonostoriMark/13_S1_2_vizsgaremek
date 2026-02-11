@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szállodák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szálloda hozzáadása
+          <span class="btn-plus-icon">+</span> Szálloda hozzáadása
         </button>
       </div>
 
@@ -23,7 +23,7 @@
         </template>
         <template #cell-is_approved="{ value }">
           <span :class="['approval-badge', value ? 'approved' : 'pending']">
-            {{ value ? '✅ Jóváhagyva' : '⏳ Várakozik' }}
+            {{ value ? '✅ Aktív' : '⏳ Várakozik' }}
           </span>
         </template>
         <template #actions="{ row }">
@@ -577,6 +577,13 @@ onMounted(async () => {
   font-weight: 500;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-primary:hover {

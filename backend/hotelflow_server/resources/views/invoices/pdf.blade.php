@@ -5,7 +5,7 @@
     <title>Számla - {{ $invoice->invoice_number }}</title>
     <style>
         @page {
-            margin: 15mm;
+            margin: 20mm;
         }
         * {
             margin: 0;
@@ -18,10 +18,11 @@
             line-height: 1.45;
             color: #000;
             background: white;
+            padding: 10px;
         }
         .invoice-container {
             background: white;
-            padding: 0;
+            padding: 15px;
             max-width: 210mm;
             margin: 0 auto;
         }
