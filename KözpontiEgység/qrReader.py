@@ -41,7 +41,7 @@ def scan_frame():
     for barcode in barcodes:
         qr_data = barcode.data.decode("utf-8")
         qr_type = barcode.type
-        results.append((qr_data, qr_type))
+        results.append((qr_data))
         qr_callback(qr_data, qr_type)
-
-    return qr_data  # visszatér az összes QR találattal
+    
+    return results

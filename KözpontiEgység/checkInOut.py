@@ -10,18 +10,18 @@ db_config = {
     'user': 'appuser',
     'password': '123',
     'host': '127.0.0.1',
-    'database': 'hotelflowlocal',
+    'database': 'hotelflowLocal',
     'cursorclass': pymysql.cursors.DictCursor  # DictCursor a könnyebb kezeléshez
 }
 
 
 RFID_LOCKER_MAP = {
     "F4E4C928": (0, 0),
-    "HUOHDSPHI": (0, 1)
+    "HUUGHU": (0, 1)
 }
 
-#SERIAL_PORT = "/dev/ttyACM0"   # Linux
-SERIAL_PORT = "COM4"   # Windows
+SERIAL_PORT = "/dev/ttyACM0"   # Linux
+#SERIAL_PORT = "COM4"   # Windows
 BAUDRATE = 9600
 
 def get_arduino():
@@ -335,6 +335,8 @@ def check_in_out(auth_token: str):
 arduino = get_arduino()
 display_lcd(arduino, "Kérjük olvassa le a QR kódot a bejelentkezéshez!")
 
+found = None
+
 # Fő ciklus, ami folyamatosan feldolgozza a soros portot
 while True:
     if arduino:
@@ -345,6 +347,7 @@ while True:
                 if found:
                     print("Talált QR-ek:", found)
                     check_in_out(found)  # csak az első QR-t használjuk, ha több van
+                    found = None
                 time.sleep(0.1)
         except KeyboardInterrupt:
             print("Leállítás")
