@@ -4,6 +4,8 @@ from post import put_request_example
 import serial
 import time
 import qrReader
+import threading
+import queue
 
 # MySQL KONFIGURÁCIÓ
 db_config = {
@@ -332,25 +334,49 @@ def check_in_out(auth_token: str):
         if 'arduino' in locals() and arduino:
             arduino.close()
 
+# --- Inicializáljuk az Arduino-t ---
 arduino = get_arduino()
-display_lcd(arduino, "Kérjük olvassa le a QR kódot a bejelentkezéshez!")
+if arduino:
+    display_lcd(arduino, "Kérjük olvassa le a QR kódot a bejelentkezéshez!")
 
-found = None
+# --- QR-ek tárolása sorban ---
+qr_queue = queue.Queue()
 
-# Fő ciklus, ami folyamatosan feldolgozza a soros portot
-while True:
-    if arduino:
-        process_serial(arduino)  # olvassa az Arduino üzeneteit
+# --- QR olvasó szál ---
+def qr_scanner_loop():
+    while True:
         try:
-            while not found:
-                found = qrReader.scan_frame()  # csak lekéri a QR-eket
-                if found:
-                    print("Talált QR-ek:", found)
-                    check_in_out(found)  # csak az első QR-t használjuk, ha több van
-                    found = None
-                time.sleep(0.1)
-        except KeyboardInterrupt:
-            print("Leállítás")
-            break
-        
-    time.sleep(0.05)
+            frames_qr = qrReader.scan_frame()  # a te QR lekérő függvényed
+            if frames_qr:
+                for qr_data, qr_type in frames_qr:
+                    qr_queue.put(qr_data)  # berakjuk a QR kódot a sorba
+        except Exception as e:
+            print("QR olvasó hiba:", e)
+        time.sleep(0.05)  # CPU spórolás
+
+# --- Arduino soros feldolgozás szál ---
+def arduino_loop():
+    while True:
+        if arduino:
+            process_serial(arduino)  # minden üzenetet kezelünk
+        time.sleep(0.05)
+
+# --- Szálak indítása ---
+threading.Thread(target=qr_scanner_loop, daemon=True).start()
+threading.Thread(target=arduino_loop, daemon=True).start()
+
+# --- Fő feldolgozó loop ---
+while True:
+    try:
+        # Ha van QR kód a sorban, dolgozzuk fel
+        if not qr_queue.empty():
+            qr_code = qr_queue.get()
+            print(f"[MAIN] Feldolgozásra kerülő QR: {qr_code}")
+
+            # Itt vár a check_in_out() az Arduino visszajelzésére
+            check_in_out(qr_code)
+
+        time.sleep(0.05)
+    except KeyboardInterrupt:
+        print("Leállítás")
+        break
