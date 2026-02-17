@@ -3,23 +3,25 @@ import json
 from post import put_request_example
 import serial
 import time
+import qrReader
 
 # MySQL KONFIGURÁCIÓ
 db_config = {
     'user': 'appuser',
     'password': '123',
     'host': '127.0.0.1',
-    'database': 'hotelflowLocal',
+    'database': 'hotelflowlocal',
     'cursorclass': pymysql.cursors.DictCursor  # DictCursor a könnyebb kezeléshez
 }
 
 
 RFID_LOCKER_MAP = {
     "F4E4C928": (0, 0),
-    "HBIASDOGF12": (0, 1)
+    "HUOHDSPHI": (0, 1)
 }
 
-SERIAL_PORT = "/dev/ttyACM0"   # Windows: COM3
+#SERIAL_PORT = "/dev/ttyACM0"   # Linux
+SERIAL_PORT = "COM4"   # Windows
 BAUDRATE = 9600
 
 def get_arduino():
@@ -31,21 +33,79 @@ def get_arduino():
         print("⚠️ Arduino nem elérhető:", e)
         return None
 
-def open_locker(ser, locker_id: int):
+def open_locker(ser, locker_id: int, timeout=30):
+    """
+    Nyitja a szekrényt az Arduino-n.
+    Vár az OPENED visszajelzésre, de nem blokkolja a soros port figyelést hosszú ideig.
+    """
     if not ser:
         print("⚠️ Nincs soros kapcsolat, szekrény nem nyitható.")
         return False
 
-    cmd = f"OPEN;{locker_id}\n"
-    ser.write(cmd.encode())
+    ser.write(f"OPEN;{locker_id}\n".encode())
+    start_time = time.time()
 
-    response = ser.readline().decode().strip()
-    print("Arduino válasz:", response)
+    while True:
+        if ser.in_waiting:
+            line = ser.readline().decode().strip()
+            print("Arduino:", line)
+            if line == f"OPENED;{locker_id}":
+                print(f"✅ Szekrény {locker_id} nyitva (relé húzva)")
+                return True  # visszatér, Python folytatja
+        if time.time() - start_time > timeout:
+            print(f"⏰ Időtúllépés – nem kaptunk nyitás visszajelzést a {locker_id}-hez")
+            return False
+        time.sleep(0.05)  # kicsit lazítunk a CPU-n
 
-    return response.startswith("OK")
+
 
 def locker_id_from_matrix(row, col, cols=1):
     return row * cols + col
+
+def display_lcd(ser, msg, scroll_delay=0.7, scroll_repeat=2):
+    """
+    Kiírja az msg szöveget az Arduino LCD-re.
+    Dinamikusan 16 karakteres ablakokkal scrolloz, ha hosszabb a szöveg.
+    """
+    if not ser:
+        print("⚠️ Arduino nem elérhető.")
+        return False
+
+    # Ellenőrizzük, hogy a soros port üres-e, majd küldjük a DISPLAY parancsot
+    # Scroll és repeat paramétereket az Arduino oldalon kell beállítani fixen
+    cmd = f"DISPLAY;{msg}\n"
+    ser.write(cmd.encode())
+
+    # Várunk visszajelzést
+    start_time = time.time()
+    while True:
+        if time.time() - start_time > 5:  # max 5 másodperc várakozás
+            print("⏰ Nincs válasz az Arduino-tól")
+            return False
+
+        if ser.in_waiting:
+            response = ser.readline().decode().strip()
+            if response == "DISPLAY_OK":
+                return True
+            else:
+                print("Arduino válasz:", response)
+
+def process_serial(ser):
+    """
+    Ellenőrzi a soros portot: LCD visszajelzés, zár visszazárás, stb.
+    Ezt a fő ciklusban kell hívni, nem threadben.
+    """
+    while ser.in_waiting:
+        line = ser.readline().decode().strip()
+        if line.startswith("STATE;CLOSED;"):
+            locker_id = int(line.split(";")[2])
+            print(f"🔒 Szekrény {locker_id} visszazárva.")
+        elif line == "DISPLAY_OK":
+            # LCD visszajelzés logolása, ha kell
+            pass
+        else:
+            print("Arduino üzenet:", line)
+
 
 def check_in_out(auth_token: str):
     conn = None
@@ -104,7 +164,6 @@ def check_in_out(auth_token: str):
 
         print("Aktuális státusz:", status)
 
-        arduino = get_arduino()
 
         # -----------------------------
         # CHECK-IN / CHECK-OUT logika
@@ -169,8 +228,10 @@ def check_in_out(auth_token: str):
 
                         if open_locker(arduino, locker_id):
                             print(f"✅ Szekrény {locker_id} nyitva")
+                            display_lcd(arduino, f"Vegye el a kártyát a szekrényből!")
                         else:
                             print(f"❌ Szekrény {locker_id} nem nyílt")
+                            display_lcd(arduino, f"Valami nem működik!")
 
 
         else:
@@ -218,8 +279,10 @@ def check_in_out(auth_token: str):
 
                         if open_locker(arduino, locker_id):
                             print(f"✅ Szekrény {locker_id} nyitva")
+                            display_lcd(arduino, f"Tegye vissza a kártyát a szekrénybe!")
                         else:
                             print(f"❌ Szekrény {locker_id} nem nyílt")
+                            display_lcd(arduino, f"Valami nem működik!")
                     else:
                         print(f"⚠️ RFID {rfid_key} nincs a szekrény mátrixban!")
 
@@ -257,6 +320,7 @@ def check_in_out(auth_token: str):
             conn.commit()
 
         print("\nMűvelet kész.")
+        display_lcd(arduino, "Kellemes időtöltést! :)")
 
     except pymysql.MySQLError as err:
         print(f"Adatbázis hiba: {err}")
@@ -267,3 +331,23 @@ def check_in_out(auth_token: str):
             conn.close()
         if 'arduino' in locals() and arduino:
             arduino.close()
+
+arduino = get_arduino()
+display_lcd(arduino, "Kérjük olvassa le a QR kódot a bejelentkezéshez!")
+
+# Fő ciklus, ami folyamatosan feldolgozza a soros portot
+while True:
+    if arduino:
+        process_serial(arduino)  # olvassa az Arduino üzeneteit
+        try:
+            while not found:
+                found = qrReader.scan_frame()  # csak lekéri a QR-eket
+                if found:
+                    print("Talált QR-ek:", found)
+                    check_in_out(found)  # csak az első QR-t használjuk, ha több van
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            print("Leállítás")
+            break
+        
+    time.sleep(0.05)

@@ -4,26 +4,32 @@
 
 int relayPins[] = {2,3};
 const int relayCount = sizeof(relayPins)/sizeof(relayPins[0]);
+int sensorPin = 4;
+
+bool lockerOpened = false;
+bool waitingForClose = false;
+int activeLockerId = -1;
+int lastState = HIGH;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 String input = "";
 
-// Scroll beállítások
-int scroll_delay_ms = 1000;   // lassabb scroll
-int scroll_repeat = 5;       // hányszor ismételje
-int scroll_chars = 5;        // mennyit lépjen karakterenként
+// ---- Scroll állapot ----
+String scrollMsg = "";
+int scrollRow = 0;
+int scrollStart = 0;
+int scrollLength = 0;
+int scrollRepeatCount = 0;
+int scrollRepeatMax = 2;
+unsigned long lastScrollTime = 0;
+int scrollDelay = 700;   // ms
+int scrollStep = 1;      // hány karakterrel lép
 
 String replaceAccents(String msg) {
-  msg.replace("á","a");
-  msg.replace("é","e");
-  msg.replace("í","i");
-  msg.replace("ó","o");
-  msg.replace("ö","o");
-  msg.replace("ő","o");
-  msg.replace("ú","u");
-  msg.replace("ü","u");
-  msg.replace("ű","u");
+  msg.replace("á","a"); msg.replace("é","e"); msg.replace("í","i");
+  msg.replace("ó","o"); msg.replace("ö","o"); msg.replace("ő","o");
+  msg.replace("ú","u"); msg.replace("ü","u"); msg.replace("ű","u");
   return msg;
 }
 
@@ -32,57 +38,56 @@ void openLocker(int id) {
     Serial.println("ERROR;INVALID_ID");
     return;
   }
-  digitalWrite(relayPins[id], HIGH);
-  delay(1000);
-  digitalWrite(relayPins[id], LOW);
-  Serial.print("OK;");
+  activeLockerId = id;
+  digitalWrite(relayPins[id], HIGH);  
+  waitingForClose = true;
+  lockerOpened = false;
+  Serial.print("OPENED;");  // <---- AZ INSTANT VISSZAJELZÉS
   Serial.println(id);
 }
 
-void displayText(String msg) {
-  msg = replaceAccents(msg);
+// ---- Scroll inicializálása ----
+void startScroll(String msg) {
+  scrollMsg = replaceAccents(msg);
+  scrollRow = 0;
+  scrollStart = 0;
+  scrollLength = scrollMsg.length();
+  scrollRepeatCount = 0;
   lcd.clear();
+  lastScrollTime = millis();
+}
 
-  int row = 0;
-  int col = 0;
+// ---- Scroll feldolgozás (nem blokkoló) ----
+void handleScroll() {
+  if (scrollMsg == "") return; // nincs scroll
 
-  for (int i = 0; i < msg.length(); i++) {
-    char c = msg[i];
+  unsigned long now = millis();
+  if (now - lastScrollTime >= scrollDelay) {
+    lastScrollTime = now;
 
-    if (c == '\n') {
-      row++;
-      col = 0;
-      if (row > 1) break;
-      lcd.setCursor(col,row);
-    } else {
-      lcd.setCursor(col,row);
-      lcd.write(c);
-      col++;
-      if (col >= 16) { // hosszú sor scroll
-        int start = i - 15;
-        for (int r = 0; r < scroll_repeat; r++) { // ismétlés
-          for (int scroll = 0; scroll < msg.length()-start-16; scroll+=scroll_chars) {
-            lcd.setCursor(0,row);
-            lcd.print(msg.substring(start+scroll, start+scroll+16));
-            delay(scroll_delay_ms);
-          }
-        }
-        break;
+    // Kiírjuk az aktuális ablakot
+    int end = scrollStart + 16;
+    if (end > scrollLength) end = scrollLength;
+    lcd.setCursor(0, scrollRow);
+    lcd.print("                "); // törlés
+    lcd.setCursor(0, scrollRow);
+    lcd.print(scrollMsg.substring(scrollStart, end));
+
+    scrollStart += scrollStep;
+    if (scrollStart + 16 > scrollLength) {
+      scrollStart = 0;
+      scrollRepeatCount++;
+      if (scrollRepeatCount >= scrollRepeatMax) {
+        scrollMsg = ""; // scroll kész
       }
     }
   }
+}
 
-  def clear_lcd(ser):
-    if not ser:
-        print("⚠️ Arduino nem elérhető")
-        return False
-
-    ser.write("CLEAR\n".encode())
-    response = ser.readline().decode().strip()
-    print("Arduino válasz:", response)
-    return response == "DISPLAY_OK"
-
-  Serial.println("DISPLAY_OK");
+void sendLockState() {
+  int state = digitalRead(sensorPin);
+  if (state == LOW) Serial.println("STATE;CLOSED");
+  else Serial.println("STATE;OPEN");
 }
 
 void setup() {
@@ -91,6 +96,7 @@ void setup() {
     pinMode(relayPins[i], OUTPUT);
     digitalWrite(relayPins[i], LOW);
   }
+  pinMode(sensorPin, INPUT_PULLUP);
   lcd.init();
   lcd.backlight();
   lcd.clear();
@@ -98,22 +104,51 @@ void setup() {
 }
 
 void loop() {
+  // ---- Soros feldolgozás ----
   while (Serial.available()) {
     char c = Serial.read();
     if (c == '\n') {
+      input.trim();
       if (input.startsWith("OPEN;")) {
         int id = input.substring(5).toInt();
         openLocker(id);
       } else if (input.startsWith("DISPLAY;")) {
-        String msg = input.substring(8);
-        displayText(msg);
-      } else if (input == "CLEAR") {
-        lcd.clear();          
+        startScroll(input.substring(8));
         Serial.println("DISPLAY_OK");
+      } else if (input == "CLEAR") {
+        lcd.clear();
+        scrollMsg = "";
+        Serial.println("DISPLAY_OK");
+      } else if (input == "STATE") {
+        sendLockState();
       }
       input = "";
     } else {
       input += c;
     }
   }
+
+  // ---- Scroll feldolgozás ----
+  handleScroll();
+
+  // ---- Automatikus állapotfigyelés ----
+  if (waitingForClose && activeLockerId != -1) {
+    int currentState = digitalRead(sensorPin);
+
+    if (!lockerOpened && currentState == HIGH) {
+      lockerOpened = true;  // egyszer rögzítjük a nyitást
+    }
+
+    // Visszazárás érzékelése
+    if (lockerOpened && currentState == LOW) {
+      digitalWrite(relayPins[activeLockerId], LOW); // relé vissza
+      Serial.print("STATE;CLOSED;");
+      Serial.println(activeLockerId);
+
+      waitingForClose = false;
+      lockerOpened = false;
+      activeLockerId = -1; // visszaállítjuk nullára
+    }
+  }
 }
+

@@ -1,18 +1,18 @@
+# qr_reader.py
 from picamera2 import Picamera2
 from pyzbar import pyzbar
 import time
 import logging
-import checkInOut
 
-# Logging beállítás
+# --- Logging beállítás ---
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
 
-logging.info("QR olvasó debug mód indul...")
+logging.info("QR olvasó modul betöltve")
 
-# Kamera inicializálás
+# --- Kamera inicializálás (csak egyszer) ---
 picam2 = Picamera2()
 picam2.configure(
     picam2.create_preview_configuration(
@@ -21,42 +21,27 @@ picam2.configure(
 )
 picam2.start()
 time.sleep(2)  # kamera stabilizálása
+logging.info("Kamera inicializálva")
 
-# --- Ide definiáljuk a callback függvényt ---
+# --- Callback függvény ---
 def qr_callback(qr_data: str, qr_type: str):
-    """
-    Itt kell majd meghívni a projekt logikát:
-    - ellenőrzés backendben / DB
-    - MQTT küldés ESP felé
-    - LED / ajtó vezérlés
-    - snapshot mentés, logolás
-    """
     logging.info(f"[CALLBACK] QR találat: {qr_type} | Tartalom: {qr_data}")
-# --- Vége callback függvénynek ---
+    # A projekt fő logikája
 
-try:
-    while True:
-        frame = picam2.capture_array()
+# --- QR olvasó fő függvény ---
+def scan_frame():
+    """
+    Egyetlen képkocka beolvasása és QR dekódolása.
+    Meghívható ciklusban anélkül, hogy újraindítaná a kamerát.
+    """
+    frame = picam2.capture_array()
+    barcodes = pyzbar.decode(frame)
+    results = []
 
-        barcodes = pyzbar.decode(frame)
-        if barcodes:
-            for barcode in barcodes:
-                qr_data = barcode.data.decode("utf-8")
-                qr_type = barcode.type
+    for barcode in barcodes:
+        qr_data = barcode.data.decode("utf-8")
+        qr_type = barcode.type
+        results.append((qr_data, qr_type))
+        qr_callback(qr_data, qr_type)
 
-                logging.info(f"[QR] Típus: {qr_type} | Tartalom: {qr_data}")
-
-                checkInOut.check_in_out(qr_data)
-                
-        else:
-            logging.debug("Nincs QR a képkockában")
-
-        time.sleep(0.1)  # CPU spórolás
-
-except KeyboardInterrupt:
-    logging.info("QR olvasó debug leállítva kézzel")
-
-finally:
-    picam2.stop()
-    logging.info("Kamera leállítva")
-
+    return qr_data  # visszatér az összes QR találattal
