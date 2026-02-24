@@ -59,11 +59,17 @@ class FullDemoSeeder extends Seeder
                 'role' => 'super_admin',
                 'isVerified' => true,
             ]);
+            User::create([
+                'name' => 'Szabó Máté',
+                'email' => 'szabo.mate@diak.szbi-pg.hu',
+                'password' => bcrypt('Gum55NDx'),
+                'role' => 'user',
+            ]);
 
             $user = User::create([
                 'name' => 'Hotel Admin',
-                'email' => 'hoteladmin@example.com',
-                'password' => bcrypt('password'),
+                'email' => 'szabomate403@gmail.com',
+                'password' => bcrypt('Gum55NDx'),
                 'role' => 'hotel',
             ]);
 
