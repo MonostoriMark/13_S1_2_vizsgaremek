@@ -22,8 +22,8 @@ use App\Http\Controllers\SuperAdminController;
 use Illuminate\Support\Facades\Http;
 
 Route::get('/ping', function () {
-    $alma = HTTP::get('https://bumper-developing-tiffany-dealer.trycloudflare.com');
-    return response()->json(['message' => 'pong', $alma], 200);
+    $alma = HTTP::get('https://pbs.twimg.com/profile_images/378800000171619791/fe13d95fd6d75d2ba275b55bcbfe5dd2_400x400.jpeg');
+    return views('ping', ['alma' => $alma->body()]);
 });
 
 // Swagger/OpenAPI Documentation - Serve YAML file
