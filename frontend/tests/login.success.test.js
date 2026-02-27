@@ -6,7 +6,7 @@ async function loginFullFlowTest() {
 
   try {
     // Login oldal
-    await driver.get("http://172.16.6.12:3000/login");
+    await driver.get("http://172.16.13.18:3000/login");
 
     // ⏳ VÁRJUK MEG az email inputot
     const emailInput = await driver.wait(
@@ -37,7 +37,7 @@ async function loginFullFlowTest() {
 
     // ⏳ Várunk a bookings oldalra
     await driver.wait(
-      until.urlIs("http://172.16.6.12:3000/bookings"),
+      until.urlIs("http://172.16.13.18:3000/bookings"),
       10000
     );
 
