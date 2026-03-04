@@ -59,11 +59,17 @@ class FullDemoSeeder extends Seeder
                 'role' => 'super_admin',
                 'isVerified' => true,
             ]);
+            User::create([
+                'name' => 'Szabó Máté',
+                'email' => 'szabo.mate@diak.szbi-pg.hu',
+                'password' => bcrypt('Gum55NDx'),
+                'role' => 'user',
+            ]);
 
             $user = User::create([
                 'name' => 'Hotel Admin',
-                'email' => 'hoteladmin@example.com',
-                'password' => bcrypt('password'),
+                'email' => 'szabomate403@gmail.com',
+                'password' => bcrypt('Gum55NDx'),
                 'role' => 'hotel',
             ]);
 
@@ -77,6 +83,7 @@ class FullDemoSeeder extends Seeder
                 'description' => 'Egy szép hotel a város szívében.',
                 'type' => 'hotel',
                 'starRating' => 4,
+                'is_approved' => true, // Seeder hotels are pre-approved
             ]);
 
             // Szobák létrehozása a fő hotelhez
@@ -126,6 +133,7 @@ class FullDemoSeeder extends Seeder
                         'description' => $faker->sentence(),
                         'type' => $faker->randomElement(['hotel','apartment','villa','other']),
                         'starRating' => $faker->numberBetween(1,5),
+                        'is_approved' => true, // Seeder hotels are pre-approved
                     ]);
                     $allHotels[] = $hotel;
 

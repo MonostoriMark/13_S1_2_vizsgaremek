@@ -219,6 +219,14 @@
           <span class="filter-count">({{ confirmedCount }})</span>
         </button>
         <button
+          @click="activeFilter = 'waitingForPayment'"
+          :class="['filter-btn', { active: activeFilter === 'waitingForPayment' }]"
+        >
+          <span class="filter-icon">💰</span>
+          <span>Fizetésre vár</span>
+          <span class="filter-count">({{ waitingForPaymentCount }})</span>
+        </button>
+        <button
           @click="activeFilter = 'cancelled'"
           :class="['filter-btn', { active: activeFilter === 'cancelled' }]"
         >
@@ -294,13 +302,33 @@
                 </span>
               </td>
               <td class="actions-cell">
-                <button
-                  @click="openBookingActionsModal(booking)"
-                  class="btn-actions"
-                  title="Műveletek"
-                >
-                  ⚙️ Műveletek
-                </button>
+                <div class="table-actions">
+                  <button
+                    v-if="booking.status === 'cancelled' || booking.checkInstatus === 'checkedOut'"
+                    @click="openBookingDetailsModal(booking)"
+                    class="btn-actions btn-details-vibrant"
+                    title="Részletek"
+                  >
+                    📋 Részletek
+                  </button>
+                  <template v-else>
+                    <button
+                      @click="openEditBookingModal(booking)"
+                      class="btn-actions btn-edit"
+                      title="Módosítás"
+                      :disabled="updating === booking.id"
+                    >
+                      ✏️ Módosítás
+                    </button>
+                    <button
+                      @click="openBookingActionsModal(booking)"
+                      class="btn-actions"
+                      title="Műveletek"
+                    >
+                      ⚙️ Műveletek
+                    </button>
+                  </template>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -1068,6 +1096,7 @@
                   ✏️ Foglalás szerkesztése
                 </button>
                 <button
+                  v-if="selectedBookingForActions.status !== 'confirmed'"
                   @click="handleAction('cancel')"
                   class="action-btn btn-danger"
                   :disabled="updating === selectedBookingForActions.id"
@@ -1178,6 +1207,88 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Booking Details Modal (Read-only for cancelled/deleted bookings) -->
+    <Transition name="modal">
+      <div v-if="showBookingDetailsModal && selectedBookingForDetails" class="modal-overlay" @click.self="closeBookingDetailsModal">
+        <div class="modal-content details-modal">
+          <div class="modal-header">
+            <h2>📋 Foglalás részletei - #{{ selectedBookingForDetails.id }}</h2>
+            <button @click="closeBookingDetailsModal" class="btn-close-modal">×</button>
+          </div>
+          <div class="details-content">
+            <div class="details-section">
+              <h3 class="details-section-title">Vendég információk</h3>
+              <div class="details-row">
+                <span class="details-label">Név:</span>
+                <span class="details-value">{{ selectedBookingForDetails.user?.name || 'N/A' }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Email:</span>
+                <span class="details-value">{{ selectedBookingForDetails.user?.email || 'N/A' }}</span>
+              </div>
+            </div>
+
+            <div class="details-section">
+              <h3 class="details-section-title">Foglalás információk</h3>
+              <div class="details-row">
+                <span class="details-label">Státusz:</span>
+                <span :class="['status-badge', selectedBookingForDetails.checkInstatus === 'checkedOut' ? 'badge-finished' : `badge-${selectedBookingForDetails.status}`]">
+                  {{ selectedBookingForDetails.checkInstatus === 'checkedOut' ? 'Befejezve' : formatStatus(selectedBookingForDetails.status) }}
+                </span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Bejelentkezés:</span>
+                <span class="details-value">{{ formatDate(selectedBookingForDetails.startDate) }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Kijelentkezés:</span>
+                <span class="details-value">{{ formatDate(selectedBookingForDetails.endDate) }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Éjszakák:</span>
+                <span class="details-value">{{ calculateNights(selectedBookingForDetails.startDate, selectedBookingForDetails.endDate) }} éjszaka</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Összeg:</span>
+                <span class="details-value price">{{ selectedBookingForDetails.totalPrice || 'Nincs adat' }} €</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.rooms && selectedBookingForDetails.rooms.length > 0" class="details-section">
+              <h3 class="details-section-title">Szobák</h3>
+              <div v-for="room in selectedBookingForDetails.rooms" :key="room.id" class="details-row">
+                <span class="details-value">{{ room.name }} - {{ room.pricePerNight }} €/éjszaka</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.services && selectedBookingForDetails.services.length > 0" class="details-section">
+              <h3 class="details-section-title">Szolgáltatások</h3>
+              <div v-for="service in selectedBookingForDetails.services" :key="service.id" class="details-row">
+                <span class="details-value">{{ service.name }} - {{ service.price || 0 }} €</span>
+              </div>
+            </div>
+
+            <div v-if="selectedBookingForDetails.payment" class="details-section">
+              <h3 class="details-section-title">Fizetés</h3>
+              <div class="details-row">
+                <span class="details-label">Fizetési mód:</span>
+                <span class="details-value">{{ selectedBookingForDetails.payment.method === 'bank_transfer' ? 'Banki átutalás' : selectedBookingForDetails.payment.method === 'card' ? 'Kártyás fizetés' : selectedBookingForDetails.payment.method }}</span>
+              </div>
+              <div class="details-row">
+                <span class="details-label">Fizetési státusz:</span>
+                <span :class="['status-badge', selectedBookingForDetails.payment.status === 'paid' ? 'badge-confirmed' : 'badge-pending']">
+                  {{ selectedBookingForDetails.payment.status === 'paid' ? 'Fizetve' : 'Fizetésre vár' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="closeBookingDetailsModal" class="btn-primary">Bezárás</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1267,9 +1378,23 @@ const cancelling = ref(false)
 const showBookingActionsModal = ref(false)
 const selectedBookingForActions = ref(null)
 
+// Booking Details Modal
+const showBookingDetailsModal = ref(false)
+const selectedBookingForDetails = ref(null)
+
+const openBookingDetailsModal = (booking) => {
+  selectedBookingForDetails.value = booking
+  showBookingDetailsModal.value = true
+}
+
+const closeBookingDetailsModal = () => {
+  showBookingDetailsModal.value = false
+  selectedBookingForDetails.value = null
+}
+
 // Filter state
 const activeFilter = ref('all')
-const viewMode = ref('card') // 'card' or 'table'
+const viewMode = ref('table') // 'card' or 'table'
 
 // Computed properties for counts
 const confirmedCount = computed(() => {
@@ -1292,6 +1417,15 @@ const archivedCount = computed(() => {
   return bookings.value.filter(b => b.status === 'cancelled' || b.checkInstatus === 'checkedOut').length
 })
 
+const waitingForPaymentCount = computed(() => {
+  return bookings.value.filter(b => 
+    b.status === 'confirmed' && 
+    b.checkInstatus !== 'checkedOut' &&
+    b.payment && 
+    b.payment.status !== 'paid'
+  ).length
+})
+
 // Filtered bookings based on active filter
 const filteredBookings = computed(() => {
   if (activeFilter.value === 'all') {
@@ -1300,6 +1434,13 @@ const filteredBookings = computed(() => {
     return bookings.value.filter(b => b.status === 'pending')
   } else if (activeFilter.value === 'confirmed') {
     return bookings.value.filter(b => b.status === 'confirmed' && b.checkInstatus !== 'checkedOut')
+  } else if (activeFilter.value === 'waitingForPayment') {
+    return bookings.value.filter(b => 
+      b.status === 'confirmed' && 
+      b.checkInstatus !== 'checkedOut' &&
+      b.payment && 
+      b.payment.status !== 'paid'
+    )
   } else if (activeFilter.value === 'cancelled') {
     return bookings.value.filter(b => b.status === 'cancelled')
   } else if (activeFilter.value === 'finished') {
@@ -1311,7 +1452,7 @@ const filteredBookings = computed(() => {
 })
 
 // Lock body scroll when any modal is open
-useBodyScrollLock([showEditInvoiceModal, showEditBookingModal, showGuestModal, showCancellationModal, showBookingActionsModal])
+useBodyScrollLock([showEditInvoiceModal, showEditBookingModal, showGuestModal, showCancellationModal, showBookingActionsModal, showBookingDetailsModal])
 
 onMounted(async () => {
   await loadHotels()
@@ -1626,18 +1767,27 @@ const previewInvoice = async (bookingId) => {
 }
 
 const approveInvoice = async (invoiceId, bookingId) => {
-  if (!confirm('Biztosan jóváhagyja ezt a számlát? Végleges lesz és nem szerkeszthető.')) {
+  if (!confirm('Biztosan jóváhagyja ezt a számlát? A számla automatikusan elküldésre kerül a vendégnek.')) {
     return
   }
   
   invoiceLoading.value = bookingId
   try {
-    await invoiceService.approveInvoice(invoiceId)
-    successMessage.value = 'Számla sikeresen jóváhagyva!'
-    setTimeout(() => { successMessage.value = '' }, 5000)
+    const response = await invoiceService.approveInvoice(invoiceId)
+    if (response.email_sent) {
+      successMessage.value = response.message || 'Számla sikeresen jóváhagyva és elküldve!'
+    } else {
+      successMessage.value = response.message || 'Számla jóváhagyva, de az email küldése sikertelen volt.'
+      error.value = 'Az email küldése sikertelen volt. Kérjük, használja a "Küldés vendégnek" gombot.'
+    }
+    setTimeout(() => { 
+      successMessage.value = ''
+      error.value = ''
+    }, 7000)
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'A számla jóváhagyása sikertelen'
+    error.value = err.response?.data?.error || err.response?.data?.message || 'A számla jóváhagyása sikertelen'
+    console.error('Invoice approval error:', err)
   } finally {
     invoiceLoading.value = null
   }
@@ -1649,13 +1799,28 @@ const sendInvoice = async (invoiceId, bookingId) => {
   }
   
   invoiceLoading.value = bookingId
+  error.value = ''
+  successMessage.value = ''
+  
   try {
-    await invoiceService.sendInvoice(invoiceId)
-    successMessage.value = 'Számla sikeresen elküldve a vendégnek!'
-    setTimeout(() => { successMessage.value = '' }, 5000)
+    console.log('Sending invoice:', invoiceId)
+    const response = await invoiceService.sendInvoice(invoiceId)
+    console.log('Invoice send response:', response)
+    
+    if (response.email_sent !== false) {
+      successMessage.value = response.message || 'Számla sikeresen elküldve a vendégnek!'
+      setTimeout(() => { successMessage.value = '' }, 5000)
+    } else {
+      error.value = response.message || 'Az email küldése sikertelen volt'
+    }
     await loadBookings()
   } catch (err) {
-    error.value = err.response?.data?.message || 'A számla küldése sikertelen'
+    console.error('Invoice send error:', err)
+    console.error('Error response:', err.response)
+    error.value = err.response?.data?.error || err.response?.data?.message || 'A számla küldése sikertelen'
+    if (err.response?.data?.message) {
+      error.value += ': ' + err.response.data.message
+    }
   } finally {
     invoiceLoading.value = null
   }
@@ -2095,21 +2260,19 @@ const handleAction = async (action, data = null) => {
       await previewInvoice(booking.id)
       break
     case 'approveInvoice':
-      if (confirm('Biztosan jóváhagyja ezt a számlát? Végleges lesz és nem szerkeszthető.')) {
-        await approveInvoice(booking.invoice.id, booking.id)
-        await loadBookings()
-        const updatedBooking = bookings.value.find(b => b.id === booking.id)
-        if (updatedBooking) {
-          selectedBookingForActions.value = updatedBooking
-        }
+      await approveInvoice(booking.invoice.id, booking.id)
+      await loadBookings()
+      const approvedBooking = bookings.value.find(b => b.id === booking.id)
+      if (approvedBooking) {
+        selectedBookingForActions.value = approvedBooking
       }
       break
     case 'sendInvoice':
       await sendInvoice(booking.invoice.id, booking.id)
       await loadBookings()
-      const updatedBooking = bookings.value.find(b => b.id === booking.id)
-      if (updatedBooking) {
-        selectedBookingForActions.value = updatedBooking
+      const sentBooking = bookings.value.find(b => b.id === booking.id)
+      if (sentBooking) {
+        selectedBookingForActions.value = sentBooking
       }
       break
     case 'downloadInvoice':
@@ -2485,7 +2648,26 @@ const handleAction = async (action, data = null) => {
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 0 20px 20px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 0 20px 20px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .modal-header {
@@ -3909,6 +4091,14 @@ const handleAction = async (action, data = null) => {
   text-align: center;
 }
 
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .btn-actions {
   padding: 0.5rem 1rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -3927,6 +4117,45 @@ const handleAction = async (action, data = null) => {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.btn-actions.btn-details {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.btn-actions.btn-details:hover {
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+}
+
+.btn-actions.btn-details-vibrant {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-weight: 700;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-actions.btn-details-vibrant:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-actions.btn-edit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.btn-actions.btn-edit:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-actions:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Actions Modal */
 .actions-modal {
   max-width: 700px;
@@ -3938,6 +4167,74 @@ const handleAction = async (action, data = null) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+/* Details Modal */
+.details-modal {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.details-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid #e0e0e0;
+}
+
+.details-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.details-row:last-child {
+  border-bottom: none;
+}
+
+.details-label {
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.details-value {
+  color: #2c3e50;
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.details-value.price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1rem;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 
 .booking-info-summary {
@@ -4148,7 +4445,7 @@ const handleAction = async (action, data = null) => {
 
 .hotel-carousel-container-minimal {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -4199,8 +4496,8 @@ const handleAction = async (action, data = null) => {
   display: flex;
   align-items: center;
   padding: 1.5rem 0;
-  background: #f8f9fa;
-  min-height: 280px;
+  background: #f5f5f5;
+  min-height: 400px;
 }
 
 .hotel-carousel-minimal {
@@ -4216,10 +4513,11 @@ const handleAction = async (action, data = null) => {
 
 .hotel-card-item-minimal {
   min-width: 100%;
-  padding: 0 1rem;
+  padding: 0 2rem;
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  align-items: center;
 }
 
 .hotel-card-item-minimal.selected {
@@ -4229,11 +4527,12 @@ const handleAction = async (action, data = null) => {
 .hotel-card-image-minimal {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #e5e5e5;
 }
 
 .hotel-cover-image-minimal {
@@ -4257,60 +4556,76 @@ const handleAction = async (action, data = null) => {
 }
 
 .hotel-card-content-minimal {
-  background: white;
-  padding: 1rem;
-  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .hotel-card-name-minimal {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: #2c3e50;
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.5rem 0;
 }
 
 .hotel-card-location-minimal {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0 0 1.25rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
 .hotel-select-btn-minimal {
   width: 100%;
-  padding: 0.75rem 1rem;
+  max-width: 280px;
+  padding: 0.875rem 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
 }
 
 .hotel-card-item-minimal.selected .hotel-select-btn-minimal {
-  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .hotel-select-btn-minimal:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
 .carousel-nav-btn-modern {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  color: #667eea;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(102, 126, 234, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   display: flex;
   align-items: center;
@@ -4319,18 +4634,15 @@ const handleAction = async (action, data = null) => {
 }
 
 .carousel-nav-btn-modern:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
-  transform: translateY(-50%) scale(1.15);
-  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4), 0 0 0 1px rgba(102, 126, 234, 0.2);
-}
-
-.carousel-nav-btn-modern:hover svg path {
-  stroke: white;
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 1);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .carousel-nav-btn-modern:active {
-  transform: translateY(-50%) scale(1.05);
+  transform: translateY(-50%) scale(0.95);
 }
 
 .carousel-nav-btn-modern svg {
@@ -4339,24 +4651,26 @@ const handleAction = async (action, data = null) => {
   transition: transform 0.2s ease;
 }
 
-.carousel-nav-btn-modern:hover svg {
-  transform: scale(1.1);
+.carousel-nav-btn-modern svg path {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
 }
 
 .carousel-prev-modern {
-  left: 1rem;
+  left: 0.75rem;
 }
 
 .carousel-prev-modern:hover svg {
-  transform: translateX(-2px) scale(1.1);
+  transform: translateX(-1px);
 }
 
 .carousel-next-modern {
-  right: 1rem;
+  right: 0.75rem;
 }
 
 .carousel-next-modern:hover svg {
-  transform: translateX(2px) scale(1.1);
+  transform: translateX(1px);
 }
 
 .carousel-indicators-minimal {

@@ -1,0 +1,505 @@
+// HotelFlow Database Documentation
+// Complete database schema for dbdiagram.io
+// Generated from all migrations and models
+
+Project HotelFlow {
+  database_type: 'MySQL'
+  Note: 'HotelFlow - Szálloda Foglalási Rendszer teljes adatbázis sémája'
+}
+
+// ============================================
+// USERS & AUTHENTICATION TABLES
+// ============================================
+
+Table users {
+  id bigint [pk, increment]
+  name varchar [not null]
+  email varchar [unique, not null]
+  password varchar [not null]
+  isVerified boolean [default: false]
+  role varchar [default: 'user']
+  // Invoice fields (moved from users to hotels later, but kept for backward compatibility)
+  tax_number varchar [null]
+  bank_account varchar [null]
+  eu_tax_number varchar [null]
+  // Two-factor authentication
+  two_factor_secret text [null]
+  two_factor_enabled boolean [default: false]
+  // Email verification
+  email_verification_token varchar [null]
+  email_verified_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Felhasználók táblája. Típusok: user, hotel, super_admin'
+}
+
+Table password_reset_tokens {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  token varchar [unique, not null]
+  expires_at timestamp [not null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Jelszó visszaállítási tokenek'
+}
+
+Table sessions {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  session_token varchar [unique, not null]
+  expires_at timestamp [not null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Felhasználói munkamenetek'
+}
+
+Table two_factor_recovery_tokens {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  token_hash varchar(64) [unique, not null]
+  expires_at timestamp [not null]
+  used_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  indexes {
+    (user_id, expires_at) [name: 'idx_user_expires']
+  }
+  
+  Note: 'Kétfaktoros autentikáció helyreállítási tokenek (SHA256 hash)'
+}
+
+// ============================================
+// HOTELS & PROPERTIES
+// ============================================
+
+Table hotels {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  name varchar [null]
+  location varchar [not null]
+  description text [null]
+  type enum('hotel', 'apartment', 'villa', 'other') [not null]
+  starRating integer [null]
+  is_approved boolean [default: false]
+  cover_image varchar [null]
+  // Billing information (moved from users)
+  tax_number varchar [null]
+  bank_account varchar [null]
+  eu_tax_number varchar [null]
+  createdAt timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Szállodák táblája. is_approved: super admin jóváhagyása szükséges a megjelenítéshez'
+}
+
+Table rooms {
+  id bigint [pk, increment]
+  hotels_id bigint [ref: > hotels.id, not null]
+  name varchar [not null]
+  description text [null]
+  pricePerNight integer [not null]
+  capacity integer [not null]
+  basePrice decimal(10,2) [not null]
+  createdAt timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Szobák táblája'
+}
+
+Table images {
+  id bigint [pk, increment]
+  url varchar [not null]
+  
+  Note: 'Képek táblája'
+}
+
+Table imagesRelation {
+  images_id bigint [ref: > images.id, not null]
+  rooms_id bigint [ref: > rooms.id, not null]
+  
+  indexes {
+    (images_id, rooms_id) [pk]
+  }
+  
+  Note: 'Szobák és képek kapcsolata (many-to-many)'
+}
+
+// ============================================
+// SERVICES & TAGS
+// ============================================
+
+Table services {
+  id bigint [pk, increment]
+  name varchar [not null]
+  description text [null]
+  price integer [not null]
+  hotels_id bigint [ref: > hotels.id, null]
+  
+  Note: 'Szolgáltatások táblája. hotels_id null esetén globális szolgáltatás'
+}
+
+Table serviceTags {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, null, note: 'A címke létrehozója']
+  name varchar [not null]
+  
+  Note: 'Szolgáltatás címkék. Használható szállodákhoz és szobákhoz'
+}
+
+Table hotelTagRelation {
+  hotels_id bigint [ref: > hotels.id, not null]
+  serviceTags_id bigint [ref: > serviceTags.id, not null]
+  
+  indexes {
+    (hotels_id, serviceTags_id) [pk]
+  }
+  
+  Note: 'Szállodák és címkék kapcsolata (many-to-many)'
+}
+
+Table roomTagRelation {
+  rooms_id bigint [ref: > rooms.id, not null]
+  serviceTags_id bigint [ref: > serviceTags.id, not null]
+  
+  indexes {
+    (rooms_id, serviceTags_id) [pk]
+  }
+  
+  Note: 'Szobák és címkék kapcsolata (many-to-many)'
+}
+
+Table servicesRelation {
+  services_id bigint [ref: > services.id, not null]
+  bookings_id bigint [ref: > bookings.id, not null]
+  
+  indexes {
+    (services_id, bookings_id) [pk]
+  }
+  
+  Note: 'Foglalások és szolgáltatások kapcsolata (many-to-many)'
+}
+
+// ============================================
+// BOOKINGS & RESERVATIONS
+// ============================================
+
+Table bookings {
+  id bigint [pk, increment]
+  users_id bigint [ref: > users.id, not null]
+  hotels_id bigint [ref: > hotels.id, not null]
+  startDate date [not null]
+  endDate date [not null]
+  totalPrice integer [not null]
+  checkInToken varchar [null]
+  checkInstatus enum('checkedOut', 'checkedIn') [null]
+  checkInTime timestamp [null]
+  checkOutTime timestamp [null]
+  status enum('pending', 'confirmed', 'cancelled', 'finished') [default: 'pending']
+  createdAt timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Foglalások táblája'
+}
+
+Table bookingsRelation {
+  booking_id bigint [ref: > bookings.id, not null]
+  rooms_id bigint [ref: > rooms.id, not null]
+  
+  indexes {
+    (booking_id, rooms_id) [pk]
+  }
+  
+  Note: 'Foglalások és szobák kapcsolata (many-to-many)'
+}
+
+Table guests {
+  id bigint [pk, increment]
+  idNumber varchar [not null]
+  name varchar [not null]
+  dateOfBirth date [not null]
+  bookings_id bigint [ref: > bookings.id, not null]
+  createdAt timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Vendégek adatai foglalásonként'
+}
+
+Table reviews {
+  id bigint [pk, increment]
+  booking_id bigint [ref: > bookings.id, not null]
+  rating integer [not null]
+  comment text [null]
+  createdAt timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Vendég értékelések foglalásokhoz'
+}
+
+// ============================================
+// INVOICES & PAYMENTS
+// ============================================
+
+Table invoices {
+  id bigint [pk, increment]
+  booking_id bigint [ref: > bookings.id, not null]
+  invoice_number varchar [unique, not null]
+  status enum('draft', 'approved', 'sent') [default: 'draft']
+  subtotal decimal(10,2) [not null]
+  tax_amount decimal(10,2) [default: 0]
+  total_amount decimal(10,2) [not null]
+  tax_rate integer [default: 27]
+  issue_date date [not null]
+  due_date date [not null]
+  pdf_path varchar [null]
+  payment_token varchar(64) [unique, null]
+  approved_at timestamp [null]
+  sent_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Számlák táblája. payment_token: bankkártyás fizetéshez használt egyedi token'
+}
+
+Table booking_payments {
+  id bigint [pk, increment]
+  booking_id bigint [ref: > bookings.id, unique, not null]
+  method enum('bank_transfer', 'card') [default: 'bank_transfer']
+  status enum('pending', 'paid') [default: 'pending']
+  confirmed_at timestamp [null]
+  confirmed_by_user_id bigint [ref: > users.id, null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Foglalások fizetési információi. method: bank_transfer vagy card'
+}
+
+Table booking_invoice_details {
+  id bigint [pk, increment]
+  booking_id bigint [ref: > bookings.id, unique, not null]
+  customer_type varchar [default: 'private']
+  full_name varchar [not null]
+  email varchar [not null]
+  company_name varchar [null]
+  tax_number varchar [null]
+  country varchar [null]
+  city varchar [null]
+  postal_code varchar [null]
+  address_line varchar [null]
+  note text [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Foglalásonkénti számlázási adatok. customer_type: private vagy business'
+}
+
+// ============================================
+// RFID KEYS & ASSIGNMENTS
+// ============================================
+
+Table rfidKeys {
+  id bigint [pk, increment]
+  hotels_id bigint [ref: > hotels.id, not null]
+  isUsed boolean [default: false]
+  rfidKey varchar [unique, not null]
+  name varchar [null]
+  type varchar [default: 'guest']
+  label varchar [null]
+  status enum('available', 'assigned', 'lost', 'disabled') [default: 'available']
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'RFID kulcsok táblája. type: guest vagy crew. status: aktuális állapot'
+}
+
+Table rfidKeyConnection {
+  id bigint [pk, increment]
+  rfidKeys_id varchar [ref: > rfidKeys.rfidKey, not null]
+  rooms_id bigint [ref: > rooms.id, not null]
+  
+  Note: 'RFID kulcsok és szobák közvetlen kapcsolata (régi rendszer)'
+}
+
+Table rfid_assignments {
+  id bigint [pk, increment]
+  rfid_key_id bigint [ref: > rfidKeys.id, not null]
+  booking_id bigint [ref: > bookings.id, null]
+  room_id bigint [ref: > rooms.id, not null]
+  reserved_from date [null]
+  reserved_to date [null]
+  assigned_at timestamp [default: `CURRENT_TIMESTAMP`]
+  released_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  indexes {
+    (rfid_key_id, released_at) [name: 'idx_rfid_released']
+    (rfid_key_id, reserved_from, reserved_to) [name: 'idx_rfid_dates']
+  }
+  
+  Note: 'RFID kulcs hozzárendelések. booking_id null esetén manuális hozzárendelés (pl. crew card). reserved_from/to: foglalás időszaka'
+}
+
+// ============================================
+// DEVICES
+// ============================================
+
+Table devices {
+  id bigint [pk, increment]
+  name varchar [null]
+  hotels_id bigint [ref: > hotels.id, unique, null]
+  token varchar(64) [unique, null]
+  is_active boolean [default: false]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Regisztrált eszközök API hozzáféréshez. Egy szállodához egy eszköz'
+}
+
+// ============================================
+// PENDING HANDSHAKES
+// ============================================
+
+Table pending_handshakes {
+  id bigint [pk, increment]
+  hotel_id bigint [ref: > hotels.id, not null]
+  endpoint varchar [not null]
+  tries integer [default: 0]
+  created_at timestamp
+  updated_at timestamp
+  
+  Note: 'Függőben lévő eszköz handshake kérések'
+}
+
+// ============================================
+// LARAVEL SYSTEM TABLES
+// ============================================
+
+Table cache {
+  key varchar [pk]
+  value mediumtext [not null]
+  expiration integer [not null]
+  
+  Note: 'Laravel cache tábla'
+}
+
+Table cache_locks {
+  key varchar [pk]
+  owner varchar [not null]
+  expiration integer [not null]
+  
+  Note: 'Laravel cache lock tábla'
+}
+
+Table jobs {
+  id bigint [pk, increment]
+  queue varchar [not null]
+  payload longtext [not null]
+  attempts tinyint [not null]
+  reserved_at integer [null]
+  available_at integer [not null]
+  created_at integer [not null]
+  
+  indexes {
+    queue [name: 'idx_queue']
+  }
+  
+  Note: 'Laravel queue jobs tábla'
+}
+
+Table job_batches {
+  id varchar [pk]
+  name varchar [not null]
+  total_jobs integer [not null]
+  pending_jobs integer [not null]
+  failed_jobs integer [not null]
+  failed_job_ids longtext [not null]
+  options text [null]
+  cancelled_at integer [null]
+  created_at integer [not null]
+  finished_at integer [null]
+  
+  Note: 'Laravel job batches tábla'
+}
+
+Table failed_jobs {
+  id bigint [pk, increment]
+  uuid varchar [unique, not null]
+  connection text [not null]
+  queue text [not null]
+  payload longtext [not null]
+  exception longtext [not null]
+  failed_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Note: 'Laravel failed jobs tábla'
+}
+
+Table personal_access_tokens {
+  id bigint [pk, increment]
+  tokenable_type varchar [not null]
+  tokenable_id bigint [not null]
+  name varchar [not null]
+  token varchar(64) [unique, not null]
+  abilities text [null]
+  last_used_at timestamp [null]
+  expires_at timestamp [null]
+  created_at timestamp
+  updated_at timestamp
+  
+  indexes {
+    (tokenable_type, tokenable_id) [name: 'idx_tokenable']
+  }
+  
+  Note: 'Laravel Sanctum personal access tokens'
+}
+
+// ============================================
+// RELATIONSHIPS SUMMARY
+// ============================================
+
+// Users relationships
+Ref: users.id < password_reset_tokens.user_id
+Ref: users.id < sessions.user_id
+Ref: users.id < two_factor_recovery_tokens.user_id
+Ref: users.id < hotels.user_id
+Ref: users.id < serviceTags.user_id
+Ref: users.id < bookings.users_id
+Ref: users.id < booking_payments.confirmed_by_user_id
+
+// Hotels relationships
+Ref: hotels.id < rooms.hotels_id
+Ref: hotels.id < services.hotels_id
+Ref: hotels.id < bookings.hotels_id
+Ref: hotels.id < rfidKeys.hotels_id
+Ref: hotels.id < devices.hotels_id
+Ref: hotels.id < pending_handshakes.hotel_id
+Ref: hotels.id < hotelTagRelation.hotels_id
+
+// Rooms relationships
+Ref: rooms.id < imagesRelation.rooms_id
+Ref: rooms.id < bookingsRelation.rooms_id
+Ref: rooms.id < roomTagRelation.rooms_id
+Ref: rooms.id < rfidKeyConnection.rooms_id
+Ref: rooms.id < rfid_assignments.room_id
+
+// Bookings relationships
+Ref: bookings.id < bookingsRelation.booking_id
+Ref: bookings.id < guests.bookings_id
+Ref: bookings.id < reviews.booking_id
+Ref: bookings.id < invoices.booking_id
+Ref: bookings.id < booking_payments.booking_id
+Ref: bookings.id < booking_invoice_details.booking_id
+Ref: bookings.id < rfid_assignments.booking_id
+Ref: bookings.id < servicesRelation.bookings_id
+
+// RFID Keys relationships
+Ref: rfidKeys.id < rfid_assignments.rfid_key_id
+Ref: rfidKeys.rfidKey < rfidKeyConnection.rfidKeys_id
+
+// Images relationships
+Ref: images.id < imagesRelation.images_id
+
+// Services relationships
+Ref: services.id < servicesRelation.services_id
+
+// Service Tags relationships
+Ref: serviceTags.id < hotelTagRelation.serviceTags_id
+Ref: serviceTags.id < roomTagRelation.serviceTags_id

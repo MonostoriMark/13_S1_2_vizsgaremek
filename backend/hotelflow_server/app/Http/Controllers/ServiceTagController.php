@@ -13,7 +13,7 @@ class ServiceTagController extends Controller
      */
     public function index()
     {
-        $tags = ServiceTag::orderBy('name')->get();
+        $tags = ServiceTag::with('user')->orderBy('name')->get();
         return response()->json($tags);
     }
 
@@ -27,36 +27,63 @@ class ServiceTagController extends Controller
         ]);
 
         $tag = ServiceTag::create([
-            'name' => $validated['name']
+            'name' => $validated['name'],
+            'user_id' => auth()->id()
         ]);
 
         return response()->json([
             'message' => 'Tag created successfully',
-            'tag' => $tag
+            'tag' => $tag->load('user')
         ], 201);
     }
 
     /**
      * Get tag usage information (which tags are used on hotels vs rooms)
-     * Helps frontend show which tags are available for hotels vs rooms
+     * Returns detailed information about which hotels/rooms use each tag
      */
     public function getUsage()
     {
-        // Get tags used on hotels
-        $hotelTags = DB::table('hotelTagRelation')
-            ->distinct()
-            ->pluck('serviceTags_id')
-            ->toArray();
+        $tags = ServiceTag::all();
+        $usage = [];
 
-        // Get tags used on rooms
-        $roomTags = DB::table('roomTagRelation')
-            ->distinct()
-            ->pluck('serviceTags_id')
-            ->toArray();
+        foreach ($tags as $tag) {
+            // Get hotels using this tag
+            $hotelIds = DB::table('hotelTagRelation')
+                ->where('serviceTags_id', $tag->id)
+                ->pluck('hotels_id')
+                ->toArray();
+
+            $hotels = DB::table('hotels')
+                ->whereIn('id', $hotelIds)
+                ->select('id', 'name', 'location')
+                ->get()
+                ->toArray();
+
+            // Get rooms using this tag
+            $roomIds = DB::table('roomTagRelation')
+                ->where('serviceTags_id', $tag->id)
+                ->pluck('rooms_id')
+                ->toArray();
+
+            $rooms = DB::table('rooms')
+                ->whereIn('id', $roomIds)
+                ->select('id', 'name', 'hotels_id')
+                ->get()
+                ->toArray();
+
+            $usage[$tag->id] = [
+                'is_used' => !empty($hotelIds) || !empty($roomIds),
+                'hotels' => $hotels,
+                'rooms' => $rooms,
+                'hotel_count' => count($hotelIds),
+                'room_count' => count($roomIds)
+            ];
+        }
 
         return response()->json([
-            'hotel_tags' => $hotelTags,
-            'room_tags' => $roomTags
+            'usage' => $usage,
+            'hotel_tags' => array_keys(array_filter($usage, fn($u) => $u['hotel_count'] > 0)),
+            'room_tags' => array_keys(array_filter($usage, fn($u) => $u['room_count'] > 0))
         ]);
     }
 
@@ -88,7 +115,7 @@ class ServiceTagController extends Controller
     }
 
     /**
-     * Delete a tag (only if not in use)
+     * Delete a tag (only if created by current user and not in use)
      */
     public function destroy($id)
     {
@@ -98,6 +125,14 @@ class ServiceTagController extends Controller
             return response()->json([
                 'message' => 'Tag not found'
             ], 404);
+        }
+
+        // Check if user is the creator
+        if ($tag->user_id !== auth()->id()) {
+            return response()->json([
+                'message' => 'Csak a saját címkéit törölheti',
+                'forbidden' => true
+            ], 403);
         }
 
         // Check if tag is used on hotels
@@ -112,7 +147,7 @@ class ServiceTagController extends Controller
 
         if ($usedOnHotels || $usedOnRooms) {
             return response()->json([
-                'message' => 'Cannot delete tag that is currently in use. Remove it from all hotels/rooms first.',
+                'message' => 'A használatban lévő címke nem törölhető. Először távolítsa el az összes szállodától és szobától.',
                 'in_use' => true
             ], 422);
         }

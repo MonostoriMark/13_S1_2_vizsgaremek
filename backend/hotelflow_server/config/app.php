@@ -76,7 +76,7 @@ return [
     |
     */
 
-    'invoice_currency' => env('INVOICE_CURRENCY', 'HUF'),
+    'invoice_currency' => env('INVOICE_CURRENCY', 'EUR'),
     'invoice_eur_to_huf_rate' => (float) env('INVOICE_EUR_TO_HUF_RATE', 383.63),
 
     /*

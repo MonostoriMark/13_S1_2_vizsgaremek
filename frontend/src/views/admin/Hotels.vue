@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szállodák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szálloda hozzáadása
+          <span class="btn-plus-icon">+</span> Szálloda hozzáadása
         </button>
       </div>
 
@@ -20,6 +20,11 @@
       >
         <template #cell-starRating="{ value }">
           <span class="stars">{{ '★'.repeat(value || 0) }}</span>
+        </template>
+        <template #cell-is_approved="{ value }">
+          <span :class="['approval-badge', value ? 'approved' : 'pending']">
+            {{ value ? '✅ Aktív' : '⏳ Várakozik' }}
+          </span>
         </template>
         <template #actions="{ row }">
           <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
@@ -126,15 +131,6 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Státusz</label>
-                <label class="switch">
-                  <input v-model="form.active" type="checkbox" />
-                  <span class="slider"></span>
-                  <span class="switch-label">{{ form.active ? 'Aktív' : 'Inaktív' }}</span>
-                </label>
-              </div>
-
               <!-- Tags Section -->
               <div v-if="editingHotel" class="form-group">
                 <label>Címkék</label>
@@ -238,8 +234,7 @@ const form = ref({
   location: '',
   type: '',
   starRating: null,
-  description: '',
-  active: true
+  description: ''
 })
 
 const coverImageInput = ref(null)
@@ -251,6 +246,7 @@ const columns = [
   { key: 'location', label: 'Helyszín', sortable: true },
   { key: 'type', label: 'Típus', sortable: true },
   { key: 'starRating', label: 'Értékelés', sortable: true },
+  { key: 'is_approved', label: 'Státusz', sortable: true },
   { key: 'description', label: 'Leírás' }
 ]
 
@@ -283,8 +279,7 @@ const handleEdit = async (hotel) => {
     location: hotel.location || '',
     type: hotel.type || '',
     starRating: hotel.starRating || null,
-    description: hotel.description || '',
-    active: true // Note: active field may need to be added to backend
+    description: hotel.description || ''
   }
   
   // Reset cover image preview
@@ -449,8 +444,7 @@ const resetForm = () => {
     location: '',
     type: '',
     starRating: null,
-    description: '',
-    active: true
+    description: ''
   }
   coverImagePreview.value = null
 }
@@ -521,10 +515,16 @@ const handleCoverImageSelect = async (event) => {
 const removeCoverImage = async () => {
   if (!editingHotel.value) return
 
-  // Note: We'd need a delete endpoint for cover images
-  // For now, just clear the preview
-  coverImagePreview.value = null
-    showToast('Borítókép eltávolítva. Töltse fel egy újat a lecseréléshez.', 'info')
+  try {
+    await adminService.deleteHotelCoverImage(editingHotel.value.id)
+    showToast('Borítókép sikeresen törölve', 'success')
+    coverImagePreview.value = null
+    editingHotel.value.cover_image = null
+    // Reload hotels to get updated data
+    await loadHotels()
+  } catch (err) {
+    showToast(err.response?.data?.message || 'A borítókép törlése sikertelen', 'error')
+  }
 }
 
 const handleImageError = (event) => {
@@ -579,6 +579,13 @@ onMounted(async () => {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
@@ -605,7 +612,26 @@ onMounted(async () => {
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .modal-content.large {
@@ -920,47 +946,6 @@ onMounted(async () => {
   gap: 1rem;
 }
 
-.switch {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.switch input[type="checkbox"] {
-  width: 48px;
-  height: 24px;
-  appearance: none;
-  background-color: #ccc;
-  border-radius: 12px;
-  position: relative;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.switch input[type="checkbox"]:checked {
-  background-color: #667eea;
-}
-
-.switch input[type="checkbox"]::before {
-  content: '';
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: white;
-  top: 2px;
-  left: 2px;
-  transition: transform 0.3s;
-}
-
-.switch input[type="checkbox"]:checked::before {
-  transform: translateX(24px);
-}
-
-.switch-label {
-  font-weight: 500;
-  color: #2c3e50;
-}
 
 .modal-footer {
   padding-top: 1.5rem;
@@ -983,6 +968,25 @@ onMounted(async () => {
 
 .btn-secondary:hover {
   background-color: #d5dbdb;
+}
+
+.approval-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.approval-badge.approved {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.approval-badge.pending {
+  background: #fef3c7;
+  color: #d97706;
 }
 
 .stars {

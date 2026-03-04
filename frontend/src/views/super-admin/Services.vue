@@ -2,9 +2,9 @@
   <SuperAdminLayout>
     <div class="services-page">
       <div class="page-header">
-        <h1>Services Management</h1>
+        <h1>Szolgáltatások kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Service
+          <span class="btn-plus-icon">+</span> Szolgáltatás hozzáadása
         </button>
       </div>
 
@@ -12,8 +12,8 @@
         :data="services"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search services..."
-        empty-message="No services found"
+        search-placeholder="Szolgáltatások keresése..."
+        empty-message="Nincs szolgáltatás"
         :search-fields="['name', 'description']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
@@ -25,8 +25,8 @@
           {{ value?.name || 'N/A' }}
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -35,16 +35,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>{{ editingService ? 'Edit Service' : 'Create Service' }}</h2>
+              <h2>{{ editingService ? 'Szolgáltatás szerkesztése' : 'Szolgáltatás létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Hotel *</label>
+                <label>Szálloda *</label>
                 <select v-model="form.hotels_id" required>
-                  <option value="">Select hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in availableHotels" :key="hotel.id" :value="hotel.id">
                     {{ hotel.name }} - {{ hotel.location }}
                   </option>
@@ -52,24 +52,24 @@
               </div>
 
               <div class="form-group">
-                <label>Service Name *</label>
-                <input v-model="form.name" type="text" required placeholder="Enter service name" />
+                <label>Szolgáltatás neve *</label>
+                <input v-model="form.name" type="text" required placeholder="Adja meg a szolgáltatás nevét" />
               </div>
 
               <div class="form-group">
-                <label>Description</label>
-                <textarea v-model="form.description" rows="3" placeholder="Enter service description"></textarea>
+                <label>Leírás</label>
+                <textarea v-model="form.description" rows="3" placeholder="Adja meg a szolgáltatás leírását"></textarea>
               </div>
 
               <div class="form-group">
-                <label>Price (€) *</label>
+                <label>Ár (€) *</label>
                 <input v-model.number="form.price" type="number" step="0.01" min="0" required />
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -79,10 +79,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Service"
-        :message="`Are you sure you want to delete this service? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szolgáltatás törlése"
+        :message="`Biztosan törölni szeretné ezt a szolgáltatást? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -121,10 +121,10 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Service Name', sortable: true },
-  { key: 'hotel', label: 'Hotel' },
-  { key: 'price', label: 'Price', sortable: true },
-  { key: 'description', label: 'Description' }
+  { key: 'name', label: 'Szolgáltatás neve', sortable: true },
+  { key: 'hotel', label: 'Szálloda' },
+  { key: 'price', label: 'Ár', sortable: true },
+  { key: 'description', label: 'Leírás' }
 ]
 
 const loadServices = async () => {
@@ -133,7 +133,7 @@ const loadServices = async () => {
     const data = await superAdminService.getAllServices()
     services.value = data
   } catch (err) {
-    showToast('Failed to load services', 'error')
+    showToast('A szolgáltatások betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -177,10 +177,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteService(serviceToDelete.value.id)
-    showToast('Service deleted successfully', 'success')
+      showToast('Szolgáltatás sikeresen törölve', 'success')
     await loadServices()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete service', 'error')
+    showToast(err.response?.data?.message || 'A szolgáltatás törlése sikertelen', 'error')
   } finally {
     serviceToDelete.value = null
   }
@@ -193,15 +193,15 @@ const handleSubmit = async () => {
   try {
     if (editingService.value) {
       await superAdminService.updateService(editingService.value.id, form.value)
-      showToast('Service updated successfully', 'success')
+      showToast('Szolgáltatás sikeresen frissítve', 'success')
     } else {
       await superAdminService.createService(form.value)
-      showToast('Service created successfully', 'success')
+      showToast('Szolgáltatás sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadServices()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save service'
+    error.value = err.response?.data?.message || 'A szolgáltatás mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -417,6 +417,13 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-icon {

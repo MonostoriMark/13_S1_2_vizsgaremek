@@ -10,12 +10,14 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use App\Helpers\UrlHelper;
 
 class InvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $invoice;
+    public $paymentUrl;
 
     /**
      * Create a new message instance.
@@ -23,6 +25,11 @@ class InvoiceMail extends Mailable
     public function __construct(Invoice $invoice)
     {
         $this->invoice = $invoice;
+        
+        // Generate payment URL if payment token exists (for card payments)
+        if ($invoice->payment_token) {
+            $this->paymentUrl = UrlHelper::getFrontendUrl('/payment/' . $invoice->payment_token);
+        }
     }
 
     /**

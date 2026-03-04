@@ -37,8 +37,25 @@ export const invoiceService = {
     return response.data
   },
 
+  async previewInvoice(invoiceId) {
+    const response = await api.get(`/invoices/${invoiceId}/preview`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
   async updateInvoice(invoiceId, invoiceData) {
     const response = await api.put(`/invoices/${invoiceId}`, invoiceData)
+    return response.data
+  },
+
+  async getInvoiceByPaymentToken(token) {
+    const response = await api.get(`/invoices/payment/${token}`)
+    return response.data
+  },
+
+  async processPayment(token) {
+    const response = await api.post(`/invoices/payment/${token}/process`)
     return response.data
   }
 }

@@ -115,10 +115,24 @@ class RFIDKeyController extends Controller
                 return response()->json(['message' => 'Unauthorized'], 401);
             }
 
-            // Determine hotel for this admin
-            $hotel = Hotel::where('user_id', $user->id)->first();
-            if (!$hotel) {
-                return response()->json(['message' => 'Hotel not found'], 404);
+            // Determine hotel for this admin - accept hotel_id from request or use first hotel
+            $requestedHotelId = $request->query('hotel_id');
+            
+            if ($requestedHotelId) {
+                // Verify the user owns the requested hotel
+                $hotel = Hotel::where('id', $requestedHotelId)
+                             ->where('user_id', $user->id)
+                             ->first();
+                
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
+                }
+            } else {
+                // Fallback: Get first hotel belonging to the user
+                $hotel = Hotel::where('user_id', $user->id)->first();
+                if (!$hotel) {
+                    return response()->json(['message' => 'Hotel not found'], 404);
+                }
             }
 
             // Optional date range filters
@@ -588,6 +602,56 @@ class RFIDKeyController extends Controller
             });
 
         return response()->json(['assignments' => $assignments], 200);
+    }
+
+    /**
+     * Get rooms that are assigned to crew cards with lifetime assignments (no expiry date).
+     * Used to filter out these rooms from available rooms when assigning crew cards.
+     */
+    public function getRoomsAssignedToCrewCards(Request $request)
+    {
+        $user = auth()->user();
+        $hotel = Hotel::where('user_id', $user->id)->first();
+
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        $hotelId = $request->query('hotel_id', $hotel->id);
+
+        // Verify the user owns the requested hotel
+        $hotel = Hotel::where('id', $hotelId)
+                     ->where('user_id', $user->id)
+                     ->first();
+
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found or you do not have permission'], 403);
+        }
+
+        // Get all crew cards for this hotel
+        $crewKeys = RFIDKey::where('hotels_id', $hotelId)
+            ->where(function($q) {
+                $q->where('type', 'crew');
+            })
+            ->pluck('id');
+
+        if ($crewKeys->isEmpty()) {
+            return response()->json(['assigned_room_ids' => []], 200);
+        }
+
+        // Get rooms assigned to crew cards with lifetime assignments (reserved_to = 2099-12-31 or very far future)
+        $lifetimeDate = \Carbon\Carbon::create(2099, 12, 31)->toDateString();
+        
+        $assignedRoomIds = RFIDAssignment::whereIn('rfid_key_id', $crewKeys)
+            ->whereNull('booking_id') // Manual assignments only
+            ->whereNull('released_at') // Active assignments only
+            ->where('reserved_to', '>=', $lifetimeDate) // Lifetime assignments (no expiry)
+            ->pluck('room_id')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        return response()->json(['assigned_room_ids' => $assignedRoomIds], 200);
     }
 
     /**

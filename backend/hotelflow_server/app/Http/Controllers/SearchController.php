@@ -12,7 +12,8 @@ class SearchController extends Controller
 {
     public function getLocations()
     {
-        $locations = Hotel::select('location')
+        $locations = Hotel::where('is_approved', true)
+            ->select('location')
             ->distinct()
             ->whereNotNull('location')
             ->where('location', '!=', '')
@@ -40,11 +41,12 @@ class SearchController extends Controller
 
         $nights = Carbon::parse($startDate)->diffInDays($endDate);
 
-        // Hotel szűrés név vagy location alapján
-        $hotels = Hotel::where(function($query) use ($city) {
-            $query->where('name', 'LIKE', "%{$city}%")
-                  ->orWhere('location', 'LIKE', "%{$city}%");
-        })->with(['tags', 'services', 'rooms.images'])->get();
+        // Hotel szűrés név vagy location alapján - csak jóváhagyott szállodák
+        $hotels = Hotel::where('is_approved', true)
+            ->where(function($query) use ($city) {
+                $query->where('name', 'LIKE', "%{$city}%")
+                      ->orWhere('location', 'LIKE', "%{$city}%");
+            })->with(['tags', 'services', 'rooms.images'])->get();
 
         if ($hotels->isEmpty()) {
             return response()->json([]);

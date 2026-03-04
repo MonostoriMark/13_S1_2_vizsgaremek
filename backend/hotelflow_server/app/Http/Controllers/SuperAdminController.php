@@ -107,8 +107,61 @@ class SuperAdminController extends Controller
     // ========== HOTELS MANAGEMENT ==========
     public function getAllHotels()
     {
-        $hotels = Hotel::with(['user', 'tags'])->get();
-        return response()->json($hotels, 200);
+        try {
+            $hotels = Hotel::with(['user', 'tags'])->orderBy('createdAt', 'desc')->get();
+            return response()->json($hotels, 200);
+        } catch (\Exception $e) {
+            \Log::error('Error loading hotels: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error loading hotels',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function approveHotel(Request $request, $id)
+    {
+        $hotel = Hotel::with('user')->find($id);
+        
+        if (!$hotel) {
+            return response()->json(['message' => 'Hotel not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'is_approved' => 'required|boolean'
+        ]);
+
+        $hotel->is_approved = $validated['is_approved'];
+        $hotel->save();
+
+        // Send email notification to hotel owner
+        try {
+            \Illuminate\Support\Facades\Mail::to($hotel->user->email)->send(
+                new \App\Mail\HotelApprovalMail($hotel, $hotel->user, $validated['is_approved'])
+            );
+            
+            // If approved, also send invoice data reminder
+            if ($validated['is_approved']) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($hotel->user->email)->send(
+                        new \App\Mail\InvoiceDataReminderMail($hotel, $hotel->user)
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send invoice data reminder after approval: ' . $e->getMessage());
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send hotel approval email: ' . $e->getMessage());
+        }
+
+        $message = $validated['is_approved'] 
+            ? 'Hotel approved successfully' 
+            : 'Hotel rejected successfully';
+
+        return response()->json([
+            'message' => $message,
+            'hotel' => $hotel->load(['user', 'tags'])
+        ], 200);
     }
 
     public function getHotel($id)
@@ -138,6 +191,7 @@ class SuperAdminController extends Controller
             'description' => $validated['description'] ?? null,
             'type' => $validated['type'] ?? null,
             'starRating' => $validated['starRating'] ?? null,
+            'is_approved' => true, // Super admin created hotels are automatically approved
             'createdAt' => now()
         ]);
 

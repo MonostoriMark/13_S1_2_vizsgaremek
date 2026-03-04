@@ -2,9 +2,9 @@
   <SuperAdminLayout>
     <div class="rooms-page">
       <div class="page-header">
-        <h1>Rooms Management</h1>
+        <h1>Szobák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Add Room
+          <span class="btn-plus-icon">+</span> Szoba hozzáadása
         </button>
       </div>
 
@@ -12,8 +12,8 @@
         :data="rooms"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search rooms..."
-        empty-message="No rooms found"
+        search-placeholder="Szobák keresése..."
+        empty-message="Nincs szoba"
         :search-fields="['name', 'description']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
@@ -22,14 +22,14 @@
           €{{ parseFloat(value || 0).toFixed(2) }}
         </template>
         <template #cell-capacity="{ value }">
-          {{ value }} guests
+          {{ value }} vendég
         </template>
         <template #cell-hotel="{ value }">
           {{ value?.name || 'N/A' }}
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -38,16 +38,16 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content large">
             <div class="modal-header">
-              <h2>{{ editingRoom ? 'Edit Room' : 'Create Room' }}</h2>
+              <h2>{{ editingRoom ? 'Szoba szerkesztése' : 'Szoba létrehozása' }}</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Hotel *</label>
+                <label>Szálloda *</label>
                 <select v-model="form.hotels_id" required>
-                  <option value="">Select hotel...</option>
+                  <option value="">Válasszon szállodát...</option>
                   <option v-for="hotel in availableHotels" :key="hotel.id" :value="hotel.id">
                     {{ hotel.name }} - {{ hotel.location }}
                   </option>
@@ -55,35 +55,35 @@
               </div>
 
               <div class="form-group">
-                <label>Room Name *</label>
-                <input v-model="form.name" type="text" required placeholder="Enter room name" />
+                <label>Szoba neve *</label>
+                <input v-model="form.name" type="text" required placeholder="Adja meg a szoba nevét" />
               </div>
 
               <div class="form-group">
-                <label>Description</label>
-                <textarea v-model="form.description" rows="3" placeholder="Enter room description"></textarea>
+                <label>Leírás</label>
+                <textarea v-model="form.description" rows="3" placeholder="Adja meg a szoba leírását"></textarea>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Price Per Night (€) *</label>
+                  <label>Ár/éj (€) *</label>
                   <input v-model.number="form.pricePerNight" type="number" step="0.01" min="0" required />
                 </div>
                 <div class="form-group">
-                  <label>Base Price (€) *</label>
+                  <label>Alapár (€) *</label>
                   <input v-model.number="form.basePrice" type="number" step="0.01" min="0" required />
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Capacity (guests) *</label>
+                <label>Kapacitás (vendég) *</label>
                 <input v-model.number="form.capacity" type="number" min="1" required />
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -93,10 +93,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Room"
-        :message="`Are you sure you want to delete this room? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Szoba törlése"
+        :message="`Biztosan törölni szeretné ezt a szobát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -137,12 +137,12 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'name', label: 'Room Name', sortable: true },
-  { key: 'hotel', label: 'Hotel' },
-  { key: 'pricePerNight', label: 'Price/Night', sortable: true },
-  { key: 'basePrice', label: 'Base Price', sortable: true },
-  { key: 'capacity', label: 'Capacity', sortable: true },
-  { key: 'description', label: 'Description' }
+  { key: 'name', label: 'Szoba neve', sortable: true },
+  { key: 'hotel', label: 'Szálloda' },
+  { key: 'pricePerNight', label: 'Ár/éj', sortable: true },
+  { key: 'basePrice', label: 'Alapár', sortable: true },
+  { key: 'capacity', label: 'Kapacitás', sortable: true },
+  { key: 'description', label: 'Leírás' }
 ]
 
 const loadRooms = async () => {
@@ -151,7 +151,7 @@ const loadRooms = async () => {
     const data = await superAdminService.getAllRooms()
     rooms.value = data
   } catch (err) {
-    showToast('Failed to load rooms', 'error')
+    showToast('A szobák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -197,10 +197,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteRoom(roomToDelete.value.id)
-    showToast('Room deleted successfully', 'success')
+      showToast('Szoba sikeresen törölve', 'success')
     await loadRooms()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete room', 'error')
+    showToast(err.response?.data?.message || 'A szoba törlése sikertelen', 'error')
   } finally {
     roomToDelete.value = null
   }
@@ -213,15 +213,15 @@ const handleSubmit = async () => {
   try {
     if (editingRoom.value) {
       await superAdminService.updateRoom(editingRoom.value.id, form.value)
-      showToast('Room updated successfully', 'success')
+      showToast('Szoba sikeresen frissítve', 'success')
     } else {
       await superAdminService.createRoom(form.value)
-      showToast('Room created successfully', 'success')
+      showToast('Szoba sikeresen létrehozva', 'success')
     }
     closeModal()
     await loadRooms()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save room'
+    error.value = err.response?.data?.message || 'A szoba mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -467,5 +467,12 @@ onMounted(async () => {
 
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 </style>

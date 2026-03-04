@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Számla</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .email-container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        h1 {
+            color: #667eea;
+            font-size: 1.75rem;
+            margin: 0 0 10px 0;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        p {
+            margin-bottom: 15px;
+            color: #4b5563;
+        }
+        .invoice-details {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .invoice-details h3 {
+            color: #1f2937;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .detail-value {
+            color: #1f2937;
+        }
+        .info-box {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-box p {
+            margin: 0;
+            color: #065f46;
+            font-size: 0.9rem;
+        }
+        .payment-info {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .payment-info p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 0.9rem;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🏨</div>
+            <h1>HotelFlow</h1>
+        </div>
+
+        <div class="content">
+            <p><strong>Kedves {{ $invoice->booking->user->name }}!</strong></p>
+
+            <p>Örömmel értesítjük, hogy a foglalásodat megerősítettük! 🎉</p>
+
+            <p>A foglalásodhoz tartozó számlát csatoljuk ezen e-mail mellé PDF formátumban. A fizetés elvégzése után elküldjük a check-in QR kódot, amellyel bejelentkezhetsz a szállodába.</p>
+
+            <div class="invoice-details">
+                <h3>Számla részletei</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Számlaszám:</span>
+                    <span class="detail-value">{{ $invoice->invoice_number }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Foglalás azonosító:</span>
+                    <span class="detail-value">#{{ $invoice->booking->id }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Szálloda:</span>
+                    <span class="detail-value">{{ $invoice->booking->hotel->name }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Kibocsátás dátuma:</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($invoice->issue_date)->format('Y.m.d') }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Fizetési határidő:</span>
+                    <span class="detail-value">{{ \Carbon\Carbon::parse($invoice->due_date)->format('Y.m.d') }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Fizetendő összeg:</span>
+                    <span class="detail-value"><strong>€{{ number_format($invoice->total_amount, 2, ',', ' ') }}</strong></span>
+                </div>
+            </div>
+
+            <div class="payment-info">
+                <p><strong>Fizetési mód: Banki átutalás</strong></p>
+                <p style="margin-top: 10px;"><strong>Fontos:</strong> Kérjük, az átutalást a számlán feltüntetett bankszámlaszámra végezd el a fizetési határidőig. A fizetés megerősítése után azonnal elküldjük a check-in QR kódot, amellyel bejelentkezhetsz a szállodába.</p>
+                <p style="margin-top: 10px;">A foglalásod minden részlete rendben van, csak a fizetésre várunk, hogy mindent elrendezhessünk az érkezésedhez.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>Fontos információ:</strong></p>
+                <p>A számla PDF formátumban csatolva van ehhez az e-mailhez. A számlát a foglalási menüben is letöltheted.</p>
+            </div>
+
+            <p>Ha bármilyen kérdésed van a számlával kapcsolatban, kérjük, vedd fel a kapcsolatot a szállodával.</p>
+        </div>
+
+        <div class="footer">
+            <p>Üdvözlettel,<br><strong>HotelFlow csapat</strong></p>
+            <p style="margin-top: 15px; font-size: 0.8rem;">
+                Ez egy automatikus üzenet, kérjük ne válaszolj rá.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
