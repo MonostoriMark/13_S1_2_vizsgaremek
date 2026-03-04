@@ -3,7 +3,7 @@
     <div class="services-page">
       <div class="page-header">
         <h1>Szolgáltatások kezelése</h1>
-        <button @click="openCreateModal" class="btn-primary">
+        <button @click="openCreateModal" class="btn-primary" id="add-service-btn">
           <span class="btn-plus-icon">+</span> Szolgáltatás hozzáadása
         </button>
       </div>
@@ -160,61 +160,66 @@
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
-              <div v-if="error" class="error-message">{{ error }}</div>
+  <div v-if="error" id="service-error-msg" class="error-message">{{ error }}</div>
 
-              <div v-if="!editingService" class="form-group">
-                <label>Szálloda kiválasztása *</label>
-                <select v-model="form.hotelId" required class="form-select">
-                  <option value="">Válasszon szállodát...</option>
-                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
-                  </option>
-                </select>
-              </div>
+  <div v-if="!editingService" class="form-group">
+    <label for="hotel-select">Szálloda kiválasztása *</label>
+    <select id="hotel-select" v-model="form.hotelId" required class="form-select">
+      <option value="">Válasszon szállodát...</option>
+      <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+        {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+      </option>
+    </select>
+  </div>
 
-              <div class="form-group">
-                <label>Szolgáltatás neve *</label>
-                <input v-model="form.name" type="text" required placeholder="pl. WiFi, Reggeli" />
-              </div>
+  <div class="form-group">
+    <label for="service-name">Szolgáltatás neve *</label>
+    <input 
+      id="service-name" 
+      v-model="form.name" 
+      type="text" 
+      class="form-name" 
+      placeholder="pl. WiFi, Reggeli" 
+    />
+  </div>
 
-              <div class="form-group">
-                <label>Leírás</label>
-                <textarea
-                  v-model="form.description"
-                  rows="3"
-                  placeholder="Adja meg a szolgáltatás leírását"
-                ></textarea>
-              </div>
+  <div class="form-group">
+    <label for="service-description">Leírás</label>
+    <textarea
+      id="service-description"
+      v-model="form.description"
+      rows="3"
+      placeholder="Adja meg a szolgáltatás leírását"
+      class="form-description"
+    ></textarea>
+  </div>
 
-              <div class="form-group">
-                <label>Ár (€)</label>
-                <input
-                  v-model.number="form.price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Hagyja üresen ingyenes szolgáltatás esetén"
-                />
-                <small class="form-hint">Hagyja üresen, ha a szolgáltatás ingyenes</small>
-              </div>
+  <div class="form-group">
+    <label for="service-price">Ár (€)</label>
+    <input
+      id="service-price"
+      v-model.number="form.price"
+      type="number"
+      min="0"
+      step="0.01"
+      class="form-price"
+      placeholder="Hagyja üresen ingyenes szolgáltatás esetén"
+    />
+    <small class="form-hint">Hagyja üresen, ha a szolgáltatás ingyenes</small>
+  </div>
 
-
-              <div class="form-group">
-                <label>Szolgáltatás képe</label>
-                <ImageUpload
-                  v-model="form.images"
-                  :max-files="1"
-                  @upload="handleImageUpload"
-                />
-              </div>
-
-              <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
-                <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Mentés...' : 'Mentés' }}
-                </button>
-              </div>
-            </form>
+  <div class="modal-footer">
+    <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
+    <button 
+      id="service-submit-btn" 
+      type="submit" 
+      class="btn-primary service-submit-btn" 
+      :disabled="saving"
+    >
+      {{ saving ? 'Mentés...' : 'Mentés' }}
+    </button>
+  </div>
+</form>
           </div>
         </div>
       </Transition>
