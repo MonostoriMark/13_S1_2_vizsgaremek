@@ -7,13 +7,14 @@
     
     <InvoiceDataBlocker
       :visible="showInvoiceDataBlocker"
+      :missing-hotels="missingBillingHotels"
       @complete="handleInvoiceDataComplete"
     />
     
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed, 'blocked': show2FABlocker || showInvoiceDataBlocker }">
       <div class="sidebar-header">
         <div class="user-profile-sidebar">
-          <div class="user-avatar-sidebar">{{ getUserInitials }}</div>
+          <img src="/Kép1.png" alt="HotelFlow" class="logo-image-sidebar" />
           <div v-if="!sidebarCollapsed" class="user-info-sidebar">
             <div class="logo-text">HOTELFLOW</div>
             <div class="logo-subtitle">Admin felület</div>
@@ -69,6 +70,18 @@
         </div>
       </header>
 
+      <!-- Invoice Data Notification Banner -->
+      <div v-if="showInvoiceDataNotification && !showInvoiceDataBlocker" class="invoice-data-notification">
+        <div class="notification-content">
+          <span class="notification-icon">⚠️</span>
+          <div class="notification-text">
+            <strong>Fontos:</strong> Kérjük, töltse ki a számlázási adatokat (adószám, bankszámlaszám, EU adószám) minden szállodához a teljes funkcionalitás érdekében.
+            <router-link to="/admin/company-info" class="notification-link">Számlázási adatok kitöltése →</router-link>
+          </div>
+          <button @click="dismissInvoiceNotification" class="notification-close" title="Bezárás">×</button>
+        </div>
+      </div>
+
       <div class="content-area" :class="{ 'blocked': show2FABlocker || showInvoiceDataBlocker }">
         <slot></slot>
       </div>
@@ -96,6 +109,7 @@ const menuItems = [
   { path: '/admin/services', label: 'Szolgáltatások', icon: '✨' },
   { path: '/admin/tags', label: 'Címkék', icon: '🏷️' },
   { path: '/admin/rfid-keys', label: 'RFID kulcsok', icon: '🔑' },
+  { path: '/admin/company-info', label: 'Cégadatok', icon: '💼' },
   { path: '/admin/users', label: 'Profilom', icon: '👤' }
 ]
 
@@ -104,7 +118,7 @@ const pageTitle = computed(() => {
     return 'Bookings'
   }
   if (route.path === '/admin/users') {
-    return 'My Profile'
+    return 'Profilom'
   }
   const item = menuItems.find(i => i.path === route.path)
   return item ? item.label : 'Admin Panel'
@@ -161,11 +175,43 @@ const handleNavClick = (event, path) => {
 }
 
 const showInvoiceDataBlocker = ref(false)
+const showInvoiceDataNotification = ref(false)
+const missingBillingHotels = ref([])
+const hotelApprovalStatus = ref(null)
 
-const hasCompleteInvoiceData = (user) => {
-  if (!user) return false
-  // Required fields: tax_number, bank_account, eu_tax_number
-  return !!(user.tax_number && user.bank_account && user.eu_tax_number)
+const hasCompleteInvoiceData = async () => {
+  // Check if all hotels owned by the user have complete billing information
+  try {
+    const { adminService } = await import('../services/adminService')
+    const hotelsData = await adminService.getHotels()
+    const hotels = Array.isArray(hotelsData) ? hotelsData : (hotelsData.hotels || [])
+    
+    // Filter to only hotels owned by current user
+    const userHotels = hotels.filter(hotel => {
+      const hotelUserId = hotel.user_id || hotel.user?.id
+      const currentUserId = authStore.state.user?.id
+      return hotelUserId && currentUserId && (hotelUserId === currentUserId || hotelUserId == currentUserId)
+    })
+    
+    // If user has no hotels, they can't access admin features anyway
+    if (userHotels.length === 0) {
+      missingBillingHotels.value = []
+      return false
+    }
+    
+    // Find hotels missing billing info
+    const missing = userHotels.filter(hotel => 
+      !hotel.tax_number || !hotel.bank_account || !hotel.eu_tax_number
+    )
+    
+    missingBillingHotels.value = missing
+    
+    return missing.length === 0
+  } catch (err) {
+    console.error('Failed to check hotel billing info:', err)
+    missingBillingHotels.value = []
+    return false
+  }
 }
 
 const check2FARequirement = async () => {
@@ -187,19 +233,26 @@ const check2FARequirement = async () => {
     
     // After 2FA is enabled, check invoice data
     if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-      if (!hasCompleteInvoiceData(authStore.state.user)) {
-        showInvoiceDataBlocker.value = true
-        // Allow access to profile page to fill invoice data
-        if (route.path === '/admin/users') {
+      // Check if all hotels have complete billing info
+      const hasComplete = await hasCompleteInvoiceData()
+
+      if (!hasComplete) {
+        const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+
+        if (route.path === '/admin/company-info') {
+          // On company info page: do NOT block, just show non-blocking notification
           showInvoiceDataBlocker.value = false
+          showInvoiceDataNotification.value = !dismissed
         } else {
-          // Block other pages if invoice data is incomplete
-          if (route.path !== '/admin/users') {
-            router.push('/admin/users')
-          }
+          // On all other admin pages: block all operations, only blocker is clickable
+          showInvoiceDataBlocker.value = true
+          showInvoiceDataNotification.value = false
         }
       } else {
+        // All invoice data complete: no blocker, no notification
         showInvoiceDataBlocker.value = false
+        showInvoiceDataNotification.value = false
+        localStorage.removeItem('invoice_data_notification_dismissed')
       }
     }
   }
@@ -215,6 +268,35 @@ watch(() => authStore.state.user?.two_factor_enabled, () => {
   check2FARequirement()
 })
 
+const dismissInvoiceNotification = () => {
+  showInvoiceDataNotification.value = false
+  localStorage.setItem('invoice_data_notification_dismissed', 'true')
+}
+
+const loadHotelApprovalStatus = async () => {
+  try {
+    const { adminService } = await import('../services/adminService')
+    const hotelsData = await adminService.getHotels()
+    const hotels = Array.isArray(hotelsData) ? hotelsData : (hotelsData.hotels || [])
+    
+    // Get first hotel owned by current user
+    const userHotel = hotels.find(hotel => {
+      const hotelUserId = hotel.user_id || hotel.user?.id
+      const currentUserId = authStore.state.user?.id
+      return hotelUserId && currentUserId && (hotelUserId === currentUserId || hotelUserId == currentUserId)
+    })
+    
+    if (userHotel) {
+      hotelApprovalStatus.value = userHotel.is_approved ?? false
+    } else {
+      hotelApprovalStatus.value = null
+    }
+  } catch (err) {
+    console.error('Failed to load hotel approval status:', err)
+    hotelApprovalStatus.value = null
+  }
+}
+
 onMounted(async () => {
   // Check if user is authenticated and has hotel role
   if (!authStore.state.isAuthenticated || authStore.state.user?.role !== 'hotel') {
@@ -222,16 +304,13 @@ onMounted(async () => {
     return
   }
   
-  // Load fresh user data to check 2FA status and invoice data
+  // Load fresh user data to check 2FA status
   try {
     const { authService } = await import('../services/authService')
     const userData = await authService.getMe()
     if (authStore.state.user) {
       Object.assign(authStore.state.user, {
-        two_factor_enabled: userData.two_factor_enabled || false,
-        tax_number: userData.tax_number,
-        bank_account: userData.bank_account,
-        eu_tax_number: userData.eu_tax_number
+        two_factor_enabled: userData.two_factor_enabled || false
       })
       localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
     }
@@ -239,48 +318,62 @@ onMounted(async () => {
     console.error('Failed to load user data:', err)
   }
   
+  // Load hotel approval status
+  await loadHotelApprovalStatus()
+  
   // Check 2FA requirement after a short delay to ensure route is ready
   setTimeout(() => {
     check2FARequirement()
   }, 100)
   
-  // Listen for invoice data updates from Users page
-  window.addEventListener('invoice-data-updated', async () => {
-    // Reload user data to check invoice data completion
-    try {
-      const { authService } = await import('../services/authService')
-      const userData = await authService.getMe()
-      if (authStore.state.user) {
-        Object.assign(authStore.state.user, {
-          tax_number: userData.tax_number,
-          bank_account: userData.bank_account,
-          eu_tax_number: userData.eu_tax_number
-        })
-        localStorage.setItem('auth_user', JSON.stringify(authStore.state.user))
-      }
-      check2FARequirement()
-    } catch (err) {
-      console.error('Failed to reload user data:', err)
-    }
+  // Listen for hotel billing data updates from CompanyInfo page
+  window.addEventListener('hotel-billing-updated', async () => {
+    // Recheck billing data completion
+    check2FARequirement()
   })
-})
-
-// Watch for invoice data changes
-watch(() => authStore.state.user?.tax_number, () => {
+  
+  // Listen for hotel approval status updates
+  window.addEventListener('hotel-approval-updated', async () => {
+    await loadHotelApprovalStatus()
+  })
+  
+  // Check invoice data notification on mount
   if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
+    setTimeout(async () => {
+      const hasComplete = await hasCompleteInvoiceData()
+      if (!hasComplete) {
+        const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+        if (!dismissed) {
+          showInvoiceDataNotification.value = true
+        }
+      }
+    }, 1000)
   }
 })
 
-watch(() => authStore.state.user?.bank_account, () => {
-  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
-  }
-})
-
-watch(() => authStore.state.user?.eu_tax_number, () => {
-  if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
-    check2FARequirement()
+// Watch for route changes to recheck billing data
+watch(() => route.path, async () => {
+  if (route.path === '/admin/company-info') {
+    // When user navigates to company-info page, recheck after a delay
+    setTimeout(() => {
+      check2FARequirement()
+    }, 500)
+  } else {
+    // Recheck invoice data when navigating away from company-info
+    if (authStore.state.user?.role === 'hotel' && authStore.state.user?.two_factor_enabled) {
+      setTimeout(async () => {
+        const hasComplete = await hasCompleteInvoiceData()
+        if (!hasComplete) {
+          const dismissed = localStorage.getItem('invoice_data_notification_dismissed')
+          if (!dismissed && route.path !== '/admin/company-info') {
+            showInvoiceDataNotification.value = true
+          }
+        } else {
+          showInvoiceDataNotification.value = false
+          localStorage.removeItem('invoice_data_notification_dismissed')
+        }
+      }, 500)
+    }
   }
 })
 
@@ -348,6 +441,13 @@ watch(() => authStore.state.user?.eu_tax_number, () => {
   overflow: visible;
 }
 
+.logo-image-sidebar {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .user-avatar-sidebar {
   width: 40px;
   height: 40px;
@@ -372,7 +472,7 @@ watch(() => authStore.state.user?.eu_tax_number, () => {
 .logo-text {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #000000;
   letter-spacing: 0.5px;
   white-space: nowrap;
   margin-bottom: 0.15rem;
@@ -487,6 +587,11 @@ watch(() => authStore.state.user?.eu_tax_number, () => {
 
 .sidebar.collapsed .user-info-sidebar {
   display: none;
+}
+
+.sidebar.collapsed .logo-image-sidebar {
+  width: 40px;
+  height: 40px;
 }
 
 .sidebar.collapsed .user-avatar-sidebar {
@@ -628,6 +733,75 @@ watch(() => authStore.state.user?.eu_tax_number, () => {
   color: white;
   font-size: 0.95rem;
 }
+
+.invoice-data-notification {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.notification-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+  color: #92400e;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.notification-text strong {
+  font-weight: 600;
+}
+
+.notification-link {
+  color: #d97706;
+  font-weight: 600;
+  text-decoration: underline;
+  margin-left: 0.5rem;
+  transition: color 0.2s;
+}
+
+.notification-link:hover {
+  color: #b45309;
+}
+
+.notification-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #92400e;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-close:hover {
+  background: rgba(217, 119, 6, 0.2);
+}
+
 
 .content-area {
   flex: 1;

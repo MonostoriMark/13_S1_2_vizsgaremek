@@ -104,6 +104,9 @@ class ImageController extends Controller
         }
 
         try {
+            // Increase memory limit for image processing
+            ini_set('memory_limit', '256M');
+            
             // Resize and save image
             $relativePath = ImageResizer::resizeAndStore(
                 $request->file('image'),

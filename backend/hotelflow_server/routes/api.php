@@ -22,8 +22,27 @@ use App\Http\Controllers\SuperAdminController;
 use Illuminate\Support\Facades\Http;
 
 Route::get('/ping', function () {
-    $alma = HTTP::get('https://bumper-developing-tiffany-dealer.trycloudflare.com');
-    return response()->json(['message' => 'pong', $alma], 200);
+    $alma = HTTP::get('https://pbs.twimg.com/profile_images/378800000171619791/fe13d95fd6d75d2ba275b55bcbfe5dd2_400x400.jpeg');
+    return views('ping', ['alma' => $alma->body()]);
+});
+
+// Swagger/OpenAPI Documentation - Serve YAML file
+Route::get('/api-docs/swagger.yaml', function () {
+    $swaggerPath = base_path('swagger.yaml');
+    if (file_exists($swaggerPath)) {
+        $content = file_get_contents($swaggerPath);
+        // Replace server URLs with current request URL
+        $baseUrl = request()->getSchemeAndHttpHost();
+        $content = str_replace('http://172.16.50.35:8000', $baseUrl, $content);
+        $content = str_replace('http://localhost:8000', $baseUrl, $content);
+        
+        return response($content, 200)
+            ->header('Content-Type', 'application/x-yaml')
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    return response()->json(['error' => 'Swagger documentation not found'], 404);
 });
 
 //USER VÉGPONTOK
@@ -59,6 +78,10 @@ Route::get('/hotels/{id}', [HotelController::class, 'getHotelById']);
 Route::post('/hotels', [HotelController::class, 'createHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::put('/hotels/upgrade/{id}', [HotelController::class, 'upgradeHotel'])->middleware('auth:sanctum', 'role:hotel');
 Route::post('/hotels/{id}/cover-image', [HotelController::class, 'uploadCoverImage'])->middleware('auth:sanctum', 'role:hotel');
+Route::delete('/hotels/{id}/cover-image', [HotelController::class, 'deleteCoverImage'])->middleware('auth:sanctum', 'role:hotel');
+Route::get('/hotels/{id}/activities', [HotelController::class, 'getRecentActivities'])->middleware('auth:sanctum', 'role:hotel');
+Route::get('/hotels/{id}/billing-info', [HotelController::class, 'getHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
+Route::put('/hotels/{id}/billing-info', [HotelController::class, 'updateHotelBillingInfo'])->middleware('auth:sanctum', 'role:hotel');
 Route::delete('/hotels/delete/{id}', [HotelController::class, 'deleteHotel'])->middleware('auth:sanctum', 'role:hotel');
 
 //ROOM VÉGPONTOK
@@ -80,6 +103,7 @@ Route::middleware('auth:sanctum', 'role:hotel')->group(function () {
     Route::get('/rfid-keys', [RFIDKeyController::class, 'index']);
     Route::get('/rfid-keys/bookings', [RFIDKeyController::class, 'getAvailableBookings']);
     Route::get('/rfid-keys/calendar', [RFIDKeyController::class, 'calendarAssignments']);
+    Route::get('/rfid-keys/assigned-rooms', [RFIDKeyController::class, 'getRoomsAssignedToCrewCards']);
     Route::get('/rfid-keys/{id}', [RFIDKeyController::class, 'show']);
     Route::get('/rfid-keys/{id}/manual-assignments', [RFIDKeyController::class, 'manualAssignments']);
     Route::post('/rfid-keys', [RFIDKeyController::class, 'store']);
@@ -110,8 +134,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/invoices/{invoiceId}', [InvoiceController::class, 'update'])->middleware('role:hotel');
     Route::post('/invoices/{invoiceId}/approve', [InvoiceController::class, 'approve']);
     Route::post('/invoices/{invoiceId}/send', [InvoiceController::class, 'send']);
+    Route::get('/invoices/{invoiceId}/preview', [InvoiceController::class, 'preview']);
     Route::get('/invoices/{invoiceId}/download', [InvoiceController::class, 'download']);
 });
+
+// Public invoice payment routes (no auth required)
+Route::get('/invoices/payment/{token}', [InvoiceController::class, 'getByPaymentToken']);
+Route::post('/invoices/payment/{token}/process', [InvoiceController::class, 'processPayment']);
 
 //GUEST VÉGPONTOK
 Route::post('/bookings/add-guest/{bookingId}', [BookingController::class, 'addGuests'])->middleware('auth:sanctum');
@@ -179,6 +208,7 @@ Route::middleware('auth:sanctum', 'role:super_admin')->prefix('super-admin')->gr
     Route::get('/hotels/{id}', [SuperAdminController::class, 'getHotel']);
     Route::post('/hotels', [SuperAdminController::class, 'createHotel']);
     Route::put('/hotels/{id}', [SuperAdminController::class, 'updateHotel']);
+    Route::post('/hotels/{id}/approve', [SuperAdminController::class, 'approveHotel']);
     Route::delete('/hotels/{id}', [SuperAdminController::class, 'deleteHotel']);
     
     // Rooms

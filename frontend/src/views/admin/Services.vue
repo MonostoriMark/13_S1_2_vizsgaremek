@@ -3,8 +3,8 @@
     <div class="services-page">
       <div class="page-header">
         <h1>Szolgáltatások kezelése</h1>
-        <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szolgáltatás hozzáadása
+        <button @click="openCreateModal" class="btn-primary" id="add-service-btn">
+          <span class="btn-plus-icon">+</span> Szolgáltatás hozzáadása
         </button>
       </div>
 
@@ -95,7 +95,7 @@
                         📍 {{ hotel.location || 'Helyszín nincs megadva' }}
                       </p>
                       <button class="hotel-select-btn-minimal">
-                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás →' }}
+                        {{ selectedHotelId === hotel.id ? '✓ Kiválasztva' : 'Kiválasztás' }}
                       </button>
                     </div>
                   </div>
@@ -137,6 +137,9 @@
           :on-edit="handleEdit"
           :on-delete="handleDelete"
         >
+          <template #cell-name="{ value }">
+            <span class="service-name-cell">{{ value || '-' }}</span>
+          </template>
           <template #cell-price="{ value }">
             <span v-if="value">€{{ parseFloat(value).toFixed(2) }}</span>
             <span v-else class="text-muted">Ingyenes</span>
@@ -157,61 +160,66 @@
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
-              <div v-if="error" class="error-message">{{ error }}</div>
+  <div v-if="error" id="service-error-msg" class="error-message">{{ error }}</div>
 
-              <div v-if="!editingService" class="form-group">
-                <label>Szálloda kiválasztása *</label>
-                <select v-model="form.hotelId" required class="form-select">
-                  <option value="">Válasszon szállodát...</option>
-                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
-                    {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
-                  </option>
-                </select>
-              </div>
+  <div v-if="!editingService" class="form-group">
+    <label for="hotel-select">Szálloda kiválasztása *</label>
+    <select id="hotel-select" v-model="form.hotelId" required class="form-select">
+      <option value="">Válasszon szállodát...</option>
+      <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+        {{ hotel.name || hotel.location || `Hotel #${hotel.id}` }}
+      </option>
+    </select>
+  </div>
 
-              <div class="form-group">
-                <label>Szolgáltatás neve *</label>
-                <input v-model="form.name" type="text" required placeholder="pl. WiFi, Reggeli" />
-              </div>
+  <div class="form-group">
+    <label for="service-name">Szolgáltatás neve *</label>
+    <input 
+      id="service-name" 
+      v-model="form.name" 
+      type="text" 
+      class="form-name" 
+      placeholder="pl. WiFi, Reggeli" 
+    />
+  </div>
 
-              <div class="form-group">
-                <label>Leírás</label>
-                <textarea
-                  v-model="form.description"
-                  rows="3"
-                  placeholder="Adja meg a szolgáltatás leírását"
-                ></textarea>
-              </div>
+  <div class="form-group">
+    <label for="service-description">Leírás</label>
+    <textarea
+      id="service-description"
+      v-model="form.description"
+      rows="3"
+      placeholder="Adja meg a szolgáltatás leírását"
+      class="form-description"
+    ></textarea>
+  </div>
 
-              <div class="form-group">
-                <label>Ár (€)</label>
-                <input
-                  v-model.number="form.price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Hagyja üresen ingyenes szolgáltatás esetén"
-                />
-                <small class="form-hint">Hagyja üresen, ha a szolgáltatás ingyenes</small>
-              </div>
+  <div class="form-group">
+    <label for="service-price">Ár (€)</label>
+    <input
+      id="service-price"
+      v-model.number="form.price"
+      type="number"
+      min="0"
+      step="0.01"
+      class="form-price"
+      placeholder="Hagyja üresen ingyenes szolgáltatás esetén"
+    />
+    <small class="form-hint">Hagyja üresen, ha a szolgáltatás ingyenes</small>
+  </div>
 
-
-              <div class="form-group">
-                <label>Szolgáltatás képe</label>
-                <ImageUpload
-                  v-model="form.images"
-                  :max-files="1"
-                  @upload="handleImageUpload"
-                />
-              </div>
-
-              <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
-                <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Mentés...' : 'Mentés' }}
-                </button>
-              </div>
-            </form>
+  <div class="modal-footer">
+    <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
+    <button 
+      id="service-submit-btn" 
+      type="submit" 
+      class="btn-primary service-submit-btn" 
+      :disabled="saving"
+    >
+      {{ saving ? 'Mentés...' : 'Mentés' }}
+    </button>
+  </div>
+</form>
           </div>
         </div>
       </Transition>
@@ -342,11 +350,16 @@ const goToHotel = (index) => {
   currentHotelIndex.value = index
 }
 
-const getImageUrl = (relativePath) => {
-  if (!relativePath) return ''
-  const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''
-  if (relativePath.startsWith('http')) return relativePath
-  return `${baseUrl}${relativePath}`
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  if (imagePath.startsWith('/storage/')) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:8000'
+    return `${baseUrl}${imagePath}`
+  }
+  return imagePath
 }
 
 const handleImageError = (event) => {
@@ -624,7 +637,7 @@ onUnmounted(() => {
 
 .hotel-carousel-container-minimal {
   width: 100%;
-  max-width: 500px;
+  max-width: 550px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
@@ -675,8 +688,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 1.5rem 0;
-  background: #f8f9fa;
-  min-height: 280px;
+  background: #f5f5f5;
+  min-height: 400px;
 }
 
 .hotel-carousel-minimal {
@@ -692,28 +705,25 @@ onUnmounted(() => {
 
 .hotel-card-item-minimal {
   min-width: 100%;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-}
-
-.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
-  background: #10b981;
+  cursor: pointer;
 }
 
 .hotel-card-image-minimal {
   width: 100%;
-  max-width: 360px;
-  height: 180px;
+  height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  background: #e9ecef;
+  background: #e5e5e5;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .hotel-cover-image-minimal {
@@ -734,67 +744,120 @@ onUnmounted(() => {
 
 .hotel-card-content-minimal {
   text-align: center;
+  background: transparent;
+  padding: 0;
+  width: 100%;
 }
 
 .hotel-card-name-minimal {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.5rem;
   color: #2c3e50;
 }
 
 .hotel-card-location-minimal {
   font-size: 0.9rem;
   color: #6c757d;
-  margin: 0 0 0.75rem;
-}
-
-.hotel-select-btn-minimal {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: none;
-  background: #667eea;
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.hotel-select-btn-minimal:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
-}
-
-.carousel-nav-btn-modern {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: none;
-  background: rgba(15, 23, 42, 0.85);
-  color: white;
+  margin: 0 0 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
+}
+
+.hotel-select-btn-minimal {
+  width: 100%;
+  max-width: 280px;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto;
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.hotel-select-btn-minimal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.hotel-card-item-minimal.selected .hotel-select-btn-minimal:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.carousel-nav-btn-modern {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .carousel-nav-btn-modern:hover {
-  transform: translateY(-1px);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 1);
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-nav-btn-modern:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-nav-btn-modern svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease;
+}
+
+.carousel-nav-btn-modern svg path {
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
 }
 
 .carousel-prev-modern {
-  margin-left: 1rem;
+  left: 0.75rem;
+}
+
+.carousel-prev-modern:hover svg {
+  transform: translateX(-1px);
 }
 
 .carousel-next-modern {
-  margin-right: 1rem;
+  right: 0.75rem;
+}
+
+.carousel-next-modern:hover svg {
+  transform: translateX(1px);
 }
 
 .carousel-indicators-minimal {
@@ -858,6 +921,13 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .hotel-selector {
   margin-bottom: 2rem;
   padding: 1.5rem;
@@ -898,7 +968,26 @@ onUnmounted(() => {
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
 }
 
 .modal-header {

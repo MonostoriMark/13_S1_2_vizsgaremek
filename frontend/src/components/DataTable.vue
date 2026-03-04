@@ -43,7 +43,7 @@
                 </span>
               </div>
             </th>
-            <th v-if="hasActions" class="actions-column">Actions</th>
+            <th v-if="hasActions" class="actions-column">Műveletek</th>
           </tr>
         </thead>
         <tbody>

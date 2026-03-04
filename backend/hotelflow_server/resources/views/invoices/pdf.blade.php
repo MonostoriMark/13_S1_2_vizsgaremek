@@ -5,7 +5,7 @@
     <title>Számla - {{ $invoice->invoice_number }}</title>
     <style>
         @page {
-            margin: 15mm;
+            margin: 20mm;
         }
         * {
             margin: 0;
@@ -18,10 +18,11 @@
             line-height: 1.45;
             color: #000;
             background: white;
+            padding: 10px;
         }
         .invoice-container {
             background: white;
-            padding: 0;
+            padding: 15px;
             max-width: 210mm;
             margin: 0 auto;
         }
@@ -37,6 +38,14 @@
             font-size: 13pt;
             font-weight: 700;
             letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-logo {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
         }
         .invoice-type {
             font-size: 18pt;
@@ -179,23 +188,18 @@
             $dueDate = \Carbon\Carbon::parse($invoice->due_date)->format('Y.m.d.');
 
             $method = $payment->method ?? 'bank_transfer';
-            $paymentMethodHu = $method === 'bank_transfer' ? 'Átutalás' : ($method === 'cash' ? 'Készpénz' : $method);
+            $paymentMethodHu = $method === 'bank_transfer' ? 'Átutalás' : ($method === 'card' ? 'Bankkártya' : ($method === 'cash' ? 'Készpénz' : $method));
 
-            $currency = config('app.invoice_currency', 'HUF');
-            $eurToHufRate = (float) config('app.invoice_eur_to_huf_rate', 383.63);
-
-            // Heuristic: internal amounts look like EUR if they are small decimals and frontend shows €,
-            // but invoices in HU usually must be printed in HUF. We convert only when configured currency is HUF.
-            $useConversion = strtoupper($currency) === 'HUF';
+            $currency = config('app.invoice_currency', 'EUR');
 
             $fmtMoney = function ($amount, $decimals = 2) {
                 return number_format((float) $amount, $decimals, ',', ' ');
             };
             $fmtIntMoney = function ($amount) {
-                return number_format((float) $amount, 0, ',', ' ');
+                return number_format((float) $amount, 2, ',', ' ');
             };
-            $toPrint = function ($amount) use ($useConversion, $eurToHufRate) {
-                return $useConversion ? round(((float) $amount) * $eurToHufRate, 0) : (float) $amount;
+            $toPrint = function ($amount) {
+                return (float) $amount;
             };
 
             $taxRate = (int) ($invoice->tax_rate ?? 0);
@@ -208,7 +212,30 @@
         @endphp
 
         <div class="top-row">
-            <div class="brand">{{ $hotel->name }}</div>
+            <div class="brand">
+                @php
+                    // Try to find HotelFlowLogoLIla.png for invoices
+                    $logoPath = public_path('HotelFlowLogoLIla.png');
+                    if (!file_exists($logoPath)) {
+                        $logoPath = storage_path('app/public/HotelFlowLogoLIla.png');
+                    }
+                    if (!file_exists($logoPath)) {
+                        // Try frontend public path (if symlinked or accessible)
+                        $logoPath = base_path('../frontend/HotelFlowLogoLIla.png');
+                    }
+                    if (file_exists($logoPath)) {
+                        $logoData = base64_encode(file_get_contents($logoPath));
+                        $logoMime = mime_content_type($logoPath);
+                        $logoBase64 = 'data:' . $logoMime . ';base64,' . $logoData;
+                    } else {
+                        $logoBase64 = null;
+                    }
+                @endphp
+                @if($logoBase64)
+                    <img src="{{ $logoBase64 }}" alt="HotelFlow" class="brand-logo" />
+                @endif
+                <span>{{ $hotel->name }}</span>
+            </div>
             <div class="inv-no">
                 <div><span class="muted">Sorszám:</span> <strong>{{ $invoice->invoice_number }}</strong></div>
             </div>
@@ -222,11 +249,14 @@
                 <div class="block">
                     <div class="line"><strong>{{ $hotel->user->name ?? $hotel->name }}</strong></div>
                     <div class="line">{{ $hotel->location ?? '' }}</div>
-                    @if($hotel->user->tax_number)
-                        <div class="line">Adószám: {{ $hotel->user->tax_number }}</div>
+                    @if($hotel->tax_number)
+                        <div class="line">Adószám: {{ $hotel->tax_number }}</div>
                     @endif
-                    @if($hotel->user->bank_account)
-                        <div class="line">Bankszámlaszám: {{ $hotel->user->bank_account }}</div>
+                    @if($hotel->bank_account)
+                        <div class="line">Bankszámlaszám: {{ $hotel->bank_account }}</div>
+                    @endif
+                    @if($hotel->eu_tax_number)
+                        <div class="line">EU adószám: {{ $hotel->eu_tax_number }}</div>
                     @endif
                 </div>
             </div>
@@ -306,9 +336,9 @@
                         <td class="center">{{ $fmtMoney($item['quantity'] ?? 1, 2) }}</td>
                         <td class="center">db</td>
                         <td class="center">{{ $vatLabel }}</td>
-                        <td class="right">{{ $fmtIntMoney($pVat) }}</td>
-                        <td class="right">{{ $fmtIntMoney($pNet) }}</td>
-                        <td class="right">{{ $fmtIntMoney($pGross) }}</td>
+                        <td class="right">{{ $fmtMoney($pVat, 2) }}</td>
+                        <td class="right">{{ $fmtMoney($pNet, 2) }}</td>
+                        <td class="right">{{ $fmtMoney($pGross, 2) }}</td>
                     </tr>
                 @endforeach
 
@@ -327,13 +357,13 @@
             <div class="summary-title">Számla összesítő:</div>
             <div class="summary-grid">
                 <div class="left-col">
-                    <div class="sum-line"><span class="k">Számla nettó értéke</span><span>{{ $fmtIntMoney($sumNet) }} {{ strtoupper($currency) }}</span></div>
-                    <div class="sum-line"><span class="k">Áthárított áfa összege</span><span>{{ $fmtIntMoney($sumVat) }} {{ strtoupper($currency) }}</span></div>
-                    <div class="sum-line"><span class="k">Számla bruttó végösszege</span><span>{{ $fmtIntMoney($sumGross) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">Számla nettó értéke</span><span>{{ $fmtMoney($sumNet, 2) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">Áthárított áfa összege</span><span>{{ $fmtMoney($sumVat, 2) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">Számla bruttó végösszege</span><span>{{ $fmtMoney($sumGross, 2) }} {{ strtoupper($currency) }}</span></div>
                 </div>
                 <div class="right-col">
                     <div class="sum-line"><span class="k">Áfa százaléka és értéke</span><span></span></div>
-                    <div class="sum-line"><span class="k">{{ $vatLabel }}</span><span>{{ $fmtIntMoney($sumVat) }} {{ strtoupper($currency) }}</span></div>
+                    <div class="sum-line"><span class="k">{{ $vatLabel }}</span><span>{{ $fmtMoney($sumVat, 2) }} {{ strtoupper($currency) }}</span></div>
                     @if($taxRate === 0)
                         <div class="sum-line"><span class="k">Alanyi adómentes</span><span></span></div>
                     @endif
@@ -341,13 +371,8 @@
             </div>
             <div class="payable">
                 <div>Fizetendő összeg:</div>
-                <div>{{ $fmtIntMoney($sumGross) }} {{ strtoupper($currency) }}</div>
+                <div>{{ $fmtMoney($sumGross, 2) }} {{ strtoupper($currency) }}</div>
             </div>
-            @if($useConversion)
-                <div class="muted" style="margin-top: 6px; font-size: 8.8pt;">
-                    Tájékoztató: az összegek HUF-ra konvertálva (1 EUR = {{ number_format($eurToHufRate, 4, ',', ' ') }} HUF).
-                </div>
-            @endif
         </div>
 
         <div class="footer">

@@ -316,7 +316,7 @@
             <div class="invoice-info">
               <div class="invoice-status">
                 <span class="invoice-number">{{ booking.invoice.invoice_number }}</span>
-                <span class="invoice-amount">{{ booking.invoice.total_amount }} Ft</span>
+                <span class="invoice-amount">€{{ parseFloat(booking.invoice.total_amount || 0).toFixed(2) }}</span>
               </div>
               <button
                 @click="downloadInvoice(booking.invoice.id, booking.id)"
@@ -509,7 +509,7 @@
             <div class="invoice-info-modal">
               <div class="invoice-details-modal">
                 <span class="invoice-number-modal">{{ selectedBookingForActions.invoice.invoice_number }}</span>
-                <span class="invoice-amount-modal">{{ selectedBookingForActions.invoice.total_amount }} Ft</span>
+                <span class="invoice-amount-modal">€{{ parseFloat(selectedBookingForActions.invoice.total_amount || 0).toFixed(2) }}</span>
               </div>
               <button
                 @click="handleDownloadInvoice"
@@ -629,7 +629,7 @@ const loadBookings = async () => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('hu-HU', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Szállodák kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Szálloda hozzáadása
+          <span class="btn-plus-icon">+</span> Szálloda hozzáadása
         </button>
       </div>
 
@@ -24,7 +24,28 @@
         <template #cell-user="{ value }">
           {{ value?.name || 'N/A' }}
         </template>
+        <template #cell-is_approved="{ value }">
+          <span :class="['approval-badge', value ? 'approved' : 'pending']">
+            {{ value ? '✅ Aktív' : '⏳ Várakozik' }}
+          </span>
+        </template>
         <template #actions="{ row }">
+          <button 
+            v-if="!row.is_approved" 
+            @click="handleApprove(row, true)" 
+            class="btn-icon btn-approve" 
+            title="Jóváhagyás"
+          >
+            ✅
+          </button>
+          <button 
+            v-if="row.is_approved" 
+            @click="handleApprove(row, false)" 
+            class="btn-icon btn-reject" 
+            title="Elutasítás"
+          >
+            ❌
+          </button>
           <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
           <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
@@ -90,6 +111,22 @@
                 <textarea v-model="form.description" rows="4" placeholder="Adja meg a szálloda leírását"></textarea>
               </div>
 
+              <div class="form-section">
+                <h3 class="section-title">Számlázási információk</h3>
+                <div class="form-group">
+                  <label>Adószám</label>
+                  <input v-model="form.tax_number" type="text" placeholder="Adja meg az adószámot" />
+                </div>
+                <div class="form-group">
+                  <label>Bankszámla</label>
+                  <input v-model="form.bank_account" type="text" placeholder="Adja meg a bankszámlát" />
+                </div>
+                <div class="form-group">
+                  <label>EU adószám</label>
+                  <input v-model="form.eu_tax_number" type="text" placeholder="Adja meg az EU adószámot" />
+                </div>
+              </div>
+
               <div class="modal-footer">
                 <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
@@ -142,7 +179,10 @@ const form = ref({
   location: '',
   type: '',
   starRating: null,
-  description: ''
+  description: '',
+  tax_number: '',
+  bank_account: '',
+  eu_tax_number: ''
 })
 
 const columns = [
@@ -152,6 +192,7 @@ const columns = [
   { key: 'type', label: 'Típus', sortable: true },
   { key: 'starRating', label: 'Értékelés', sortable: true },
   { key: 'user', label: 'Tulajdonos' },
+  { key: 'is_approved', label: 'Státusz', sortable: true },
   { key: 'description', label: 'Leírás' }
 ]
 
@@ -191,10 +232,30 @@ const handleEdit = async (hotel) => {
     location: hotel.location || '',
     type: hotel.type || '',
     starRating: hotel.starRating || null,
-    description: hotel.description || ''
+    description: hotel.description || '',
+    tax_number: hotel.tax_number || '',
+    bank_account: hotel.bank_account || '',
+    eu_tax_number: hotel.eu_tax_number || ''
   }
   await loadUsers()
   showModal.value = true
+}
+
+const handleApprove = async (hotel, isApproved) => {
+  try {
+    await superAdminService.approveHotel(hotel.id, isApproved)
+    showToast(
+      isApproved 
+        ? 'Szálloda sikeresen jóváhagyva' 
+        : 'Szálloda elutasítva',
+      'success'
+    )
+    await loadHotels()
+    // Trigger event to update approval status in admin layout
+    window.dispatchEvent(new Event('hotel-approval-updated'))
+  } catch (err) {
+    showToast(err.response?.data?.message || 'A jóváhagyás sikertelen', 'error')
+  }
 }
 
 const handleDelete = (hotel) => {
@@ -255,7 +316,10 @@ const resetForm = () => {
     location: '',
     type: '',
     starRating: null,
-    description: ''
+    description: '',
+    tax_number: '',
+    bank_account: '',
+    eu_tax_number: ''
   }
 }
 
@@ -466,6 +530,13 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .btn-icon {
   background: none;
   border: none;
@@ -476,11 +547,51 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 
+.btn-approve:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.btn-reject:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 .btn-edit:hover {
   background: rgba(59, 130, 246, 0.2);
 }
 
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.form-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.approval-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.approval-badge.approved {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.approval-badge.pending {
+  background: #fef3c7;
+  color: #d97706;
 }
 </style>

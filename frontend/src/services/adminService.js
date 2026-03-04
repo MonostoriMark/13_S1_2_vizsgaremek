@@ -213,5 +213,30 @@ export const adminService = {
 
     const response = await api.post(`/hotels/${hotelId}/cover-image`, formData)
     return response.data
+  },
+
+  // Hotel cover image deletion
+  async deleteHotelCoverImage(hotelId) {
+    const response = await api.delete(`/hotels/${hotelId}/cover-image`)
+    return response.data
+  },
+
+  // Get recent activities for a hotel
+  async getRecentActivities(hotelId, limit = 15) {
+    const response = await api.get(`/hotels/${hotelId}/activities`, {
+      params: { limit }
+    })
+    return response.data
+  },
+
+  // Hotel billing information
+  async getHotelBillingInfo(hotelId) {
+    const response = await api.get(`/hotels/${hotelId}/billing-info`)
+    return response.data
+  },
+
+  async updateHotelBillingInfo(hotelId, data) {
+    const response = await api.put(`/hotels/${hotelId}/billing-info`, data)
+    return response.data
   }
 }

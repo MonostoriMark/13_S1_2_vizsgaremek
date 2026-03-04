@@ -2,31 +2,35 @@
   <SuperAdminLayout>
     <div class="invoices-page">
       <div class="page-header">
-        <h1>Invoices Management</h1>
+        <h1>Számlák kezelése</h1>
       </div>
 
       <DataTable
         :data="invoices"
         :columns="columns"
         :loading="loading"
-        search-placeholder="Search invoices..."
-        empty-message="No invoices found"
+        search-placeholder="Számlák keresése..."
+        empty-message="Nincs számla"
         :search-fields="['invoice_number', 'booking.user.name', 'booking.hotel.name']"
         :on-edit="handleEdit"
         :on-delete="handleDelete"
       >
         <template #cell-status="{ value }">
-          <span class="status-badge" :class="`status-${value}`">{{ value }}</span>
+          <span class="status-badge" :class="`status-${value}`">
+            {{ value === 'draft' ? 'Vázlat' : value === 'approved' ? 'Jóváhagyva' : value === 'sent' ? 'Elküldve' : value }}
+          </span>
         </template>
         <template #cell-total_amount="{ value }">
           €{{ parseFloat(value || 0).toFixed(2) }}
         </template>
         <template #cell-booking="{ value }">
-          Booking #{{ value?.id || 'N/A' }}
+          Foglalás #{{ value?.id || 'N/A' }}
         </template>
         <template #actions="{ row }">
-          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Edit">✏️</button>
-          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Delete">🗑️</button>
+          <button @click="handlePreview(row)" class="btn-icon btn-preview" title="Előnézet">👁️</button>
+          <button @click="handleDownload(row)" class="btn-icon btn-download" title="Letöltés">📥</button>
+          <button @click="handleEdit(row)" class="btn-icon btn-edit" title="Szerkesztés">✏️</button>
+          <button @click="handleDelete(row)" class="btn-icon btn-delete" title="Törlés">🗑️</button>
         </template>
       </DataTable>
 
@@ -35,47 +39,47 @@
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
           <div class="modal-content">
             <div class="modal-header">
-              <h2>Edit Invoice</h2>
+              <h2>Sorszámla szerkesztése</h2>
               <button class="modal-close" @click="closeModal">×</button>
             </div>
             <form @submit.prevent="handleSubmit" class="modal-body">
               <div v-if="error" class="error-message">{{ error }}</div>
 
               <div class="form-group">
-                <label>Invoice Number</label>
+                <label>Sorszámla szám</label>
                 <input v-model="form.invoice_number" type="text" disabled />
-                <small class="form-hint">Invoice number cannot be changed</small>
+                <small class="form-hint">A számlaszám nem módosítható</small>
               </div>
 
               <div class="form-group">
-                <label>Status *</label>
+                <label>Státusz *</label>
                 <select v-model="form.status" required>
-                  <option value="draft">Draft</option>
-                  <option value="approved">Approved</option>
-                  <option value="sent">Sent</option>
+                  <option value="draft">Vázlat</option>
+                  <option value="approved">Jóváhagyva</option>
+                  <option value="sent">Elküldve</option>
                 </select>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label>Subtotal (€) *</label>
+                  <label>Részösszeg (€) *</label>
                   <input v-model.number="form.subtotal" type="number" step="0.01" min="0" required />
                 </div>
                 <div class="form-group">
-                  <label>Tax Amount (€) *</label>
+                  <label>Adó összege (€) *</label>
                   <input v-model.number="form.tax_amount" type="number" step="0.01" min="0" required />
                 </div>
               </div>
 
               <div class="form-group">
-                <label>Total Amount (€) *</label>
+                <label>Összesen (€) *</label>
                 <input v-model.number="form.total_amount" type="number" step="0.01" min="0" required />
               </div>
 
               <div class="modal-footer">
-                <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
+                <button type="button" @click="closeModal" class="btn-secondary">Mégse</button>
                 <button type="submit" class="btn-primary" :disabled="saving">
-                  {{ saving ? 'Saving...' : 'Save' }}
+                  {{ saving ? 'Mentés...' : 'Mentés' }}
                 </button>
               </div>
             </form>
@@ -85,10 +89,10 @@
 
       <ConfirmDialog
         v-model:visible="showDeleteDialog"
-        title="Delete Invoice"
-        :message="`Are you sure you want to delete invoice ${invoiceToDelete?.invoice_number}? This action cannot be undone.`"
-        confirm-text="Delete"
-        cancel-text="Cancel"
+        title="Számla törlése"
+        :message="`Biztosan törölni szeretné a ${invoiceToDelete?.invoice_number} számlát? Ez a művelet nem vonható vissza.`"
+        confirm-text="Törlés"
+        cancel-text="Mégse"
         confirm-type="danger"
         @confirm="confirmDelete"
       />
@@ -105,6 +109,7 @@ import DataTable from '../../components/DataTable.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import Toast from '../../components/Toast.vue'
 import { superAdminService } from '../../services/superAdminService'
+import { invoiceService } from '../../services/invoiceService'
 import { useBodyScrollLock } from '../../composables/useBodyScrollLock'
 
 const invoices = ref([])
@@ -127,11 +132,11 @@ const form = ref({
 
 const columns = [
   { key: 'id', label: 'ID', sortable: true },
-  { key: 'invoice_number', label: 'Invoice #', sortable: true },
-  { key: 'booking', label: 'Booking' },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'total_amount', label: 'Total', sortable: true },
-  { key: 'issue_date', label: 'Issue Date', sortable: true }
+  { key: 'invoice_number', label: 'Számla #', sortable: true },
+  { key: 'booking', label: 'Foglalás' },
+  { key: 'status', label: 'Státusz', sortable: true },
+  { key: 'total_amount', label: 'Összesen', sortable: true },
+  { key: 'issue_date', label: 'Kibocsátás dátuma', sortable: true }
 ]
 
 const loadInvoices = async () => {
@@ -143,7 +148,7 @@ const loadInvoices = async () => {
       issue_date: invoice.issue_date ? new Date(invoice.issue_date).toLocaleDateString() : 'N/A'
     }))
   } catch (err) {
-    showToast('Failed to load invoices', 'error')
+    showToast('A számlák betöltése sikertelen', 'error')
   } finally {
     loading.value = false
   }
@@ -161,6 +166,37 @@ const handleEdit = (invoice) => {
   showModal.value = true
 }
 
+const handlePreview = async (invoice) => {
+  try {
+    const blob = await invoiceService.previewInvoice(invoice.id)
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    // Clean up the URL after a delay
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url)
+    }, 100)
+  } catch (err) {
+    showToast(err.response?.data?.message || 'A számla előnézetének megnyitása sikertelen', 'error')
+  }
+}
+
+const handleDownload = async (invoice) => {
+  try {
+    const blob = await invoiceService.downloadInvoice(invoice.id)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `szamla_${invoice.invoice_number}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    showToast('Számla sikeresen letöltve', 'success')
+  } catch (err) {
+    showToast(err.response?.data?.message || 'A számla letöltése sikertelen', 'error')
+  }
+}
+
 const handleDelete = (invoice) => {
   invoiceToDelete.value = invoice
   showDeleteDialog.value = true
@@ -171,10 +207,10 @@ const confirmDelete = async () => {
 
   try {
     await superAdminService.deleteInvoice(invoiceToDelete.value.id)
-    showToast('Invoice deleted successfully', 'success')
+      showToast('Számla sikeresen törölve', 'success')
     await loadInvoices()
   } catch (err) {
-    showToast(err.response?.data?.message || 'Failed to delete invoice', 'error')
+    showToast(err.response?.data?.message || 'A számla törlése sikertelen', 'error')
   } finally {
     invoiceToDelete.value = null
   }
@@ -186,11 +222,11 @@ const handleSubmit = async () => {
 
   try {
     await superAdminService.updateInvoice(editingInvoice.value.id, form.value)
-    showToast('Invoice updated successfully', 'success')
+      showToast('Számla sikeresen frissítve', 'success')
     closeModal()
     await loadInvoices()
   } catch (err) {
-    error.value = err.response?.data?.message || 'Failed to save invoice'
+    error.value = err.response?.data?.message || 'A számla mentése sikertelen'
     showToast(error.value, 'error')
   } finally {
     saving.value = false
@@ -446,6 +482,13 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .btn-icon {
   background: none;
   border: none;
@@ -460,7 +503,19 @@ onMounted(async () => {
   background: rgba(59, 130, 246, 0.2);
 }
 
+.btn-preview:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.btn-download:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-download:hover {
+  background: rgba(34, 197, 94, 0.2);
 }
 </style>

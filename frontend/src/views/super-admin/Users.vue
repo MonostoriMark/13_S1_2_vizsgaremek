@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Felhasználók kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Felhasználó hozzáadása
+          <span class="btn-plus-icon">+</span> Felhasználó hozzáadása
         </button>
       </div>
 
@@ -91,27 +91,14 @@
 
               <div class="form-group">
                 <label>Email megerősítve</label>
-                <label class="switch">
-                  <input v-model="form.isVerified" type="checkbox" />
-                  <span class="slider"></span>
-                  <span class="switch-label">{{ form.isVerified ? 'Megerősítve' : 'Nincs megerősítve' }}</span>
-                </label>
-              </div>
-
-              <div class="form-section">
-                <h3 class="section-title">Számlázási információk</h3>
-                <div class="form-group">
-                  <label>Adószám</label>
-                  <input v-model="form.tax_number" type="text" placeholder="Adja meg az adószámot" />
-                </div>
-                <div class="form-group">
-                  <label>Bankszámla</label>
-                  <input v-model="form.bank_account" type="text" placeholder="Adja meg a bankszámlát" />
-                </div>
-                <div class="form-group">
-                  <label>EU adószám</label>
-                  <input v-model="form.eu_tax_number" type="text" placeholder="Adja meg az EU adószámot" />
-                </div>
+                <button
+                  type="button"
+                  :class="['btn-verify-email', form.isVerified ? 'verified' : 'unverified']"
+                  @click="form.isVerified = !form.isVerified"
+                >
+                  <span class="verify-icon">{{ form.isVerified ? '✓' : '✗' }}</span>
+                  <span class="verify-text">{{ form.isVerified ? 'Megerősítve' : 'Nincs megerősítve' }}</span>
+                </button>
               </div>
 
               <div class="modal-footer">
@@ -165,10 +152,7 @@ const form = ref({
   email: '',
   role: 'user',
   password: '',
-  isVerified: false,
-  tax_number: '',
-  bank_account: '',
-  eu_tax_number: ''
+  isVerified: false
 })
 
 const columns = [
@@ -209,10 +193,7 @@ const handleEdit = (user) => {
     email: user.email || '',
     role: user.role || 'user',
     password: '',
-    isVerified: user.isVerified || false,
-    tax_number: user.tax_number || '',
-    bank_account: user.bank_account || '',
-    eu_tax_number: user.eu_tax_number || ''
+    isVerified: user.isVerified || false
   }
   showModal.value = true
 }
@@ -245,10 +226,7 @@ const handleSubmit = async () => {
       name: form.value.name,
       email: form.value.email,
       role: form.value.role,
-      isVerified: form.value.isVerified,
-      tax_number: form.value.tax_number || null,
-      bank_account: form.value.bank_account || null,
-      eu_tax_number: form.value.eu_tax_number || null
+      isVerified: form.value.isVerified
     }
 
     if (form.value.password) {
@@ -289,10 +267,7 @@ const resetForm = () => {
     email: '',
     role: 'user',
     password: '',
-    isVerified: false,
-    tax_number: '',
-    bank_account: '',
-    eu_tax_number: ''
+    isVerified: false
   }
 }
 
@@ -509,49 +484,72 @@ onMounted(async () => {
   background: rgba(0, 0, 0, 0.5);
 }
 
-.switch {
+
+.btn-verify-email {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  padding: 0.875rem 1.5rem;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  justify-content: center;
+  background: transparent;
 }
 
-.switch input {
-  width: auto;
+.btn-verify-email.verified {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-color: #22c55e;
 }
 
-.slider {
-  position: relative;
-  width: 44px;
+.btn-verify-email.verified:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #16a34a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-verify-email.unverified {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.btn-verify-email.unverified:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.verify-icon {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
   height: 24px;
-  background: rgba(102, 126, 234, 0.3);
-  border-radius: 12px;
-  transition: background 0.3s;
-}
-
-.switch input:checked + .slider {
-  background: #667eea;
-}
-
-.slider::before {
-  content: '';
-  position: absolute;
-  width: 18px;
-  height: 18px;
   border-radius: 50%;
-  background: white;
-  top: 3px;
-  left: 3px;
-  transition: transform 0.3s;
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.switch input:checked + .slider::before {
-  transform: translateX(20px);
+.btn-verify-email.verified .verify-icon {
+  background: rgba(34, 197, 94, 0.2);
 }
 
-.switch-label {
-  color: #d1d5db;
-  font-size: 0.9rem;
+.btn-verify-email.unverified .verify-icon {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.verify-text {
+  flex: 1;
+  text-align: center;
 }
 
 .error-message {
@@ -592,6 +590,13 @@ onMounted(async () => {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .btn-icon {

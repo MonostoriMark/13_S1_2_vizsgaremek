@@ -80,5 +80,12 @@ export const rfidKeyService = {
   async getCalendarEvents(params = {}) {
     const response = await api.get('/rfid-keys/calendar', { params })
     return response.data
+  },
+
+  // Get rooms assigned to crew cards with lifetime assignments (no expiry date)
+  async getRoomsAssignedToCrewCards(hotelId = null) {
+    const params = hotelId ? { hotel_id: hotelId } : {}
+    const response = await api.get('/rfid-keys/assigned-rooms', { params })
+    return response.data
   }
 }

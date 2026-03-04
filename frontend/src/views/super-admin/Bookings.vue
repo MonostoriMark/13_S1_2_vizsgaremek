@@ -4,7 +4,7 @@
       <div class="page-header">
         <h1>Foglalások kezelése</h1>
         <button @click="openCreateModal" class="btn-primary">
-          <span>➕</span> Foglalás létrehozása
+          <span class="btn-plus-icon">+</span> Foglalás létrehozása
         </button>
       </div>
 
@@ -101,7 +101,7 @@
                     <input v-model.number="room.guests" type="number" min="1" :max="getRoomCapacity(room.id)" placeholder="Vendégek száma" required />
                     <button v-if="form.rooms.length > 1" @click="removeRoom(index)" type="button" class="btn-remove">🗑️</button>
                   </div>
-                  <button @click="addRoom" type="button" class="btn-add-room">➕ Szoba hozzáadása</button>
+                  <button @click="addRoom" type="button" class="btn-add-room"><span class="btn-plus-icon">+</span> Szoba hozzáadása</button>
                 </div>
               </div>
 
@@ -856,6 +856,9 @@ onMounted(async () => {
 }
 
 .btn-add-room {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.75rem;
   background: rgba(102, 126, 234, 0.1);
   border: 1px solid rgba(102, 126, 234, 0.3);
@@ -869,6 +872,17 @@ onMounted(async () => {
 
 .btn-add-room:hover {
   background: rgba(102, 126, 234, 0.2);
+}
+
+.btn-plus-icon {
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.btn-add-room .btn-plus-icon {
+  color: #667eea;
 }
 
 .services-selection {

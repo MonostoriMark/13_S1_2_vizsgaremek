@@ -30,8 +30,9 @@ class RecommendationController extends Controller
         
         return Cache::remember($cacheKey, 600, function () {
             try {
-                // Get 10 random hotels with minimal data
-                $hotels = Hotel::inRandomOrder()
+                // Get 10 random approved hotels with minimal data
+                $hotels = Hotel::where('is_approved', true)
+                    ->inRandomOrder()
                     ->limit(10)
                     ->select('id', 'user_id', 'location', 'name', 'description', 'type', 'starRating', 'cover_image')
                     ->with(['tags:id,name'])
@@ -127,9 +128,10 @@ class RecommendationController extends Controller
 
     private function generateRecommendations($city, $checkIn, $checkOut, $guests, $limit)
     {
-        // Step 1: Filter hotels by city (if provided)
+        // Step 1: Filter hotels by city (if provided) - only approved hotels
         // OPTIMIZATION: Only load essential relationships initially
-        $hotelsQuery = Hotel::select('id', 'user_id', 'location', 'name', 'description', 'type', 'starRating', 'cover_image');
+        $hotelsQuery = Hotel::where('is_approved', true)
+            ->select('id', 'user_id', 'location', 'name', 'description', 'type', 'starRating', 'cover_image');
         
         if ($city) {
             $hotelsQuery->where(function($query) use ($city) {

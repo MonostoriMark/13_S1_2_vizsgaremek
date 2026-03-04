@@ -13,6 +13,7 @@ use App\Mail\EmailVerificationMail;
 use App\Mail\PasswordResetMail;
 use App\Mail\TwoFactorRecoveryMail;
 use App\Helpers\TOTP;
+use App\Helpers\UrlHelper;
 use Endroid\QrCode\Builder\Builder;
 use App\Models\TwoFactorRecoveryToken;
 use Illuminate\Support\Carbon;
@@ -43,8 +44,7 @@ class AuthController extends Controller
         ]);
 
         // Send verification email
-        $frontendUrl = config('app.frontend_url, http://172.16.52.231:3000');
-        $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
+        $verificationUrl = UrlHelper::getFrontendUrl('/verify-email/' . $verificationToken);
         Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
         // DO NOT create token - user must verify email first
@@ -209,13 +209,30 @@ class AuthController extends Controller
                 'location' => $validated['location'],
                 'type' => $validated['type'],
                 'starRating' => $validated['starRating'],
+                'is_approved' => false, // New hotels need approval
                 'created_at' => now()
             ]);
 
             // Send verification email
-            $frontendUrl = config('app.frontend_url');
-            $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
+            $verificationUrl = UrlHelper::getFrontendUrl('/verify-email/' . $verificationToken);
             Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
+
+            // Send notification to super admin about new hotel registration
+            $superAdmins = User::where('role', 'super_admin')->get();
+            foreach ($superAdmins as $superAdmin) {
+                try {
+                    Mail::to($superAdmin->email)->send(new \App\Mail\NewHotelRegistrationMail($hotel, $user));
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send new hotel notification to super admin: ' . $e->getMessage());
+                }
+            }
+
+            // Send hotel creation notification to hotel owner
+            try {
+                Mail::to($user->email)->send(new \App\Mail\HotelCreationNotificationMail($hotel, $user));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send hotel creation notification: ' . $e->getMessage());
+            }
 
             // DO NOT create token - user must verify email first
             return response()->json([
@@ -546,9 +563,7 @@ class AuthController extends Controller
                         'used_at' => null,
                     ]);
 
-                    $frontendUrl = config('app.frontend_url');
-                    $recoveryUrl = $frontendUrl . '/two-factor-recovery/' . $rawToken;
-
+                    $recoveryUrl = UrlHelper::getFrontendUrl('/two-factor-recovery/' . $rawToken);
                     Mail::to($user->email)->send(new TwoFactorRecoveryMail($user, $recoveryUrl));
 
                     return response()->json(['message' => $genericMessage], 200);
@@ -653,9 +668,7 @@ class AuthController extends Controller
                     $user->save();
 
                     // Send verification email
-                    $frontendUrl = config('app.frontend_url');
-                    $frontendUrl = config('app.frontend_url');
-                    $verificationUrl = $frontendUrl . '/verify-email/' . $verificationToken;
+                    $verificationUrl = UrlHelper::getFrontendUrl('/verify-email/' . $verificationToken);
                     Mail::to($user->email)->send(new EmailVerificationMail($user, $verificationUrl));
 
                     return response()->json([
@@ -699,10 +712,7 @@ class AuthController extends Controller
                     ]);
 
                     // Send password reset email
-                    // Get frontend URL from config or use a default
-                    $frontendUrl = config('app.frontend_url');
-                    $resetUrl = $frontendUrl . '/reset-password/' . $resetToken;
-                    
+                    $resetUrl = UrlHelper::getFrontendUrl('/reset-password/' . $resetToken);
                     Mail::to($user->email)->send(new PasswordResetMail($user, $resetUrl));
 
                     return response()->json([

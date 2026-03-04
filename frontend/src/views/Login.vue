@@ -166,12 +166,13 @@ onUnmounted(() => {
 })
 
 const handleLogin = async () => {
-  error.value = ''
   loading.value = true
 
   const result = await authStore.login(email.value, password.value)
 
   if (result.success) {
+    // Clear error message on successful login
+    error.value = ''
     // For hotel admins: force 2FA setup, don't allow skipping
     if (authStore.state.user.role === 'hotel' && !authStore.state.user.two_factor_enabled) {
       // Redirect directly to profile to enable 2FA

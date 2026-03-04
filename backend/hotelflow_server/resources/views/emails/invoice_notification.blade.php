@@ -133,8 +133,18 @@
                 
                 <div class="detail-row">
                     <span class="detail-label">Fizetendő összeg:</span>
-                    <span class="detail-value"><strong>{{ number_format($invoice->total_amount, 0, ',', ' ') }} Ft</strong></span>
+                    <span class="detail-value"><strong>€{{ number_format($invoice->total_amount, 2, ',', ' ') }}</strong></span>
                 </div>
+            </div>
+
+            <div class="info-box" style="background: #dbeafe; border-left-color: #3b82f6;">
+                <p><strong>Fizetési mód: Bankkártya</strong></p>
+                <p style="margin: 10px 0;">
+                    <a href="{{ $paymentUrl }}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                        Fizetés bankkártyával
+                    </a>
+                </p>
+                <p style="margin-top: 10px; font-size: 0.85rem;">Kattints a gombra a biztonságos fizetési oldal megnyitásához. A fizetés sikeres befejezése után automatikusan elküldjük a check-in QR kódot.</p>
             </div>
 
             <div class="info-box">

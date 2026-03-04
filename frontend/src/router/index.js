@@ -111,6 +111,12 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'hotel' }
     },
     {
+      path: '/admin/company-info',
+      name: 'AdminCompanyInfo',
+      component: () => import('../views/admin/CompanyInfo.vue'),
+      meta: { requiresAuth: true, role: 'hotel' }
+    },
+    {
       path: '/two-factor-auth',
       name: 'TwoFactorAuth',
       component: () => import('../views/TwoFactorAuth.vue'),
@@ -120,6 +126,12 @@ const router = createRouter({
       path: '/two-factor-recovery',
       name: 'TwoFactorRecoveryRequest',
       component: () => import('../views/TwoFactorRecoveryRequest.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/payment/:token',
+      name: 'Payment',
+      component: () => import('../views/Payment.vue'),
       meta: { requiresAuth: false }
     },
     {
