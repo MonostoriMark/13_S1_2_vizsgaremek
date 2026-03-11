@@ -252,4 +252,7 @@ Route::middleware('auth:sanctum', 'role:super_admin')->prefix('super-admin')->gr
     Route::put('/devices/{id}', [SuperAdminController::class, 'updateDevice']);
     Route::post('/devices/{id}/regenerate-token', [SuperAdminController::class, 'regenerateToken']);
     Route::delete('/devices/{id}', [SuperAdminController::class, 'deleteDevice']);
+
+    
 });
+Route::get('/logs', [AuthController::class, 'getLogs']);
