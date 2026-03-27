@@ -2,9 +2,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <Arduino.h>
 
-int relayPins[] = {2,3};
-const int relayCount = sizeof(relayPins)/sizeof(relayPins[0]);
-int sensorPin = 4;
+int relayPins[] = {2, 3};
+const int relayCount = sizeof(relayPins) / sizeof(relayPins[0]);
+int sensorPins[] = {4, 5};
 
 bool lockerOpened = false;
 bool waitingForClose = false;
@@ -27,9 +27,9 @@ int scrollDelay = 700;   // ms
 int scrollStep = 1;      // hány karakterrel lép
 
 String replaceAccents(String msg) {
-  msg.replace("á","a"); msg.replace("é","e"); msg.replace("í","i");
-  msg.replace("ó","o"); msg.replace("ö","o"); msg.replace("ő","o");
-  msg.replace("ú","u"); msg.replace("ü","u"); msg.replace("ű","u");
+  msg.replace("á", "a"); msg.replace("é", "e"); msg.replace("í", "i");
+  msg.replace("ó", "o"); msg.replace("ö", "o"); msg.replace("ő", "o");
+  msg.replace("ú", "u"); msg.replace("ü", "u"); msg.replace("ű", "u");
   return msg;
 }
 
@@ -39,7 +39,7 @@ void openLocker(int id) {
     return;
   }
   activeLockerId = id;
-  digitalWrite(relayPins[id], HIGH);  
+  digitalWrite(relayPins[id], HIGH);
   waitingForClose = true;
   lockerOpened = false;
   Serial.print("OPENED;");  // <---- AZ INSTANT VISSZAJELZÉS
@@ -85,9 +85,14 @@ void handleScroll() {
 }
 
 void sendLockState() {
-  int state = digitalRead(sensorPin);
-  if (state == LOW) Serial.println("STATE;CLOSED");
-  else Serial.println("STATE;OPEN");
+  // FIX: sensorPin is not defined - should use sensorPins array
+  if (activeLockerId != -1) {
+    int state = digitalRead(sensorPins[activeLockerId]);
+    if (state == LOW) Serial.println("STATE;CLOSED");
+    else Serial.println("STATE;OPEN");
+  } else {
+    Serial.println("STATE;UNKNOWN");
+  }
 }
 
 void setup() {
@@ -96,7 +101,10 @@ void setup() {
     pinMode(relayPins[i], OUTPUT);
     digitalWrite(relayPins[i], LOW);
   }
-  pinMode(sensorPin, INPUT_PULLUP);
+  // FIX: sensorPin is not defined - initialize all sensor pins
+  for (int i = 0; i < relayCount; i++) {
+    pinMode(sensorPins[i], INPUT_PULLUP);
+  }
   lcd.init();
   lcd.backlight();
   lcd.clear();
@@ -133,7 +141,7 @@ void loop() {
 
   // ---- Automatikus állapotfigyelés ----
   if (waitingForClose && activeLockerId != -1) {
-    int currentState = digitalRead(sensorPin);
+    int currentState = digitalRead(sensorPins[activeLockerId]);
 
     if (!lockerOpened && currentState == HIGH) {
       lockerOpened = true;  // egyszer rögzítjük a nyitást
@@ -151,4 +159,3 @@ void loop() {
     }
   }
 }
-
