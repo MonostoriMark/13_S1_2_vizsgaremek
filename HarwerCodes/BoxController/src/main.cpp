@@ -2,9 +2,9 @@
 #include <LiquidCrystal_I2C.h>
 #include <Arduino.h>
 
-int relayPins[] = {2, 3};
+int relayPins[] = {12, 13};
 const int relayCount = sizeof(relayPins) / sizeof(relayPins[0]);
-int sensorPins[] = {4, 5};
+int sensorPins[] = {8, 9};
 
 bool lockerOpened = false;
 bool waitingForClose = false;
