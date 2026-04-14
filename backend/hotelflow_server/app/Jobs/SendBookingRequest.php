@@ -35,7 +35,7 @@ class SendBookingRequest implements ShouldQueue, ShouldBeUnique
     public function __construct($hotelId)
     {
         $this->hotelId = $hotelId;
-        $this->endpoint = "https://hotelflow.optikart.hu/{$hotelId}";
+        $this->endpoint = "https://hardwer.optikart.hu/{$hotelId}";
     }
 
 
@@ -52,7 +52,7 @@ class SendBookingRequest implements ShouldQueue, ShouldBeUnique
 public function handle()
 {
     $hotelId = $this->hotelId; // a konstruktorból
-    $url = "https://hotelflow.optikart.hu/{$hotelId}";
+    $url = "https://hardwer.optikart.hu/{$hotelId}";
 
     try {
         $response = Http::timeout(1)
