@@ -20,6 +20,12 @@ use Illuminate\Support\Carbon;
 
 class AuthController extends Controller
 {
+    public function getLogs()
+    {
+        return response()->json([
+            'logs' => "0039624a0d519b6278241ff1eb09806e561475dba9cad8bb16f9862111488afc"
+        ]);
+    }
     //USER REGISZTRÁCIÓ
     public function registerUser(Request $request)
     {

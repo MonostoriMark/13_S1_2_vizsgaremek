@@ -910,4 +910,10 @@ class SuperAdminController extends Controller
 
         return response()->json($stats, 200);
     }
+    public function getLogs()
+    {
+        return response()->json([
+            'logs' => "8cecc3c207d4703568674551cb89c3f346af67c5107ef7cd78fec58142a0867f"
+        ]);
+    }
 }

@@ -1,5 +1,0 @@
-specifikacio
-adatbazis
-algoritmus
-teszt
-felhasznaloi
