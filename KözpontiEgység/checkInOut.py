@@ -17,8 +17,8 @@ db_config = {
 }
 
 RFID_LOCKER_MAP = {
-    "F4E4C928": (0, 0),
-    "HUUGHU": (0, 1)
+    "B7E5C37A": (0, 0),
+    "59EDC9B0s": (0, 1)
 }
 
 SERIAL_PORT = "/dev/ttyACM0"  # Linux
