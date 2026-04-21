@@ -162,6 +162,7 @@ def check_in_out(auth_token: str, ser):
                 wait_for_locker_closed(ser, locker_id)
             else:
                 display_lcd(ser, "Valami nem működik!")
+                time.sleep(7)
 
         # Backend frissítése
         cursor.execute("SELECT checkInstatus, checkInTime, checkOutTime FROM bookings WHERE id=%s", (booking_id,))
@@ -175,10 +176,13 @@ def check_in_out(auth_token: str, ser):
             cursor.execute("INSERT INTO pending_requests (booking_id, payload) VALUES (%s, %s)", (booking_id, json.dumps(payload)))
         conn.commit()
         display_lcd(ser, "Kellemes időtöltést! :)")
+        time.sleep(7)
 
     except pymysql.MySQLError as e:
         print("Adatbázis hiba:", e)
+        time.sleep(7)
     finally:
+        display_lcd(arduino, "Kérjük olvassa le a QR kódot!")
         if cursor:
             cursor.close()
         if conn:

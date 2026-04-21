@@ -10,7 +10,7 @@ DB_CONFIG = {
 }
 
 def put_request_example(payload, booking_id):
-    url_template = "http://172.16.13.18:8000/api/devices/update-booking/"
+    url_template = "https://hotelflowserv.optikart.hu/api/devices/update-booking/"
     headers = {
         "Accept": "application/json",
         "Authorization": "Bearer 8cecc3c207d4703568674551cb89c3f346af67c5107ef7cd78fec58142a0867f"
