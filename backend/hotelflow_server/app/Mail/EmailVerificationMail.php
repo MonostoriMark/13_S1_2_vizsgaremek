@@ -16,18 +16,17 @@ class EmailVerificationMail extends Mailable
     public $user;
     public $verificationUrl;
 
-    /**
-     * Create a new message instance.
-     */
     public function __construct($user, $verificationUrl)
     {
         $this->user = $user;
-        $this->verificationUrl = $verificationUrl;
+
+        $this->verificationUrl = preg_replace(
+            '#^https?://[^/]+#',
+            'https://hotelflow.optikart.hu',  // ← ide a helyes domain
+            $verificationUrl
+        );
     }
 
-    /**
-     * Get the message envelope.
-     */
     public function envelope(): Envelope
     {
         return new Envelope(
@@ -35,9 +34,6 @@ class EmailVerificationMail extends Mailable
         );
     }
 
-    /**
-     * Get the message content definition.
-     */
     public function content(): Content
     {
         return new Content(
@@ -45,11 +41,6 @@ class EmailVerificationMail extends Mailable
         );
     }
 
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
     public function attachments(): array
     {
         return [];

@@ -16,18 +16,17 @@ class PasswordResetMail extends Mailable
     public $user;
     public $resetUrl;
 
-    /**
-     * Create a new message instance.
-     */
     public function __construct($user, $resetUrl)
     {
         $this->user = $user;
-        $this->resetUrl = $resetUrl;
+
+        $this->resetUrl = preg_replace(
+            '#^https?://[^/]+#',
+            'https://hotelflow.optikart.hu',  // ← ide a helyes domain
+            $resetUrl
+        );
     }
 
-    /**
-     * Get the message envelope.
-     */
     public function envelope(): Envelope
     {
         return new Envelope(
@@ -35,9 +34,6 @@ class PasswordResetMail extends Mailable
         );
     }
 
-    /**
-     * Get the message content definition.
-     */
     public function content(): Content
     {
         return new Content(
@@ -45,11 +41,6 @@ class PasswordResetMail extends Mailable
         );
     }
 
-    /**
-     * Get the attachments for the message.
-     *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
-     */
     public function attachments(): array
     {
         return [];
