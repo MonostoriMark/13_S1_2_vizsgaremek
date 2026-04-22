@@ -30,7 +30,7 @@ bool configSent = false;
 String lastCard = "";
 unsigned long lastPublish = 0;
 
-char room[] = "Room 868";
+char room[] = "Room 101";
 
 // --- ADATKÜLDÉS VEZÉRLÉS ---
 bool waitingForPub = false;       

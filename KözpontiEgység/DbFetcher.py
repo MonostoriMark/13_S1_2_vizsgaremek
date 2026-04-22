@@ -9,10 +9,10 @@ DB_CONFIG = {
     "database": "hotelflowLocal"
 }
 
-API_URL = "http://192.168.1.33:8000/api/devices/bookings/44"
+API_URL = "https://hotelflowserv.optikart.hu/api/devices/bookings/1"
 API_HEADERS = {
     "Accept": "application/json",
-    "Authorization": "Bearer 427d6c60c13b791a4075b6f6bcc454a45f5f21fac9f2e7a679115b21bb810af9"
+    "Authorization": "Bearer ea8d8a4ea3498764427702fff9c9054bd6f946385bc6ac707050e83a4a044511"
 }
 
 async def fetchDb():
